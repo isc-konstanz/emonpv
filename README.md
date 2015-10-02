@@ -5,12 +5,6 @@ The tool will run on Raspberry Pi, an embedded computer dedicated to each househ
 
 For more details about the tool and the necessary configuration, please check the respective [wiki](https://bitbucket.org/cossmic/yieldprediction/wiki/Home). 
 
-### What is this repository for? ###
-
-* Quick summary
-* Version
-* [Learn Markdown](https://bitbucket.org/tutorials/markdowndemo)
-
 ### How do I get set up? ###
 
 A detailed descriptive guide about the **setup** and, **configuration** and **dependencies** can be found in the wiki documentation.
@@ -27,6 +21,5 @@ A detailed descriptive guide about the **setup** and, **configuration** and **de
 Not yet specified.
 
 ### Who do I talk to? ###
-**Ahmed Mahran** (ahmed.mahran@isc-konstanz.de)
-
-**Joachim Glatz-Reichenbach ** (joachim.glatz-reichenbach@isc-konstanz.de)
+* **Ahmed Mahran** (ahmed.mahran@isc-konstanz.de)
+* **Joachim Glatz-Reichenbach ** (joachim.glatz-reichenbach@isc-konstanz.de)
