@@ -7,7 +7,11 @@ For more details about the tool and the necessary configuration, please check th
 
 ### How do I get set up? ###
 
-A detailed descriptive guide about the **setup** and, **configuration** and **dependencies** can be found in the wiki documentation.
+A descriptive guideline about the **setup** and, **configuration** and **dependencies** can be found in the wiki documentation.
+
+The set up process of a whole houshold client system can be followed in the developer-guide [CoSSMic installation](https://bitbucket.org/cossmic/developer-guide/wiki/CoSSMic%20installation) documentation.
+
+More information about the DWD weather prediction configuration will be added later on.
 
 * Summary of set up
 * Configuration
