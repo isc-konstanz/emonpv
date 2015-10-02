@@ -7,7 +7,7 @@ For more details about the tool and the necessary configuration, please check th
 
 ### How do I get set up? ###
 
-A descriptive guideline about the [installation](https://bitbucket.org/cossmic/yieldprediction/wiki/Home#markdown-header-2-installation) and [configuration](https://bitbucket.org/cossmic/yieldprediction/wiki/Home#markdown-header-3-configuration)** can be found in the wiki documentation.
+A descriptive guideline about the [installation](https://bitbucket.org/cossmic/yieldprediction/wiki/Home#markdown-header-2-installation) and [configuration](https://bitbucket.org/cossmic/yieldprediction/wiki/Home#markdown-header-3-configuration) can be found in the wiki documentation.
 
 The set up process of a whole houshold client system can be followed in the developer-guide [CoSSMic installation](https://bitbucket.org/cossmic/developer-guide/wiki/CoSSMic%20installation) documentation.
 
