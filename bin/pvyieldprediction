@@ -1,0 +1,106 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""    
+    Predicts the yield of photovoltaic energy systems by a given solar irradiance forecast
+    
+"""
+import os
+import sys
+import numpy as np
+import pandas as pd
+from configparser import ConfigParser
+from pvprediction import get_yield_prediction
+
+
+def main(args=None):
+    args = get_parser().parse_args()
+    
+    if (args.forecastfile != None):
+        forecastloc = args.forecastfile
+    elif (args.radiationdir != None):
+        forecastloc = args.radiationdir
+    else:
+        here = os.path.abspath(os.path.dirname(__file__))
+        forecastloc = os.path.join(os.path.dirname(here), 'forecast')
+    
+    settings = os.path.join(os.path.dirname(here), 'conf', 'settings.cfg')
+    config = ConfigParser()
+    config.read(settings)
+    if(os.path.isdir(forecastloc)):
+        forecastfile = get_forecastfile(forecastloc, config.get("Location","key"))
+    else:
+        forecastfile = forecastloc
+        
+    forecast_csv = pd.read_csv(forecastfile, 
+                            usecols=['time','aswdifd_s','aswdir_s','t_2m','t_g'], 
+                            index_col='time', parse_dates=['time'])
+    forecast = forecast_csv.ix[:,:'t_2m'].rename(columns = {'aswdir_s':'direct', 'aswdifd_s':'diffuse', 't_2m':'temperature'})
+    
+    yieldprediction = get_yield_prediction(forecast)
+    
+    
+    if (args.outputdir != None):
+        outputdir = args.outputdir
+    else:
+        outputdir = os.path.join(os.path.dirname(here), 'simulation')
+    
+    simulationname = os.path.basename(forecastfile).replace('.csv', '_SimulatedEnergy.csv');
+    simulationfile = os.path.join(outputdir, simulationname)
+    
+    yieldprediction.index = yieldprediction.index.astype(np.int64)//10**9
+    yieldprediction.index.name = 'time'
+    yieldprediction.to_csv(simulationfile, sep=',', encoding='utf-8')
+   
+
+def get_forecastfile(dir, key):
+    forecastfile = None   
+    try:
+        for file in os.listdir(dir):
+            if (key + '_' in file) and (file.endswith('.csv')):
+                if (forecastfile == None) or (file[3:-4] > forecastfile[3:-4]):
+                    forecastfile = file
+    except IOError:
+        print("Error: unable to read irradiance forecast file in \"{}\"".format(dir))
+    else:
+        if(forecastfile == None):
+            raise IOError("Unable to find irradiance forecast files in \"{}\"".format(dir))
+        else:
+            return os.path.join(dir, forecastfile)
+        
+
+def get_parser():
+    from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
+    
+    parser = ArgumentParser(description=__doc__)
+    
+    parser.add_argument('-f','--file', 
+                        dest='forecastfile',
+                        type=lambda x: is_valid_file(parser, x),
+                        help="Location of a solar irradiance forecast csv file to be processed", 
+                        metavar='CSV')
+    parser.add_argument('-d','--dir', 
+                        dest='radiationdir',
+                        help="Directory of solar irradiance forecast csv files, of which the newest one will be processed", 
+                        metavar='DIR')
+    parser.add_argument('-o','--output', 
+                        dest='outputdir',
+                        help="Directory in which successful yield prediction csv files will be placed", 
+                        metavar='DIR')
+    return parser
+
+
+def is_valid_file(parser, arg):
+    """
+        Check if arg is a valid file that already exists on the file
+        system.
+        
+    """
+    arg = path.abspath(arg)
+    if not path.exists(arg):
+        parser.error("The file %s does not exist!" % arg)
+    else:
+        return arg
+
+
+if __name__ == "__main__":
+    main()
