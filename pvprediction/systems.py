@@ -5,12 +5,12 @@
     ~~~~~
     
 """
+import os
 import math
 import numpy as np
 import pandas as pd
 import pvlib as pv
 
-from os import path
 from datetime import timedelta
 
 from configparser import ConfigParser
@@ -20,8 +20,8 @@ import json
 def get_systems(latitude, longitude, timezone):
     systems = {}
     
-    here = path.abspath(path.dirname(__file__))
-    settings = path.join(path.dirname(here), 'conf', 'systems.cfg')
+    here = os.path.abspath(os.path.dirname(__file__))
+    settings = os.path.join(os.path.dirname(here), 'conf', 'systems.cfg')
     config = ConfigParser()
     config.read(settings)
     
@@ -137,13 +137,17 @@ class System:
     
         
     def load_parameters(self, id):
-        here = path.abspath(path.dirname(__file__))
-        paramfile = path.join(here, 'data', id.lower() + '.cfg')
-        if (path.isfile(paramfile)):
+        here = os.path.abspath(os.path.dirname(__file__))
+        datadir = os.path.join(here, "data")
+        if not os.path.exists(datadir):
+            os.makedirs(datadir)
+            
+        paramfile = os.path.join(datadir, id.lower() + '.cfg')
+        if (os.path.isfile(paramfile)):
             paramjson = open(paramfile)
             params = json.load(paramjson)
         else:
-            paramfile_default = path.join(path.dirname(here), 'conf', 'systems_param.cfg')
+            paramfile_default = os.path.join(os.path.dirname(here), 'conf', 'systems_param.cfg')
             config = ConfigParser()
             config.read(paramfile_default)
             
