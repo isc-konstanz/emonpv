@@ -5,11 +5,10 @@
     
 """
 import os
-import sys
 import numpy as np
 import pandas as pd
+import pvprediction as pv
 from configparser import ConfigParser
-from pvprediction import get_yield_prediction
 
 
 def main(args=None):
@@ -17,8 +16,8 @@ def main(args=None):
     
     if (args.forecastfile != None):
         forecastloc = args.forecastfile
-    elif (args.radiationdir != None):
-        forecastloc = args.radiationdir
+    elif (args.forecastdir != None):
+        forecastloc = args.forecastdir
     else:
         here = os.path.abspath(os.path.dirname(__file__))
         forecastloc = os.path.join(os.path.dirname(here), 'forecast')
@@ -36,7 +35,7 @@ def main(args=None):
                             index_col='time', parse_dates=['time'])
     forecast = forecast_csv.ix[:,:'t_2m'].rename(columns = {'aswdir_s':'direct', 'aswdifd_s':'diffuse', 't_2m':'temperature'})
     
-    yieldprediction = get_yield_prediction(forecast)
+    yieldprediction = pv.prediction.energy(forecast)
     
     
     if (args.outputdir != None):
@@ -79,7 +78,7 @@ def get_parser():
                         help="Location of a solar irradiance forecast csv file to be processed", 
                         metavar='CSV')
     parser.add_argument('-d','--dir', 
-                        dest='radiationdir',
+                        dest='forecastdir',
                         help="Directory of solar irradiance forecast csv files, of which the newest one will be processed", 
                         metavar='DIR')
     parser.add_argument('-o','--output', 

@@ -17,7 +17,7 @@ from configparser import ConfigParser
 import json
 
 
-def get_systems(latitude, longitude, timezone):
+def read(latitude, longitude, timezone):
     systems = {}
     
     here = os.path.abspath(os.path.dirname(__file__))
@@ -40,12 +40,12 @@ class System:
         
         self.modules_param = {}
         for (key, value) in parameters.items(id):
-            self.modules_param[key] = self.parse_parameter(value)
+            self.modules_param[key] = self._parse_parameter(value)
         
-        self.system_param = self.load_parameters(id)
+        self.system_param = self._load_parameters(id)
             
     
-    def get_tilted_irradiance(self, forecast):
+    def tilted_irradiance(self, forecast):
         """ 
             Calculates the global irradiance on a tilted surface, consisting out of the sum of
             direct, diffuse and reflected irradiance components.
@@ -53,7 +53,7 @@ class System:
             :param forecast: The solar irradiance forecast on a horizontal surface.
             
         """
-        angles = self.get_solarangles(forecast.index)
+        angles = self.solarangles(forecast.index)
         
         direct = np.abs(forecast['direct']*np.cos(np.deg2rad(angles['incidence']))/np.sin(np.deg2rad(angles['elevation'])))
         
@@ -81,7 +81,7 @@ class System:
         return irradiance
         
     
-    def get_solarangles(self, time):
+    def solarangles(self, time):
         """ 
             Calculates the solar angles of a fixed tilted surface.
         
@@ -136,7 +136,7 @@ class System:
         return angles
     
         
-    def load_parameters(self, id):
+    def _load_parameters(self, id):
         here = os.path.abspath(os.path.dirname(__file__))
         datadir = os.path.join(here, "data")
         if not os.path.exists(datadir):
@@ -153,7 +153,7 @@ class System:
             
             params = {}
             for (key, value) in config.items('Default'):
-                params[key] = self.parse_parameter(value)
+                params[key] = self._parse_parameter(value)
             
             params['eta'] = params['eta_dirt']*params['eta_field']*params['eta_inv']
             with open(paramfile, 'w') as paramjson:
@@ -162,7 +162,7 @@ class System:
         return params
     
     
-    def parse_parameter(self, parameter):
+    def _parse_parameter(self, parameter):
         try:
             return int(parameter)
         except ValueError:

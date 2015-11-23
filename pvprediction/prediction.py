@@ -8,12 +8,11 @@
 import os
 import numpy as np
 import pandas as pd
+from pvprediction import systems
 from configparser import ConfigParser
 
-from pvprediction.systems import get_systems
 
-
-def get_yield_prediction(forecast):
+def energy(forecast):
     """ 
         Calculates the energy yield of a list of configured photovoltaic system installations, 
         given by a solar irradiation forecast.
@@ -22,7 +21,7 @@ def get_yield_prediction(forecast):
         :returns: The systems energy yield.
         
     """
-    prediction = get_power_prediction(forecast)
+    prediction = power(forecast)
     
     yieldprediction = pd.DataFrame(data=np.nan, index=forecast.index, columns=list(prediction.columns))
     i = 0
@@ -36,7 +35,7 @@ def get_yield_prediction(forecast):
     return yieldprediction.rename(columns = {'generation':'yield'})
     
 
-def get_power_prediction(forecast):
+def power(forecast):
     """ 
         Calculates the net output power of a list of configured photovoltaic system installations, 
         given by a solar irradiation forecast.
@@ -51,25 +50,25 @@ def get_power_prediction(forecast):
     config.read(settings)
     
     forecast.index.tz_localize('UTC').tz_convert(config.get('Location','timezone'))
-    systems = get_systems(config.get('Location','latitude'), 
-                          config.get('Location','longitude'), 
-                          config.get('Location','timezone'))
+    systemlist = systems.read(config.get('Location','latitude'), 
+                           config.get('Location','longitude'), 
+                           config.get('Location','timezone'))
     systemids = ['generation']
-    if (len(systems.keys()) > 1):
-        for id in systems.keys():
+    if (len(systemlist.keys()) > 1):
+        for id in systemlist.keys():
             systemids.append(id.lower())
     generation = pd.DataFrame(np.nan, forecast.index, columns=systemids)
     
-    for id, system in systems.items():
-        generation[id.lower()] = get_prediction(system, forecast)
+    for id, sys in systemlist.items():
+        generation[id.lower()] = systempower(sys, forecast)
     
-    if (len(systems.keys()) > 1):
+    if (len(systemlist.keys()) > 1):
         generation['generation'] = generation[systemids[1:]].sum(axis=1)
         
     return generation
 
 
-def get_prediction(system, forecast):
+def systempower(system, forecast):
     """ 
         Calculates the net output power of one specified photovoltaic system installation, 
         given by a solar irradiation forecast, including various loss schemes.
@@ -80,7 +79,7 @@ def get_prediction(system, forecast):
         
     """
     irr_forecast = forecast.ix[:,:'direct']
-    irradiance = system.get_tilted_irradiance(irr_forecast)
+    irradiance = system.tilted_irradiance(irr_forecast)
     
     
     u_mpp = (system.modules_param['u_mpp0']*np.log(irradiance['global'])/np.log(system.system_param['irr_ref'])).replace([np.inf, -np.inf], 0)
