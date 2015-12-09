@@ -1,17 +1,19 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """    
-    Predicts the yield of photovoltaic energy systems by a given solar irradiance forecast
+    Optimises the prediction parameters of a photovoltaic energy systems, according to solar irradiance forecasts
     
 """
 import os
 import numpy as np
 import pandas as pd
 import pvprediction as pv
+from pvprediction import Emoncms
 from configparser import ConfigParser
 
 
 def main(args=None):
+    here = os.path.abspath(os.path.dirname(__file__))
     args = get_parser().parse_args()
     
     if (args.forecastfile != None):
@@ -36,22 +38,50 @@ def main(args=None):
     forecast = forecast_csv.ix[:,:'t_2m'].rename(columns = {'aswdir_s':'direct', 'aswdifd_s':'diffuse', 't_2m':'temperature'})
     forecast.index.tz_localize('UTC').tz_convert(settings.get('Location','timezone'))
     
-    yieldprediction = pv.prediction.energy(forecast)
+    
+    emoncms = Emoncms(settings.get("Emoncms","URL"), settings.get("Emoncms","APIkey"))
     
     
-    if (args.outputdir != None):
-        outputdir = args.outputdir
-    else:
-        outputdir = os.path.join(os.path.dirname(here), 'simulation')
+    systemlist = pv.systems.read(settings.get('Location','latitude'), 
+                              settings.get('Location','longitude'), 
+                              settings.get('Location','timezone'))
+        
+    for id, sys in systemlist.items():
+        # Bad style of hardcoded 3min feed interval. Needs to be redone
+        timestamps = forecast.index.astype(np.int64)//10**6
+        interval = 3*60*1000
+        # Offset start and end by 3min, to compensate possible emoncms time offsets
+        step = timestamps[1] -  timestamps[0]
+        start = timestamps[0] - step
+        end = timestamps[-1] + step
+        datapoints = int((end - start)/interval)
+        
+        measurements = emoncms.feed(id.lower() + '_out_power', start, end, datapoints)
+        measurements = measurements.ix[start:end]
+        measurements.index = pd.to_datetime(measurements.index,unit='ms')
+        measurements.index.tz_localize('UTC').tz_convert(settings.get('Location','timezone'))
+        
+        # Average +/- 30min, to get hourly reference values
+        reference = pd.Series(np.nan, index=forecast.index, name='reference')
+        for time in forecast.index:
+            start = time + pd.DateOffset(minutes=-30)
+            end = time + pd.DateOffset(minutes=30)
+            test = measurements.ix[start:end].values
+            reference.ix[time] = test.mean()
+        
+        estimate = pv.optimisation.systemsparam(sys, forecast, reference)
+        
+        result = pd.concat([measurements, reference, estimate], axis=1)
+        
+        if (args.outputdir != None):
+            outputdir = args.outputdir
+            
+            simulationname = os.path.basename(forecastfile).replace('.csv', '_Optimisation_') + id + '.csv';
+            simulationfile = os.path.join(outputdir, simulationname)
+            
+            result.to_csv(simulationfile, sep=',', encoding='utf-8')
     
-    simulationname = os.path.basename(forecastfile).replace('.csv', '_SimulatedEnergy.csv');
-    simulationfile = os.path.join(outputdir, simulationname)
     
-    yieldprediction.index = yieldprediction.index.astype(np.int64)//10**6
-    yieldprediction.index.name = 'time'
-    yieldprediction.to_csv(simulationfile, sep=',', encoding='utf-8')
-   
-
 def get_forecastfile(dir, key):
     forecastfile = None   
     try:
@@ -84,7 +114,7 @@ def get_parser():
                         metavar='DIR')
     parser.add_argument('-o','--output', 
                         dest='outputdir',
-                        help="Directory in which successful yield prediction csv files will be placed", 
+                        help="Directory in which optimisation detail csv files will be placed", 
                         metavar='DIR')
     return parser
 

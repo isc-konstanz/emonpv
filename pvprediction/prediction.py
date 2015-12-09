@@ -49,7 +49,6 @@ def power(forecast):
     config = ConfigParser()
     config.read(settings)
     
-    forecast.index.tz_localize('UTC').tz_convert(config.get('Location','timezone'))
     systemlist = systems.read(config.get('Location','latitude'), 
                            config.get('Location','longitude'), 
                            config.get('Location','timezone'))
@@ -84,13 +83,13 @@ def systempower(system, forecast):
     
     u_mpp = (system.modules_param['u_mpp0']*np.log(irradiance['global'])/np.log(system.system_param['irr_ref'])).replace([np.inf, -np.inf], 0)
     i_mpp = (system.modules_param['i_mpp0']*irradiance['global']/system.system_param['irr_ref']).replace([np.inf, -np.inf], 0)
-
+    
     # Convert the ambient temperature from Kelvin to Celsius and calculate the module temperature
     temp_ambient = forecast['temperature'] - 273.15
     temp_module = temp_ambient + irradiance['global']*system.system_param['heatup_coeff']    
     
     #module_area = system.modules_param['width']*system.modules_param['height']
-    p_mpp = u_mpp*i_mpp*(1 + system.modules_param['temp_coeff']*(temp_module - system.system_param['temp_ref']))
+    p_mpp = u_mpp*i_mpp*(1 + system.modules_param['temp_coeff']/100*(temp_module - system.system_param['temp_ref']))
     p_sys = p_mpp*system.modules_param['rows']*system.modules_param['nrow']*system.system_param['eta']
     
     return pd.DataFrame(p_sys, forecast.index, columns=['power'])

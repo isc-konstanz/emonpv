@@ -49,16 +49,16 @@ class System:
         """ 
             Calculates the global irradiance on a tilted surface, consisting out of the sum of
             direct, diffuse and reflected irradiance components.
-        
+            
             :param forecast: The solar irradiance forecast on a horizontal surface.
             
         """
         angles = self.solarangles(forecast.index)
-        
-        direct = np.abs(forecast['direct']*np.cos(np.deg2rad(angles['incidence']))/np.sin(np.deg2rad(angles['elevation'])))
-        
-        
         beam = np.abs(forecast['direct']/np.sin(np.deg2rad(angles['elevation'])))
+        
+        direct = np.abs(forecast['direct']*np.cos(np.deg2rad(angles['incidence'])))
+        
+        
         extra = pv.irradiance.extraradiation(forecast.index, self.system_param['solar_const'])
         airmass = pv.atmosphere.relativeairmass(angles['zenith'])
         diffuse = np.abs(pv.irradiance.perez(self.modules_param['tilt'], self.modules_param['orientation'], 
@@ -110,7 +110,7 @@ class System:
             rad_hour = math.radians(15*(time_solar - 12))
             rad_latitude = math.radians(float(self.location.latitude))
             
-            rad_declination = math.radians(23.45*np.sin((np.deg2rad(360*(284+day_of_year)/365))))
+            rad_declination = math.radians(23.45*math.sin((math.degrees(360*(284+day_of_year)/365))))
             rad_elevation = math.asin(math.sin(rad_latitude)*math.sin(rad_declination) 
                                         + (math.cos(rad_latitude)*math.cos(rad_declination)*math.cos(rad_hour)))
             
@@ -119,7 +119,7 @@ class System:
             else:
                 rad_azimuth = math.pi - math.asin(-1*math.cos(rad_declination)*math.sin(rad_hour)/math.cos(rad_elevation))
                 
-            if rad_azimuth > (2*math.pi):
+            while rad_azimuth > (2*math.pi):
                 rad_azimuth -= 2*math.pi
             
             rad_tilt = math.radians(self.modules_param['tilt'])
