@@ -152,7 +152,7 @@ for i in range(1,366):  #i = doy
         if az > (2 * m.pi):
             az = az - 2 * m.pi
         for i in range(sys_no):
-            Theta = np.append(Theta, pd.Series([m.degrees(m.acos(m.sin(ele)*m.cos(tilt[i]) + m.cos(ele)*m.sin(tilt[i])*m.cos(panaz[i] + az)))]))
+            Theta = np.append(Theta, pd.Series([m.degrees(m.acos(m.sin(ele)*m.cos(tilt[i]) + m.cos(ele)*m.sin(tilt[i])*m.cos(panaz[i] - az)))]))
                
         Az = np.append(Az, m.degrees(az)) #deg
         
@@ -244,14 +244,14 @@ if sys_no >= 2:
     Umpp = Umpp0[i] * np.log(gti[:,i]) / np.log(gti0)
     Impp = Impp0[i] * gti[:,i]/gti0
     Tpan = Tamb + gti[:,i]*Hco[i]              #panel temperature
-    Pmpp = nser[i] * npar[i] * Umpp * Impp * (1 + Tco_mpp[i]*(Tpan - Tamb)) 
+    Pmpp = nser[i] * npar[i] * Umpp * Impp * (1 + Tco_mpp[i]*(Tpan - Tref)) 
     Psys = Pmpp * eta_dirt[i] * eta_field[i] * eta_inv[i]        #Watt
     
     for i in range(1,sys_no):
         Umpp = Umpp0[i] * np.log(gti[:,i]) / np.log(gti0)
         Impp = Impp0[i] * gti[:,i]/gti0
         Tpan = Tamb + gti[:,i]*Hco[i]
-        Pmpp = nser[i] * npar[i] * Umpp * Impp * (1 + Tco_mpp[i]*(Tpan - Tamb)) 
+        Pmpp = nser[i] * npar[i] * Umpp * Impp * (1 + Tco_mpp[i]*(Tpan - Tref)) 
         Psys = np.vstack((Psys, Pmpp * eta_dirt[i] * eta_field[i] * eta_inv[i]))    #Watt
     Psys = Psys.T    
     Psys = np.nan_to_num(Psys)
@@ -281,7 +281,7 @@ else:
     Umpp = Umpp0 * np.log(gti) / np.log(gti0)
     Impp = Impp0 * gti/gti0
     Tpan = Tamb + gti*Hco               #panel temperature
-    Pmpp = nser * npar * Umpp * Impp * (1 + Tco_mpp*(Tpan - Tamb)) 
+    Pmpp = nser * npar * Umpp * Impp * (1 + Tco_mpp*(Tpan - Tref)) 
     Psys = Pmpp * eta_dirt * eta_field * eta_inv        #Watt
     Psys = np.nan_to_num(Psys)
     
