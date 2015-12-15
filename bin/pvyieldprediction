@@ -34,9 +34,9 @@ def main(args=None):
                             usecols=['time','aswdifd_s','aswdir_s','t_2m','t_g'], 
                             index_col='time', parse_dates=['time'])
     forecast = forecast_csv.ix[:,:'t_2m'].rename(columns = {'aswdir_s':'direct', 'aswdifd_s':'diffuse', 't_2m':'temperature'})
-    forecast.index.tz_localize('UTC').tz_convert(settings.get('Location','timezone'))
+    forecast.index = forecast.index.tz_localize('UTC').tz_convert(settings.get('Location','timezone'))
     
-    yieldprediction = pv.prediction.energy(forecast)
+    yieldprediction = pv.predict.energy(forecast)
     
     
     if (args.outputdir != None):
@@ -48,7 +48,6 @@ def main(args=None):
     simulationfile = os.path.join(outputdir, simulationname)
     
     yieldprediction.index = yieldprediction.index.astype(np.int64)//10**6
-    yieldprediction.index.name = 'time'
     yieldprediction.to_csv(simulationfile, sep=',', encoding='utf-8')
    
 

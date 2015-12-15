@@ -8,7 +8,6 @@
 import os
 import numpy as np
 import pandas as pd
-from pvprediction import systems
 from configparser import ConfigParser
 
 
@@ -45,13 +44,14 @@ def power(forecast):
         
     """
     here = os.path.abspath(os.path.dirname(__file__))
-    settings = os.path.join(os.path.dirname(here), 'conf', 'settings.cfg')
-    config = ConfigParser()
-    config.read(settings)
+    settingsfile = os.path.join(os.path.dirname(here), 'conf', 'settings.cfg')
+    settings = ConfigParser()
+    settings.read(settingsfile)
     
-    systemlist = systems.read(config.get('Location','latitude'), 
-                           config.get('Location','longitude'), 
-                           config.get('Location','timezone'))
+    systemlist = systems.read(float(settings.get('Location','latitude')), 
+                              float(settings.get('Location','longitude')), 
+                              float(settings.get('Location','altitude')),
+                              str(settings.get('Location','timezone')))
     systemids = ['generation']
     if (len(systemlist.keys()) > 1):
         for id in systemlist.keys():
@@ -78,18 +78,25 @@ def systempower(system, forecast):
         
     """
     irr_forecast = forecast.ix[:,:'direct']
-    irradiance = system.tilted_irradiance(irr_forecast)
-    
-    
-    u_mpp = (system.modules_param['u_mpp0']*np.log(irradiance['global'])/np.log(system.system_param['irr_ref'])).replace([np.inf, -np.inf], 0)
-    i_mpp = (system.modules_param['i_mpp0']*irradiance['global']/system.system_param['irr_ref']).replace([np.inf, -np.inf], 0)
+    irradiation = system.irradiation(irr_forecast)
     
     # Convert the ambient temperature from Kelvin to Celsius and calculate the module temperature
     temp_ambient = forecast['temperature'] - 273.15
-    temp_module = temp_ambient + irradiance['global']*system.system_param['heatup_coeff']    
+    temp_module = temp_ambient + (system.modules_param['noct'] - 20)/(0.8*system.system_param['irr_ref'])*irradiation
     
-    #module_area = system.modules_param['width']*system.modules_param['height']
-    p_mpp = u_mpp*i_mpp*(1 + system.modules_param['temp_coeff']/100*(temp_module - system.system_param['temp_ref']))
-    p_sys = p_mpp*system.modules_param['rows']*system.modules_param['nrow']*system.system_param['eta']
+    p = system.modules_param['p_mpp']*irradiation/system.system_param['irr_ref']*(1 + system.modules_param['temp_coeff']/100*(temp_module - system.system_param['temp_ref']))
+    p_sys = p*system.modules_param['n']*system.system_param['eta']
+        
+#     u_mpp = abs(system.modules_param['u_mpp0']*np.log(irradiation)/np.log(system.system_param['irr_ref'])).replace(np.inf, 0)
+#     i_mpp = abs(system.modules_param['i_mpp0']*irradiation/system.system_param['irr_ref']).replace(np.inf, 0)
+#     
+#     # Convert the ambient temperature from Kelvin to Celsius and calculate the module temperature
+#     temp_ambient = forecast['temperature'] - 273.15
+#     temp_module = temp_ambient + irradiation*system.system_param['heatup_coeff']
+#     
+#     #module_area = system.modules_param['width']*system.modules_param['height']
+#     p_mpp = u_mpp*i_mpp*(1 + system.modules_param['temp_coeff']/100*(temp_module - system.system_param['temp_ref']))
+#     p_sys = p_mpp*system.modules_param['rows']*system.modules_param['nrow']*system.system_param['eta']
     
-    return pd.DataFrame(p_sys, forecast.index, columns=['power'])
+    return pd.Series(p_sys, forecast.index, name='power')
+

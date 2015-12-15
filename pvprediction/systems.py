@@ -11,13 +11,13 @@ import numpy as np
 import pandas as pd
 import pvlib as pv
 
-from datetime import timedelta
+import datetime
 
 from configparser import ConfigParser
 import json
 
 
-def read(latitude, longitude, timezone):
+def read(latitude, longitude, altitude, timezone):
     systems = {}
     
     here = os.path.abspath(os.path.dirname(__file__))
@@ -25,7 +25,7 @@ def read(latitude, longitude, timezone):
     config = ConfigParser()
     config.read(settings)
     
-    loc = pv.location.Location(latitude, longitude, timezone)
+    loc = pv.location.Location(latitude, longitude, timezone, altitude)
     for section in config.sections():
         system = System(loc, section, config)
         systems[section] = system
@@ -45,119 +45,112 @@ class System:
         self.system_param = self._load_parameters(id)
             
     
-    def tilted_irradiance(self, forecast):
+    def irradiation(self, forecast):
         """ 
-            Calculates the global irradiance on a tilted surface, consisting out of the sum of
+            Calculates the global irradiation on a tilted surface, consisting out of the sum of
             direct, diffuse and reflected irradiance components.
             
-            :param forecast: The solar irradiance forecast on a horizontal surface.
+            :param forecast: The solar irradiation forecast on a horizontal surface.
             
         """
-        angles = self.solarangles(forecast.index)
-        beam = np.abs(forecast['direct']/np.sin(np.deg2rad(angles['elevation'])))
+        pressure = pv.atmosphere.alt2pres(self.location.altitude)
         
-        direct = np.abs(forecast['direct']*np.cos(np.deg2rad(angles['incidence'])))
+        # Get the solar angles, determining the suns irradiation on a surface by an implementation of the NREL SPA algorithm
+        angles = self._mean_solarangles(forecast.index, pressure)
         
+        # Prevent sign errors and determine global and direct normal irradiance as defined by Quaschning
+        forecast = np.absolute(forecast)
+        forecast['normal'] = forecast['direct']*(1/np.sin(np.deg2rad(angles['elevation']))).fillna(0)
+        forecast['global'] = forecast['direct'] + forecast['diffuse']
         
-        extra = pv.irradiance.extraradiation(forecast.index, self.system_param['solar_const'])
-        airmass = pv.atmosphere.relativeairmass(angles['zenith'])
-        diffuse = np.abs(pv.irradiance.perez(self.modules_param['tilt'], self.modules_param['orientation'], 
-                                      forecast['diffuse'], beam, extra,
-                                      angles['zenith'], angles['azimuth'], airmass))
-        
-        
-        reflected = (forecast['direct'] + forecast['diffuse'])*self.system_param['albedo']*(1 - np.cos(self.modules_param['tilt']))/2
+        direct = forecast['normal']*(np.cos(np.deg2rad(angles['incidence']))).fillna(0)
         
         
-        # Replace values smaller than specific threshold
+        # Determine extraterrestrial radiation and airmass
+        extra = pv.irradiance.extraradiation(forecast.index)
+        airmass_rel = pv.atmosphere.relativeairmass(angles['apparent_zenith'])
+        airmass = pv.atmosphere.absoluteairmass(airmass_rel, pressure)
+        
+        diffuse = pv.irradiance.perez(surface_tilt=self.modules_param['tilt'], surface_azimuth=self.modules_param['azimuth'], 
+                                      solar_zenith=angles['apparent_zenith'], solar_azimuth=angles['azimuth'], 
+                                      dhi=forecast['diffuse'], dni=forecast['normal'], dni_extra=extra, 
+                                      airmass=airmass)
+        
+        reflected = pv.irradiance.grounddiffuse(surface_tilt=self.modules_param['tilt'], 
+                                                ghi=forecast['global'], 
+                                                albedo=self.modules_param['albedo'])
+        
+        # Calculate the total irradiation, using the perez model
+#         irradation = pv.irradiance.total_irrad(surface_tilt=self.modules_param['tilt'], surface_azimuth=self.modules_param['azimuth'], 
+#                                                solar_zenith=angles['apparent_zenith'], solar_azimuth=angles['azimuth'], 
+#                                                dni=forecast['normal'], ghi=forecast['global'], dhi=forecast['diffuse'], 
+#                                                dni_extra=extra, airmass=airmass, 
+#                                                surface_type=self.modules_param['albedo'], 
+#                                                model='perez')
+        
+        
+        # Calculate total irradiation and replace values smaller than specific threshold
         # Check if still necessary, for better forecasts
-        direct.loc[direct < 0.9] = 0
-        diffuse.loc[direct < 0.9] = 0
-        reflected.loc[direct < 0.9] = 0
+        total = direct + diffuse.fillna(0) + reflected
+        total.loc[total < 0.01] = 0
         
-        irradiance = pd.concat([direct, diffuse, reflected], axis=1, keys=['direct','diffuse','reflected']).fillna(0)
-        
-        irradiance['global'] = irradiance.sum(axis=1)
-        return irradiance
-        
+        return pd.Series(total.fillna(0), index=forecast.index, name='irradiation')
     
-    def solarangles(self, time):
-        """ 
-            Calculates the solar angles of a fixed tilted surface.
-        
-            :param time: The specific times, the angles should be calculated for.
-            
-        """
-        angles = pd.DataFrame(data=np.nan, index=time, columns=['incidence', 'elevation', 'zenith', 'azimuth'])
-        for t, row in angles.iterrows():
-            day_of_year = t.timetuple().tm_yday
-        
-            # Calculate the equation of time in minutes, representing the difference between 
-            # the fixed mean and the changing apparent solar times.
-            b = math.radians((day_of_year - 1)*(360./365))
-            time_equation = (180*4/math.pi)*(75*10**-6 
-                                             + 1.868*10**-3*math.cos(b) 
-                                             - 32.077*10**-3*math.sin(b) 
-                                             - 14.615*10**-3*math.cos(2*b) 
-                                             - 40.9*10**-3*math.sin(2*b))
-            
-            time_solar = t.hour + time_equation/60 - (15 - float(self.location.longitude))/15
-            
-            # Day light saving e.g. between 27. Mar, 02:00 and 30. Oct, 03:00 in central europe
-            if (t.dst() != timedelta(0)):
-                time_solar -= 1
-            
-            rad_hour = math.radians(15*(time_solar - 12))
-            rad_latitude = math.radians(float(self.location.latitude))
-            
-            rad_declination = math.radians(23.45*math.sin((math.degrees(360*(284+day_of_year)/365))))
-            rad_elevation = math.asin(math.sin(rad_latitude)*math.sin(rad_declination) 
-                                        + (math.cos(rad_latitude)*math.cos(rad_declination)*math.cos(rad_hour)))
-            
-            if math.cos(rad_hour) < (math.tan(rad_declination)/math.tan(rad_latitude)):
-                rad_azimuth = 2*math.pi + math.asin(-1*math.cos(rad_declination)*math.sin(rad_hour)/math.cos(rad_elevation))
-            else:
-                rad_azimuth = math.pi - math.asin(-1*math.cos(rad_declination)*math.sin(rad_hour)/math.cos(rad_elevation))
-                
-            while rad_azimuth > (2*math.pi):
-                rad_azimuth -= 2*math.pi
-            
-            rad_tilt = math.radians(self.modules_param['tilt'])
-            rad_orientation = math.radians(self.modules_param['orientation'])
-            
-            rad_incidence = math.acos(math.sin(rad_elevation)*math.cos(rad_tilt) 
-                                        + math.cos(rad_elevation)*math.sin(rad_tilt)*math.cos(rad_orientation - rad_azimuth))
-        
-            row.incidence = math.degrees(rad_incidence)
-            row.elevation = math.degrees(rad_elevation)
-            row.zenith = math.degrees(math.pi/2 - rad_elevation)
-            row.azimuth = math.degrees(rad_azimuth)
-            
-        return angles
     
+    def _mean_solarangles(self, range, pressure):
+        pd.options.mode.chained_assignment = None  # default='warn'
         
+        start = range[0] + pd.DateOffset(minutes=-30)
+        end = range[-1] + pd.DateOffset(minutes=30)
+        timestamps = pd.date_range(start, end, freq='min')
+        solarposition = pv.solarposition.get_solarposition(timestamps, self.location, pressure=pressure)
+        solarposition['incidence'] = pv.irradiance.aoi(self.modules_param['tilt'], self.modules_param['azimuth'], 
+                                                        solarposition['zenith'], solarposition['azimuth'])
+        
+        # Average +/- 30min, to get hourly reference values
+        avg = pd.DataFrame(np.nan, index=range, columns=solarposition.columns)
+        for time in avg.index:
+            start = time + pd.DateOffset(minutes=-30)
+            end = time + pd.DateOffset(minutes=30)
+            data = solarposition.ix[start:end]
+            
+            # Discard elevation and incidence values lower than 0, to avoid ignoring the sunrise on the surface
+            data.loc[data['apparent_elevation'] < 0, 'apparent_elevation'] = np.nan
+            data.loc[data['elevation'] < 0, 'elevation'] = np.nan
+            data.loc[data['incidence'] > 90, 'incidence'] = np.nan
+            
+            avg.ix[time] = data.mean()
+    
+        return avg
+    
+    
     def _load_parameters(self, id):
         here = os.path.abspath(os.path.dirname(__file__))
+        paramfile_default = os.path.join(os.path.dirname(here), 'conf', 'systems_param.cfg')
+        config = ConfigParser()
+        config.read(paramfile_default)
+        
+        params = {}
+        for (key, value) in config.items('Default'):
+            params[key] = self._parse_parameter(value)
+        
+        
         datadir = os.path.join(here, "data")
         if not os.path.exists(datadir):
             os.makedirs(datadir)
-            
+        
         paramfile = os.path.join(datadir, id.lower() + '.cfg')
         if (os.path.isfile(paramfile)):
             paramjson = open(paramfile)
-            params = json.load(paramjson)
+            params_var = json.load(paramjson)
+            params.update(params_var)
         else:
-            paramfile_default = os.path.join(os.path.dirname(here), 'conf', 'systems_param.cfg')
-            config = ConfigParser()
-            config.read(paramfile_default)
+            params_var = {}
+            params_var['eta'] = params['eta']
+            params.update(params_var)
             
-            params = {}
-            for (key, value) in config.items('Default'):
-                params[key] = self._parse_parameter(value)
-            
-            params['eta'] = params['eta_dirt']*params['eta_field']*params['eta_inv']
             with open(paramfile, 'w') as paramjson:
-                json.dump(params, paramjson)
+                json.dump(params_var, paramjson)
             
         return params
     

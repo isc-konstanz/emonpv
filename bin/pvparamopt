@@ -8,7 +8,6 @@ import os
 import numpy as np
 import pandas as pd
 import pvprediction as pv
-from pvprediction import Emoncms
 from configparser import ConfigParser
 
 
@@ -31,47 +30,23 @@ def main(args=None):
         forecastfile = get_forecastfile(forecastloc, settings.get("Location","key"))
     else:
         forecastfile = forecastloc
-        
+    
     forecast_csv = pd.read_csv(forecastfile, 
                             usecols=['time','aswdifd_s','aswdir_s','t_2m','t_g'], 
                             index_col='time', parse_dates=['time'])
     forecast = forecast_csv.ix[:,:'t_2m'].rename(columns = {'aswdir_s':'direct', 'aswdifd_s':'diffuse', 't_2m':'temperature'})
-    forecast.index.tz_localize('UTC').tz_convert(settings.get('Location','timezone'))
+    forecast.index = forecast.index.tz_localize('UTC').tz_convert(settings.get('Location','timezone'))
     
     
-    emoncms = Emoncms(settings.get("Emoncms","URL"), settings.get("Emoncms","APIkey"))
+    systemlist = pv.systems.read(float(settings.get('Location','latitude')), 
+                                 float(settings.get('Location','longitude')), 
+                                 float(settings.get('Location','altitude')),
+                                 str(settings.get('Location','timezone')))
     
-    
-    systemlist = pv.systems.read(settings.get('Location','latitude'), 
-                              settings.get('Location','longitude'), 
-                              settings.get('Location','timezone'))
-        
     for id, sys in systemlist.items():
-        # Bad style of hardcoded 3min feed interval. Needs to be redone
-        timestamps = forecast.index.astype(np.int64)//10**6
-        interval = 3*60*1000
-        # Offset start and end by 3min, to compensate possible emoncms time offsets
-        step = timestamps[1] -  timestamps[0]
-        start = timestamps[0] - step
-        end = timestamps[-1] + step
-        datapoints = int((end - start)/interval)
-        
-        measurements = emoncms.feed(id.lower() + '_out_power', start, end, datapoints)
-        measurements = measurements.ix[start:end]
-        measurements.index = pd.to_datetime(measurements.index,unit='ms')
-        measurements.index.tz_localize('UTC').tz_convert(settings.get('Location','timezone'))
-        
-        # Average +/- 30min, to get hourly reference values
-        reference = pd.Series(np.nan, index=forecast.index, name='reference')
-        for time in forecast.index:
-            start = time + pd.DateOffset(minutes=-30)
-            end = time + pd.DateOffset(minutes=30)
-            test = measurements.ix[start:end].values
-            reference.ix[time] = test.mean()
-        
-        estimate = pv.optimisation.systemsparam(sys, forecast, reference)
-        
-        result = pd.concat([measurements, reference, estimate], axis=1)
+        result = pv.optimise.parameters(sys, forecast)
+        result = result.drop(result.columns[0], axis=1)
+        result = result.dropna()
         
         if (args.outputdir != None):
             outputdir = args.outputdir
