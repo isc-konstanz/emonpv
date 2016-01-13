@@ -5,13 +5,14 @@
     
 """
 
-__version__ = '0.0.0.dev1'
+__version__ = '0.0.1'
 
 import logging
-logging.basicConfig()
+logging.basicConfig(level=logging.INFO)
 
 from . import predict
-from . import optimise
+from . import optimize
 from . import systems
+from . import forecast
 
 from .emoncms import Emoncms

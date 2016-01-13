@@ -25,8 +25,18 @@ class Emoncms:
         self.apikey = apikey
             
     
-    def feed(self, name, start, end, datapoints):
-        id = requests.get(self.url + 'feed/getid.json?', params={'apikey': self.apikey, 'name': name})
+    def feed(self, name, times, timezone):
+        id = requests.get(self.url + 'feed/getid.json?', params={'apikey': self.apikey, 'name': name.lower() + '_out_power'})
+        
+        # Offset end timestamp by one hour for averaging purposes
+        timestamps = times.tz_convert('UTC').astype(np.int64)//10**6
+        step = 59*60*1000
+        start = timestamps[0]
+        end = timestamps[-1] + step
+        
+        # Bad style of hardcoded 3min feed interval. Needs to be redone
+        interval = 3*60*1000
+        datapoints = int((end - start)/interval)
         
         params = {'apikey': self.apikey, 
                   'id': id.text.replace('"', ''), 
@@ -37,8 +47,15 @@ class Emoncms:
         resp = requests.get(self.url + 'feed/data.json?', params=params)
         
         datastr = resp.text
-        datalist = eval(datastr)
-        data = np.array(datalist)
+        dataarr = np.array(eval(datastr))
+        data = pd.Series(data=dataarr[:,1], index=dataarr[:,0], name='data')
         
-        return pd.Series(data=data[:,1], index=data[:,0], name=name)
+        data = data.ix[start:end]
+        data.index = pd.to_datetime(data.index,unit='ms')
+        data.index = data.index.tz_localize('UTC').tz_convert(timezone)
+        data.index.name = 'time'
+        
+        hourly = pd.Series(data.resample('1h', how='mean'), name='hourly')
+        
+        return hourly, data
     

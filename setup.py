@@ -43,6 +43,7 @@ setup(
     
     install_requires=['numpy >= 1.8.2',
                       'pandas >= 0.13.1',
+                      'cvxopt >= 1.1.7',
                       'pvlib >= 0.2.2'],
     
     scripts=[path.join(here, 'bin/', 'pvyieldprediction')],

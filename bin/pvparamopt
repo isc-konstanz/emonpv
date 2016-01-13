@@ -4,108 +4,101 @@
     Optimises the prediction parameters of a photovoltaic energy systems, according to solar irradiance forecasts
     
 """
+import logging
+logger = logging.getLogger('pvprediction')
+
 import os
 import numpy as np
 import pandas as pd
 import pvprediction as pv
+from pvprediction import tools
+from pvprediction import Emoncms
+
 from configparser import ConfigParser
 
 
 def main(args=None):
     here = os.path.abspath(os.path.dirname(__file__))
-    args = get_parser().parse_args()
+    args = tools.get_parser().parse_args()
     
-    if (args.forecastfile != None):
-        forecastloc = args.forecastfile
-    elif (args.forecastdir != None):
-        forecastloc = args.forecastdir
+    forecastfile = args.forecastfile
+    if (args.forecastdir != None):
+        forecastdir = args.forecastdir
     else:
-        here = os.path.abspath(os.path.dirname(__file__))
-        forecastloc = os.path.join(os.path.dirname(here), 'forecast')
+        forecastdir = os.path.join(os.path.dirname(here), 'forecast')
     
     settingsfile = os.path.join(os.path.dirname(here), 'conf', 'settings.cfg')
     settings = ConfigParser()
     settings.read(settingsfile)
-    if(os.path.isdir(forecastloc)):
-        forecastfile = get_forecastfile(forecastloc, settings.get("Location","key"))
-    else:
-        forecastfile = forecastloc
     
-    forecast_csv = pd.read_csv(forecastfile, 
-                            usecols=['time','aswdifd_s','aswdir_s','t_2m','t_g'], 
-                            index_col='time', parse_dates=['time'])
-    forecast = forecast_csv.ix[:,:'t_2m'].rename(columns = {'aswdir_s':'direct', 'aswdifd_s':'diffuse', 't_2m':'temperature'})
-    forecast.index = forecast.index.tz_localize('UTC').tz_convert(settings.get('Location','timezone'))
     
+    optimize = args.optimize == None or args.optimize.lower() != 'false'
+    
+    emoncms = Emoncms(settings.get("Emoncms","URL"), settings.get("Emoncms","APIkey"))
     
     systemlist = pv.systems.read(float(settings.get('Location','latitude')), 
                                  float(settings.get('Location','longitude')), 
                                  float(settings.get('Location','altitude')),
                                  str(settings.get('Location','timezone')))
     
-    for id, sys in systemlist.items():
-        result = pv.optimise.parameters(sys, forecast)
-        result = result.drop(result.columns[0], axis=1)
-        result = result.dropna()
-        
-        if (args.outputdir != None):
-            outputdir = args.outputdir
-            
-            simulationname = os.path.basename(forecastfile).replace('.csv', '_Optimisation_') + id + '.csv';
-            simulationfile = os.path.join(outputdir, simulationname)
-            
-            result.to_csv(simulationfile, sep=',', encoding='utf-8')
     
-    
-def get_forecastfile(dir, key):
-    forecastfile = None   
-    try:
-        for file in os.listdir(dir):
-            if (key + '_' in file) and (file.endswith('.csv')):
-                if (forecastfile == None) or (file[3:-4] > forecastfile[3:-4]):
-                    forecastfile = file
-    except IOError:
-        print("Error: unable to read irradiance forecast file in \"{}\"".format(dir))
+    if(forecastfile == None):
+        forecast = pv.forecast.latest(forecastdir, settings.get("Location","key"), settings.get('Location','timezone'))
     else:
-        if(forecastfile == None):
-            raise IOError("Unable to find irradiance forecast files in \"{}\"".format(dir))
-        else:
-            return os.path.join(dir, forecastfile)
+        forecast = pv.forecast.read(forecastfile, settings.get('Location','timezone'))
         
-
-def get_parser():
-    from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
-    
-    parser = ArgumentParser(description=__doc__)
-    
-    parser.add_argument('-f','--file', 
-                        dest='forecastfile',
-                        type=lambda x: is_valid_file(parser, x),
-                        help="Location of a solar irradiance forecast csv file to be processed", 
-                        metavar='CSV')
-    parser.add_argument('-d','--dir', 
-                        dest='forecastdir',
-                        help="Directory of solar irradiance forecast csv files, of which the newest one will be processed", 
-                        metavar='DIR')
-    parser.add_argument('-o','--output', 
-                        dest='outputdir',
-                        help="Directory in which optimisation detail csv files will be placed", 
-                        metavar='DIR')
-    return parser
-
-
-def is_valid_file(parser, arg):
-    """
-        Check if arg is a valid file that already exists on the file
-        system.
+    start = forecast.times[0]
+    for i in range(0, 31):
+        if i > 0:
+            time = start + pd.DateOffset(days=i)
+            forecastfile = pv.forecast.get_filename(time, settings.get("Location","key"))
+            forecast = pv.forecast.read(os.path.join(forecastdir, forecastfile), settings.get('Location','timezone'))
+            
+        logger.info('Starting optimized prediction for forecast: %s', forecast.id)
+        for id, sys in systemlist.items():
+            if optimize:
+                result = pv.optimize.efficiency(sys, forecast)
         
-    """
-    arg = os.path.abspath(arg)
-    if not os.path.exists(arg):
-        parser.error("The file %s does not exist!" % arg)
-    else:
-        return arg
-
+            if (args.simulationdir != None):
+                simulationdir = args.simulationdir
+                
+                ref, meas = emoncms.feed(sys.id, forecast.times, settings.get('Location','timezone'))
+                ref.name = 'reference'
+                
+                est = pv.predict.power_system(sys, forecast)
+                est.name = 'estimation'
+                
+                error = pd.Series(ref - est, name='innovation')
+                
+                if optimize:
+                    my = result['my']
+                    my.name = 'my' + settings.get('Optimization','days')
+                    my.index = forecast.times
+                    sigma = result['sigma']
+                    sigma.name = 'sigma' + settings.get('Optimization','days')
+                    sigma.index = forecast.times
+                       
+                    sim = pd.concat([ref, est, error, my, sigma], axis=1)
+                else:
+                    sim = pd.concat([ref, est, error], axis=1)
+                
+                simulationname = forecast.id + '_opt_' + id + '.csv';
+                simulationfile = os.path.join(simulationdir, simulationname)
+                
+                sim.to_csv(simulationfile, sep=',', encoding='utf-8')
+                
+                
+                innovationfile = os.path.join(simulationdir, 'Innovation_opt.csv')
+                if os.path.isfile(innovationfile):
+                    opt = pd.read_csv(innovationfile, index_col='hours', encoding='utf-8')
+                else:
+                    opt = pd.DataFrame()
+                error.name = forecast.id
+                error.index = error.index.hour
+                error.index.name = 'hours'
+                opt = pd.concat([opt, error], axis=1)
+                opt.to_csv(innovationfile, sep=',', encoding='utf-8')
+                
 
 if __name__ == "__main__":
     main()

@@ -8,10 +8,14 @@
 import os
 import numpy as np
 import pandas as pd
+
+import systems
+import optimize as opt
+
 from configparser import ConfigParser
 
 
-def energy(forecast):
+def energy(forecast, optimize):
     """ 
         Calculates the energy yield of a list of configured photovoltaic system installations, 
         given by a solar irradiation forecast.
@@ -20,9 +24,9 @@ def energy(forecast):
         :returns: The systems energy yield.
         
     """
-    prediction = power(forecast)
+    prediction = power(forecast, optimize)
     
-    yieldprediction = pd.DataFrame(data=np.nan, index=forecast.index, columns=list(prediction.columns))
+    yieldprediction = pd.DataFrame(data=np.nan, index=forecast.times, columns=list(prediction.columns))
     i = 0
     for t, row in yieldprediction.iterrows():
         if (i == 0):
@@ -34,12 +38,13 @@ def energy(forecast):
     return yieldprediction.rename(columns = {'generation':'yield'})
     
 
-def power(forecast):
+def power(forecast, optimize):
     """ 
         Calculates the net output power of a list of configured photovoltaic system installations, 
         given by a solar irradiation forecast.
     
         :param forecast: The solar irradiance forecast on a horizontal surface.
+        :param optimize: Boolean value, if parameters should be optimized before predicting irradiation.
         :returns: The systems generated power.
         
     """
@@ -52,22 +57,36 @@ def power(forecast):
                               float(settings.get('Location','longitude')), 
                               float(settings.get('Location','altitude')),
                               str(settings.get('Location','timezone')))
+    
     systemids = ['generation']
     if (len(systemlist.keys()) > 1):
         for id in systemlist.keys():
             systemids.append(id.lower())
-    generation = pd.DataFrame(np.nan, forecast.index, columns=systemids)
-    
+            
+    generation = pd.DataFrame(np.nan, forecast.times, columns=systemids)
     for id, sys in systemlist.items():
-        generation[id.lower()] = systempower(sys, forecast)
-    
-    if (len(systemlist.keys()) > 1):
-        generation['generation'] = generation[systemids[1:]].sum(axis=1)
+        if optimize:
+            opt.efficiency(sys, forecast)
+        
+        if (len(systemlist.keys()) > 1):
+            generation[id.lower()] = power_system(sys, forecast)
+            generation['generation'] = generation[systemids[1:]].sum(axis=1)
+        else:
+            generation['generation'] = power_system(sys, forecast)
         
     return generation
 
 
-def systempower(system, forecast):
+def power_system(system, forecast):
+    eta = system.get_eta(forecast.times)
+    
+    power = power_effective(system, forecast)
+    power_sys = power*eta*system.modules_param['n']
+    
+    return power_sys    
+    
+
+def power_effective(system, forecast):
     """ 
         Calculates the net output power of one specified photovoltaic system installation, 
         given by a solar irradiation forecast, including various loss schemes.
@@ -77,26 +96,13 @@ def systempower(system, forecast):
         :returns: The systems generated power.
         
     """
-    irr_forecast = forecast.ix[:,:'direct']
-    irradiation = system.irradiation(irr_forecast)
+    irradiation = forecast.irradiation(system)
     
     # Convert the ambient temperature from Kelvin to Celsius and calculate the module temperature
-    temp_ambient = forecast['temperature'] - 273.15
+    temp_ambient = forecast.temperature - 273.15
     temp_module = temp_ambient + (system.modules_param['noct'] - 20)/(0.8*system.system_param['irr_ref'])*irradiation
     
-    p = system.modules_param['p_mpp']*irradiation/system.system_param['irr_ref']*(1 + system.modules_param['temp_coeff']/100*(temp_module - system.system_param['temp_ref']))
-    p_sys = p*system.modules_param['n']*system.system_param['eta']
-        
-#     u_mpp = abs(system.modules_param['u_mpp0']*np.log(irradiation)/np.log(system.system_param['irr_ref'])).replace(np.inf, 0)
-#     i_mpp = abs(system.modules_param['i_mpp0']*irradiation/system.system_param['irr_ref']).replace(np.inf, 0)
-#     
-#     # Convert the ambient temperature from Kelvin to Celsius and calculate the module temperature
-#     temp_ambient = forecast['temperature'] - 273.15
-#     temp_module = temp_ambient + irradiation*system.system_param['heatup_coeff']
-#     
-#     #module_area = system.modules_param['width']*system.modules_param['height']
-#     p_mpp = u_mpp*i_mpp*(1 + system.modules_param['temp_coeff']/100*(temp_module - system.system_param['temp_ref']))
-#     p_sys = p_mpp*system.modules_param['rows']*system.modules_param['nrow']*system.system_param['eta']
+    power = system.modules_param['p_mpp']*irradiation/system.system_param['irr_ref']*(1 + system.modules_param['temp_coeff']/100*(temp_module - system.system_param['temp_ref']))
     
-    return pd.Series(p_sys, forecast.index, name='power')
+    return pd.Series(power, forecast.times, name='power')
 
