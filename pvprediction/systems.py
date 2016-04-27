@@ -40,39 +40,16 @@ class System:
             self.modules_param[key] = self._parse_parameter(value)
         
         self.system_param = self._load_parameters()
+      
     
-    
-    def get_eta(self, times):
-        arr = self.system_param['eta']
-        s = pd.Series(np.nan, index=times, name='eta')
-        for i in s.index:
-            if (isinstance(times, pd.DatetimeIndex)):
-                s.ix[i] = arr[i.tz_convert('UTC').hour]
-            else:
-                s.ix[i] = arr[i]
-    
-        return s
-    
-    
-    def save_eta(self, series):
-        s = pd.Series(series.values, index=series.index)
-        arr = self.system_param['eta']
-        for i in s.index:
-            if (isinstance(s.index, pd.DatetimeIndex)):
-                arr[i.tz_convert('UTC').hour] = s.ix[i]
-            else:
-                arr[i] = s.ix[i]
-    
-        self._save_parameters()
-        
-    
-    def _save_parameters(self):
+    def save_parameters(self):
         here = os.path.abspath(os.path.dirname(__file__))
         datadir = os.path.join(here, "data")
         paramfile = os.path.join(datadir, self.id.lower() + '.cfg')
         
         params_var = {}
         params_var['eta'] = self.system_param['eta']
+        params_var['cov'] = self.system_param['cov']
         
         with open(paramfile, 'w') as paramjson:
             json.dump(params_var, paramjson)
@@ -101,8 +78,7 @@ class System:
         else:
             params_var = {}
             params_var['eta'] = [params['eta']]*24
-#             params_var['sigma'] = [params['sigma']]*24
-#             params_var['cov'] = np.diag(np.array(params_var['sigma'])**2).tolist()
+            params_var['cov'] = [params['sigma']**2]*24
             params.update(params_var)
             
             with open(paramfile, 'w') as paramjson:

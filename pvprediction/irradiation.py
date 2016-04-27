@@ -5,18 +5,20 @@
     ~~~~~
     
 """
+import logging
+logger = logging.getLogger('pvprediction')
+
 import os
-import json
-import datetime
-import math
 import numpy as np
 import pandas as pd
 import pvlib as pv
+import math
+import datetime
 
 
-def read(filepath, timezone, method='csv'):
-    if method == 'csv':
-        forecast_csv = pd.read_csv(filepath, 
+def read(location, timezone, method='DWD_forecast'):
+    if method == 'DWD_forecast':
+        forecast_csv = pd.read_csv(location, 
                                    usecols=['time','aswdifd_s','aswdir_s','t_2m','t_g'], 
                                    index_col='time', parse_dates=['time'])
         
@@ -24,42 +26,67 @@ def read(filepath, timezone, method='csv'):
         forecast_csv.index = forecast_csv.index.tz_localize('UTC').tz_convert(timezone)
         forecast_csv = np.absolute(forecast_csv)
         
-        forecast = Forecast(os.path.basename(filepath).replace('.csv', ''), os.path.dirname(os.path.abspath(filepath)), 
+        forecast = Forecast(os.path.basename(location).replace('.csv', ''), os.path.dirname(os.path.abspath(location)), 
                             forecast_csv.index, 
                             forecast_csv['direct']+forecast_csv['diffuse'], forecast_csv['diffuse'], forecast_csv['temperature'])
+        return forecast    
+        
+    elif method == 'DWD':
+        from urllib import urlopen
+        from zipfile import ZipFile
+        from StringIO import StringIO
+        
+        url = urlopen('ftp://ftp-cdc.dwd.de/pub/CDC/observations_germany/climate/hourly/solar/stundenwerte_ST_' + location + '.zip')
+        zipfile = ZipFile(StringIO(url.read()))
+        
+        irradiation_csv = pd.read_csv(zipfile.open('produkt_strahlung_Stundenwerte_19770101_20160229_' + location + '.txt'),
+                                      usecols=[' MESS_DATUM','DIFFUS_HIMMEL_KW_J','GLOBAL_KW_J'],
+                                      index_col=' MESS_DATUM', parse_dates=[' MESS_DATUM'])
+        print(irradiation_csv)
+        
+    else:
+        raise ValueError('Invalid read method "{}"'.method)
     
-    return forecast
-
-
-def latest(dir, key, timezone, method='csv'):
-    forecastfile = None
-    if method == 'csv':
+    
+def latest(location, timezone, key=None, method='DWD_forecast'):
+    if method == 'DWD_forecast':
+        forecastfile = None
         try:
             for file in os.listdir(dir):
                 if (key + '_' in file) and (file.endswith('.csv')):
                     if (forecastfile == None) or (file[3:-4] > forecastfile[3:-4]):
                         forecastfile = file
         except IOError:
-            print("Error: unable to read irradiance forecast file in \"{}\"".format(dir))
+            logger.error('Unable to read irradiance forecast file in "%s"', format(dir))
         else:
             if(forecastfile == None):
                 raise IOError("Unable to find irradiance forecast files in \"{}\"".format(dir))
             else:
                 return read(os.path.join(dir, forecastfile), timezone, method)
-
-
-def get_filename(time, key, method='csv'):
-    date = time.tz_convert('UTC')
-    # Add daylight savings time offset, if necessary
-    if time.dst() != datetime.timedelta(0):
-        date = date + pd.DateOffset(seconds=time.dst().total_seconds())
-    datestr = date.strftime('%Y%m%d%H')
-    name = key + '_' + str(datestr) + '.csv'
     
-    return name
+    elif method == 'DWD':
+        measurements = read(location, timezone, method)
+        
+    else:
+        raise ValueError('Invalid read method "{}"'.method)
+    
+
+def get_filename(time, key, method='DWD_forecast'):
+    if method == 'DWD_forecast':
+        date = time.tz_convert('UTC')
+        # Add daylight savings time offset, if necessary
+        if time.dst() != datetime.timedelta(0):
+            date = date + pd.DateOffset(seconds=time.dst().total_seconds())
+        datestr = date.strftime('%Y%m%d%H')
+        name = key + '_' + str(datestr) + '.csv'
+        
+        return name
+    
+    else:
+        raise ValueError('Invalid filename method "{}"'.method)
 
 
-class Forecast:
+class Irradiation:
     def __init__(self, id, dir, times, global_horizontal, diffuse_horizontal, temperature):
         self.id = id
         self.dir = dir
@@ -70,7 +97,7 @@ class Forecast:
         self.temperature = temperature
     
     
-    def irradiation(self, system):
+    def calculate(self, system):
         """ 
             Calculates the global irradiation on a tilted surface, consisting out of the sum of
             direct, diffuse and reflected irradiance components.

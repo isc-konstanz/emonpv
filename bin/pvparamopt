@@ -20,19 +20,11 @@ from configparser import ConfigParser
 def main(args=None):
     here = os.path.abspath(os.path.dirname(__file__))
     args = tools.get_parser().parse_args()
-    
-    forecastfile = args.forecastfile
-    if (args.forecastdir != None):
-        forecastdir = args.forecastdir
-    else:
-        forecastdir = os.path.join(os.path.dirname(here), 'forecast')
-    
+        
     settingsfile = os.path.join(os.path.dirname(here), 'conf', 'settings.cfg')
     settings = ConfigParser()
     settings.read(settingsfile)
     
-    
-    optimize = args.optimize == None or args.optimize.lower() != 'false'
     
     emoncms = Emoncms(settings.get("Emoncms","URL"), settings.get("Emoncms","APIkey"))
     
@@ -42,23 +34,24 @@ def main(args=None):
                                  str(settings.get('Location','timezone')))
     
     
-    if(forecastfile == None):
-        forecast = pv.forecast.latest(forecastdir, settings.get("Location","key"), settings.get('Location','timezone'))
-    else:
-        forecast = pv.forecast.read(forecastfile, settings.get('Location','timezone'))
-        
-    start = forecast.times[0]
+    irradiation = pv.irradiation.read(settings.get('DWD','id'), settings.get('Location','timezone'), method='DWD')
+    
+    start = irradiation.times[0]
     for i in range(0, 31):
         if i > 0:
             time = start + pd.DateOffset(days=i)
-            forecastfile = pv.forecast.get_filename(time, settings.get("Location","key"))
-            forecast = pv.forecast.read(os.path.join(forecastdir, forecastfile), settings.get('Location','timezone'))
-            
+            forecastfile = pv.irradiation.get_filename(time, settings.get("DWD","key"))
+            forecast = pv.irradiation.read(os.path.join(forecastdir, forecastfile), settings.get('Location','timezone'))
+        
         logger.info('Starting optimized prediction for forecast: %s', forecast.id)
         for id, sys in systemlist.items():
             if optimize:
-                result = pv.optimize.efficiency(sys, forecast)
-        
+                times = forecast.times - pd.DateOffset(days=1)
+                ref, meas = emoncms.feed(sys.id, times, settings.get('Location','timezone'))
+                
+                if not ref.empty and ref.index.equals(times):
+                    pv.predict.optimize(sys, forecast, ref, float(settings.get('Optimization','forgetting')))
+            
             if (args.simulationdir != None):
                 simulationdir = args.simulationdir
                 
@@ -69,18 +62,7 @@ def main(args=None):
                 est.name = 'estimation'
                 
                 error = pd.Series(ref - est, name='innovation')
-                
-                if optimize:
-                    my = result['my']
-                    my.name = 'my' + settings.get('Optimization','days')
-                    my.index = forecast.times
-                    sigma = result['sigma']
-                    sigma.name = 'sigma' + settings.get('Optimization','days')
-                    sigma.index = forecast.times
-                       
-                    sim = pd.concat([ref, est, error, my, sigma], axis=1)
-                else:
-                    sim = pd.concat([ref, est, error], axis=1)
+                sim = pd.concat([ref, est, error], axis=1)
                 
                 simulationname = forecast.id + '_opt_' + id + '.csv';
                 simulationfile = os.path.join(simulationdir, simulationname)

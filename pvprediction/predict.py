@@ -78,12 +78,14 @@ def power(forecast, optimize):
 
 
 def power_system(system, forecast):
-    eta = system.get_eta(forecast.times)
+    eta = pd.Series(np.nan, index=forecast.times, name='eta')
+    for i in eta.index:
+        eta.ix[i] = system.system_param['eta'][i.tz_convert('UTC').hour]
     
     power = power_effective(system, forecast)
     power_sys = power*eta*system.modules_param['n']
     
-    return power_sys    
+    return power_sys
     
 
 def power_effective(system, forecast):
@@ -106,3 +108,43 @@ def power_effective(system, forecast):
     
     return pd.Series(power, forecast.times, name='power')
 
+
+def optimize(system, irradiation, measurement, forgetting=0.99):
+    eta = [1]*24
+    cov = [0]*24
+    
+    transition = power_effective(system, irradiation)*system.modules_param['n']
+    
+    for i in irradiation.times.tz_convert('UTC').hour:
+        z = measurement.ix[i]
+        
+        if not np.isnan(z) and z > 0:
+            h = float(transition[i])
+            x_prior = system.system_param['eta'][i]
+            p_prior = system.system_param['cov'][i]
+            if p_prior == 0.0:
+                p_prior = system.system_param['sigma']**2
+            
+            k = p_prior*h/(forgetting + h*p_prior*h)
+            p = (1. - k*h)*p_prior/forgetting
+            if p > 0:
+                cov[i] = p
+                
+                x = x_prior + k*(z - h*x_prior)
+                if x > 1:
+                    x = 1
+                eta[i] = x
+            
+            else:
+                cov[i] = p_prior
+                eta[i] = x_prior
+            
+        elif z > 0:
+            cov[i] = system.system_param['cov'][i]
+            eta[i] = system.system_param['eta'][i]
+    
+    system.system_param['eta'] = eta
+    system.system_param['cov'] = cov
+    system.save_parameters()
+    
+    

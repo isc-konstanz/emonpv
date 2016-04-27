@@ -11,8 +11,7 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 from . import predict
-from . import optimize
 from . import systems
-from . import forecast
+from . import irradiation
 
 from .emoncms import Emoncms
