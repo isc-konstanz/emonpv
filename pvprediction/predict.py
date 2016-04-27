@@ -10,7 +10,6 @@ import numpy as np
 import pandas as pd
 
 import systems
-import optimize as opt
 
 from configparser import ConfigParser
 
@@ -65,8 +64,8 @@ def power(forecast, optimize):
             
     generation = pd.DataFrame(np.nan, forecast.times, columns=systemids)
     for id, sys in systemlist.items():
-        if optimize:
-            opt.efficiency(sys, forecast)
+#         if optimize:
+#             optimize(sys, forecast)
         
         if (len(systemlist.keys()) > 1):
             generation[id.lower()] = power_system(sys, forecast)

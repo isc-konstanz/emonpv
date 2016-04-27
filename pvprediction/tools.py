@@ -5,15 +5,11 @@
     ~~~~~
     
 """
-from datetime import timedelta
 import os
-
-import numpy as np
-import pandas as pd
 
 
 def get_parser():
-    from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
+    from argparse import ArgumentParser
     
     parser = ArgumentParser(description=__doc__)
     

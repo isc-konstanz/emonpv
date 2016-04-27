@@ -10,7 +10,6 @@ from pvprediction import tools
 from configparser import ConfigParser
 
 import numpy as np
-import pandas as pd
 import pvprediction as pv
 
 

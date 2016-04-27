@@ -8,7 +8,6 @@ import logging
 logger = logging.getLogger('pvprediction')
 
 import os
-import numpy as np
 import pandas as pd
 import pvprediction as pv
 from pvprediction import tools
@@ -20,7 +19,13 @@ from configparser import ConfigParser
 def main(args=None):
     here = os.path.abspath(os.path.dirname(__file__))
     args = tools.get_parser().parse_args()
-        
+    
+    forecastfile = args.forecastfile
+    if (args.forecastdir != None):
+        forecastdir = args.forecastdir
+    else:
+        forecastdir = os.path.join(os.path.dirname(os.path.dirname(here)), 'forecast')
+    
     settingsfile = os.path.join(os.path.dirname(here), 'conf', 'settings.cfg')
     settings = ConfigParser()
     settings.read(settingsfile)
@@ -45,12 +50,11 @@ def main(args=None):
         
         logger.info('Starting optimized prediction for forecast: %s', forecast.id)
         for id, sys in systemlist.items():
-            if optimize:
-                times = forecast.times - pd.DateOffset(days=1)
-                ref, meas = emoncms.feed(sys.id, times, settings.get('Location','timezone'))
-                
-                if not ref.empty and ref.index.equals(times):
-                    pv.predict.optimize(sys, forecast, ref, float(settings.get('Optimization','forgetting')))
+            times = forecast.times - pd.DateOffset(days=1)
+            ref, meas = emoncms.feed(sys.id, times, settings.get('Location','timezone'))
+            
+            if not ref.empty and ref.index.equals(times):
+                pv.predict.optimize(sys, forecast, ref, float(settings.get('Optimization','forgetting')))
             
             if (args.simulationdir != None):
                 simulationdir = args.simulationdir
@@ -80,7 +84,7 @@ def main(args=None):
                 error.index.name = 'hours'
                 opt = pd.concat([opt, error], axis=1)
                 opt.to_csv(innovationfile, sep=',', encoding='utf-8')
-                
 
-if __name__ == "__main__":
+
+if __name__ == '__main__':
     main()

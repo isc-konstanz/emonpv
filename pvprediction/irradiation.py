@@ -12,13 +12,12 @@ import os
 import numpy as np
 import pandas as pd
 import pvlib as pv
-import math
 import datetime
 
 
-def read(location, timezone, method='DWD_forecast'):
-    if method == 'DWD_forecast':
-        forecast_csv = pd.read_csv(location, 
+def forecast(date, timezone, longitude, latitude, key=None, method='DWD'):
+    if method == 'CSV':
+        forecast_csv = pd.read_csv(key, 
                                    usecols=['time','aswdifd_s','aswdir_s','t_2m','t_g'], 
                                    index_col='time', parse_dates=['time'])
         
@@ -26,9 +25,9 @@ def read(location, timezone, method='DWD_forecast'):
         forecast_csv.index = forecast_csv.index.tz_localize('UTC').tz_convert(timezone)
         forecast_csv = np.absolute(forecast_csv)
         
-        forecast = Forecast(os.path.basename(location).replace('.csv', ''), os.path.dirname(os.path.abspath(location)), 
-                            forecast_csv.index, 
-                            forecast_csv['direct']+forecast_csv['diffuse'], forecast_csv['diffuse'], forecast_csv['temperature'])
+        forecast = Irradiation(os.path.basename(key).replace('.csv', ''), 
+                               forecast_csv.index, 
+                               forecast_csv['direct']+forecast_csv['diffuse'], forecast_csv['diffuse'], forecast_csv['temperature'])
         return forecast    
         
     elif method == 'DWD':
@@ -36,10 +35,10 @@ def read(location, timezone, method='DWD_forecast'):
         from zipfile import ZipFile
         from StringIO import StringIO
         
-        url = urlopen('ftp://ftp-cdc.dwd.de/pub/CDC/observations_germany/climate/hourly/solar/stundenwerte_ST_' + location + '.zip')
+        url = urlopen('ftp://ftp-cdc.dwd.de/pub/CDC/observations_germany/climate/hourly/solar/stundenwerte_ST_' + key + '.zip')
         zipfile = ZipFile(StringIO(url.read()))
         
-        irradiation_csv = pd.read_csv(zipfile.open('produkt_strahlung_Stundenwerte_19770101_20160229_' + location + '.txt'),
+        irradiation_csv = pd.read_csv(zipfile.open('produkt_strahlung_Stundenwerte_19770101_20160229_' + key + '.txt'),
                                       usecols=[' MESS_DATUM','DIFFUS_HIMMEL_KW_J','GLOBAL_KW_J'],
                                       index_col=' MESS_DATUM', parse_dates=[' MESS_DATUM'])
         print(irradiation_csv)
@@ -62,11 +61,8 @@ def latest(location, timezone, key=None, method='DWD_forecast'):
             if(forecastfile == None):
                 raise IOError("Unable to find irradiance forecast files in \"{}\"".format(dir))
             else:
-                return read(os.path.join(dir, forecastfile), timezone, method)
-    
-    elif method == 'DWD':
-        measurements = read(location, timezone, method)
-        
+                return forecast(os.path.join(dir, forecastfile), timezone, method)
+            
     else:
         raise ValueError('Invalid read method "{}"'.method)
     
@@ -87,9 +83,8 @@ def get_filename(time, key, method='DWD_forecast'):
 
 
 class Irradiation:
-    def __init__(self, id, dir, times, global_horizontal, diffuse_horizontal, temperature):
+    def __init__(self, id, times, global_horizontal, diffuse_horizontal, temperature):
         self.id = id
-        self.dir = dir
         
         self.times = times
         self.global_horizontal = global_horizontal
