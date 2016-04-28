@@ -15,5 +15,5 @@ syntax: glob
 
 # pvprediction
 pvprediction/data/**
-forecast/**
-simulation/**
+ref/**
+data/**

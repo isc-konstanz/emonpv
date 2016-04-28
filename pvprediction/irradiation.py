@@ -15,22 +15,17 @@ import pvlib as pv
 import datetime
 
 
-def forecast(date, timezone, longitude, latitude, key=None, method='DWD'):
-    if method == 'CSV':
-        forecast_csv = pd.read_csv(key, 
-                                   usecols=['time','aswdifd_s','aswdir_s','t_2m','t_g'], 
-                                   index_col='time', parse_dates=['time'])
+def forecast(date, timezone, longitude=None, latitude=None, var=None, method='DWD'):
+    if method == 'DWD_CSV':
+        csv = _get_dwdcsv_nearest(date, var)
+        return _read_dwdcsv(csv, date, timezone)
         
-        forecast_csv = forecast_csv.ix[:,:'t_2m'].rename(columns = {'aswdir_s':'direct', 'aswdifd_s':'diffuse', 't_2m':'temperature'})
-        forecast_csv.index = forecast_csv.index.tz_localize('UTC').tz_convert(timezone)
-        forecast_csv = np.absolute(forecast_csv)
-        
-        forecast = Irradiation(os.path.basename(key).replace('.csv', ''), 
-                               forecast_csv.index, 
-                               forecast_csv['direct']+forecast_csv['diffuse'], forecast_csv['diffuse'], forecast_csv['temperature'])
-        return forecast    
-        
-    elif method == 'DWD':
+    else:
+        raise ValueError('Invalid irradiation forecast method "{}"'.method)
+
+
+def reference(date, timezone, longitude, latitude, key=None, method='DWD'):
+    if method == 'DWD':
         from urllib import urlopen
         from zipfile import ZipFile
         from StringIO import StringIO
@@ -44,47 +39,64 @@ def forecast(date, timezone, longitude, latitude, key=None, method='DWD'):
         print(irradiation_csv)
         
     else:
-        raise ValueError('Invalid read method "{}"'.method)
-    
-    
-def latest(location, timezone, key=None, method='DWD_forecast'):
-    if method == 'DWD_forecast':
-        forecastfile = None
-        try:
-            for file in os.listdir(dir):
-                if (key + '_' in file) and (file.endswith('.csv')):
-                    if (forecastfile == None) or (file[3:-4] > forecastfile[3:-4]):
-                        forecastfile = file
-        except IOError:
-            logger.error('Unable to read irradiance forecast file in "%s"', format(dir))
-        else:
-            if(forecastfile == None):
-                raise IOError("Unable to find irradiance forecast files in \"{}\"".format(dir))
-            else:
-                return forecast(os.path.join(dir, forecastfile), timezone, method)
-            
-    else:
-        raise ValueError('Invalid read method "{}"'.method)
+        raise ValueError('Invalid irradiation reference method "{}"'.method)
+
+
+# def _read_dwd_grib2():
     
 
-def get_filename(time, key, method='DWD_forecast'):
-    if method == 'DWD_forecast':
-        date = time.tz_convert('UTC')
-        # Add daylight savings time offset, if necessary
-        if time.dst() != datetime.timedelta(0):
-            date = date + pd.DateOffset(seconds=time.dst().total_seconds())
-        datestr = date.strftime('%Y%m%d%H')
-        name = key + '_' + str(datestr) + '.csv'
+def _read_dwdcsv(path, date, timezone):
+    csv = pd.read_csv(path, 
+                      usecols=['time','aswdifd_s','aswdir_s','t_2m','t_g'], 
+                      index_col='time', parse_dates=['time'])
         
-        return name
+    csv = csv.ix[:,:'t_2m'].rename(columns = {'aswdir_s':'direct', 'aswdifd_s':'diffuse', 't_2m':'temperature'})
+    csv.index = csv.index.tz_localize('UTC').tz_convert(timezone)
+    csv = np.absolute(csv)
     
+    forecast = Irradiation(os.path.basename(path).replace('.csv', ''), 
+                           csv.index, 
+                           csv['direct']+csv['diffuse'], csv['diffuse'], csv['temperature'])
+    
+    return forecast
+
+
+def _get_dwdcsv_nearest(date, path):
+    cswdir = os.path.dirname(path)
+    dwdkey = os.path.basename(path)
+    
+    ref = int(date.strftime('%Y%m%d%H'))
+    diff = 1970010100
+    csv = None
+    try:
+        for f in os.listdir(cswdir):
+            if (dwdkey + '_' in f) and (f.endswith('.csv')):
+                d = abs(ref - int(f[3:-4]))
+                if (d < diff):
+                    diff = d
+                    csv = f
+    except IOError:
+        logger.error('Unable to read irradiance forecast file in "%s"', format(dir))
     else:
-        raise ValueError('Invalid filename method "{}"'.method)
+        if(csv == None):
+            raise IOError("Unable to find irradiance forecast files in \"{}\"".format(dir))
+        else:
+            return os.path.join(cswdir, csv)
+            
+
+def _get_dwdcsv(date, path):
+    date = date.tz_convert('UTC')
+    # Add daylight savings time offset, if necessary
+    if date.dst() != datetime.timedelta(0):
+        date = date + pd.DateOffset(seconds=date.dst().total_seconds())
+    datestr = date.strftime('%Y%m%d%H')
+    
+    return path + '_' + str(datestr) + '.csv'
 
 
 class Irradiation:
-    def __init__(self, id, times, global_horizontal, diffuse_horizontal, temperature):
-        self.id = id
+    def __init__(self, key, times, global_horizontal, diffuse_horizontal, temperature):
+        self.id = key
         
         self.times = times
         self.global_horizontal = global_horizontal

@@ -5,49 +5,66 @@
     
 """
 import os
-from pvprediction import tools
 
 from configparser import ConfigParser
 
 import numpy as np
 import pvprediction as pv
+import datetime
 
 
 def main(args=None):
     here = os.path.abspath(os.path.dirname(__file__))
-    args = tools.get_parser().parse_args()
+    args = _get_parser().parse_args()
     
-    forecastfile = args.forecastfile
-    if (args.forecastdir != None):
-        forecastdir = args.forecastdir
+    if (args.referencedir != None):
+        referencedir = args.referencedir
     else:
-        forecastdir = os.path.join(os.path.dirname(here), 'forecast')
+        referencedir = os.path.join(os.path.dirname(here), 'ref')
     
     settingsfile = os.path.join(os.path.dirname(here), 'conf', 'settings.cfg')
     settings = ConfigParser()
     settings.read(settingsfile)
     
-    if(forecastfile == None):
-        forecast = pv.forecast.latest(forecastdir, settings.get("Location","key"), settings.get('Location','timezone'))
+    forecast = pv.irradiation.forecast(datetime.datetime.now(), 
+                                       settings.get('Location','timezone'), 
+                                       var=os.path.join(referencedir, settings.get("DWD","key")), 
+                                       method='DWD_CSV')
+    
+    yieldprediction = pv.predict.energy(forecast, args.optimize)
+    
+    
+    if (args.datadir != None):
+        datadir = args.datadir
     else:
-        forecast = pv.forecast.read(forecastfile, settings.get('Location','timezone'))
-    
-    
-    optimize = args.optimize == None or args.optimize.lower() != 'false'
-    yieldprediction = pv.predict.energy(forecast, optimize)
-    
-    
-    if (args.simulationdir != None):
-        simulationdir = args.simulationdir
-    else:
-        simulationdir = os.path.join(os.path.dirname(here), 'simulation')
+        datadir = os.path.join(os.path.dirname(here), 'data')
     
     simulationname = forecast.id + '_SimulatedEnergy.csv';
-    simulationfile = os.path.join(simulationdir, simulationname)
+    simulationfile = os.path.join(datadir, simulationname)
     
     yieldprediction.index = yieldprediction.index.astype(np.int64)//10**6
     yieldprediction.index.name = 'time'
     yieldprediction.to_csv(simulationfile, sep=',', encoding='utf-8')
+
+
+def _get_parser():
+    from argparse import ArgumentParser
+    
+    parser = ArgumentParser(description=__doc__)
+    
+    parser.add_argument('-r','--reference', 
+                        dest='referencedir',
+                        help="Directory of solar irradiance reference files", 
+                        metavar='DIR')
+    parser.add_argument('-d','--data', 
+                        dest='datadir',
+                        help="Directory in which simulation output files will be placed", 
+                        metavar='DIR')
+    parser.add_argument('-o','--optimize', 
+                        action="store_true", 
+                        default=False, 
+                        help='Enables efficiency optimization')
+    return parser
 
 
 if __name__ == "__main__":

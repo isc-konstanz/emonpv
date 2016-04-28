@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """    
-    Optimises the prediction parameters of a photovoltaic energy systems, according to solar irradiance forecasts
+    Optimizes the prediction parameters of a photovoltaic energy systems, according to solar irradiance forecasts
     
 """
 import logging
@@ -10,7 +10,6 @@ logger = logging.getLogger('pvprediction')
 import os
 import pandas as pd
 import pvprediction as pv
-from pvprediction import tools
 from pvprediction import Emoncms
 
 from configparser import ConfigParser
@@ -18,13 +17,6 @@ from configparser import ConfigParser
 
 def main(args=None):
     here = os.path.abspath(os.path.dirname(__file__))
-    args = tools.get_parser().parse_args()
-    
-    forecastfile = args.forecastfile
-    if (args.forecastdir != None):
-        forecastdir = args.forecastdir
-    else:
-        forecastdir = os.path.join(os.path.dirname(os.path.dirname(here)), 'forecast')
     
     settingsfile = os.path.join(os.path.dirname(here), 'conf', 'settings.cfg')
     settings = ConfigParser()
@@ -38,15 +30,16 @@ def main(args=None):
                                  float(settings.get('Location','altitude')),
                                  str(settings.get('Location','timezone')))
     
+    forecastdir = os.path.join(os.path.dirname(os.path.dirname(here)), 'forecast')
     
-    irradiation = pv.irradiation.read(settings.get('DWD','id'), settings.get('Location','timezone'), method='DWD')
+    irradiation = pv.irradiation.forecast(settings.get('DWD','id'), settings.get('Location','timezone'), method='DWD')
     
     start = irradiation.times[0]
     for i in range(0, 31):
         if i > 0:
             time = start + pd.DateOffset(days=i)
-            forecastfile = pv.irradiation.get_filename(time, settings.get("DWD","key"))
-            forecast = pv.irradiation.read(os.path.join(forecastdir, forecastfile), settings.get('Location','timezone'))
+            forecastfile = pv.irradiation._get_csv(time, settings.get("DWD","key"))
+            forecast = pv.irradiation.forecast(time, os.path.join(forecastdir, forecastfile), settings.get('Location','timezone'))
         
         logger.info('Starting optimized prediction for forecast: %s', forecast.id)
         for id, sys in systemlist.items():
