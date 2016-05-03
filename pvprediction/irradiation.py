@@ -116,7 +116,7 @@ class Irradiation:
         pressure = pv.atmosphere.alt2pres(system.location.altitude)
         
         # Get the solar angles, determining the suns irradiation on a surface by an implementation of the NREL SPA algorithm
-        angles = pv.solarposition.get_solarposition(timestamps, system.location, pressure=pressure)
+        angles = pv.solarposition.get_solarposition(timestamps, system.location.latitude, system.location.longitude, altitude=system.location.altitude, pressure=pressure)
         
         global_horizontal = self.global_horizontal.resample('1min', fill_method='ffill', kind='timestamp', how='last')
         diffuse_horizontal = self.diffuse_horizontal.resample('1min', fill_method='ffill', kind='timestamp', how='last')
@@ -144,12 +144,12 @@ class Irradiation:
                                                 albedo=system.modules_param['albedo'])
         
         # Calculate the total irradiation, using the perez model
-#         irradation = pv.irradiance.total_irrad(surface_tilt=system.modules_param['tilt'], surface_azimuth=system.modules_param['azimuth'], 
-#                                                solar_zenith=angles['apparent_zenith'], solar_azimuth=angles['azimuth'], 
-#                                                dni=forecast['normal'], ghi=forecast['global'], dhi=forecast['diffuse'], 
-#                                                dni_extra=extra, airmass=airmass, 
-#                                                surface_type=system.modules_param['albedo'], 
-#                                                model='perez')
+        irradation = pv.irradiance.total_irrad(surface_tilt=system.modules_param['tilt'], surface_azimuth=system.modules_param['azimuth'], 
+                                               solar_zenith=angles['apparent_zenith'], solar_azimuth=angles['azimuth'], 
+                                               dni=direct_normal, ghi=global_horizontal, dhi=diffuse_horizontal, 
+                                               dni_extra=extra, airmass=airmass, 
+                                               albedo=system.modules_param['albedo'], 
+                                               model='perez')
         
         
         # Calculate total irradiation and replace values smaller than specific threshold

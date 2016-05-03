@@ -37,12 +37,12 @@ def energy(forecast, optimize):
     return yieldprediction.rename(columns = {'generation':'yield'})
     
 
-def power(forecast, optimize):
+def power(irradiation, optimize):
     """ 
         Calculates the net output power of a list of configured photovoltaic system installations, 
-        given by a solar irradiation forecast.
+        given by a solar irradiation.
     
-        :param forecast: The solar irradiance forecast on a horizontal surface.
+        :param irradiation: The solar irradiation on a horizontal surface.
         :param optimize: Boolean value, if parameters should be optimized before predicting irradiation.
         :returns: The systems generated power.
         
@@ -62,50 +62,50 @@ def power(forecast, optimize):
         for id in systemlist.keys():
             systemids.append(id.lower())
             
-    generation = pd.DataFrame(np.nan, forecast.times, columns=systemids)
+    generation = pd.DataFrame(np.nan, irradiation.times, columns=systemids)
     for id, sys in systemlist.items():
-#         if optimize:
-#             optimize(sys, forecast)
+        if optimize:
+            optimize(sys, irradiation)
         
         if (len(systemlist.keys()) > 1):
-            generation[id.lower()] = power_system(sys, forecast)
+            generation[id.lower()] = power_system(sys, irradiation)
             generation['generation'] = generation[systemids[1:]].sum(axis=1)
         else:
-            generation['generation'] = power_system(sys, forecast)
+            generation['generation'] = power_system(sys, irradiation)
         
     return generation
 
 
-def power_system(system, forecast):
-    eta = pd.Series(np.nan, index=forecast.times, name='eta')
+def power_system(system, irradiation):
+    eta = pd.Series(np.nan, index=irradiation.times, name='eta')
     for i in eta.index:
         eta.ix[i] = system.system_param['eta'][i.tz_convert('UTC').hour]
     
-    power = power_effective(system, forecast)
+    power = power_effective(system, irradiation)
     power_sys = power*eta*system.modules_param['n']
     
     return power_sys
     
 
-def power_effective(system, forecast):
+def power_effective(system, irradiation):
     """ 
         Calculates the net output power of one specified photovoltaic system installation, 
-        given by a solar irradiation forecast, including various loss schemes.
+        given by a solar irradiation, including various loss schemes.
     
         :param system: The installed photovoltaic system, whose generation should be calculated.
-        :param forecast: The solar irradiance forecast on a horizontal surface.
+        :param irradiation: The solar irradiation on a horizontal surface.
         :returns: The systems generated power.
         
     """
-    irradiation = forecast.irradiation(system)
+    irr = irradiation.calculate(system)
     
     # Convert the ambient temperature from Kelvin to Celsius and calculate the module temperature
-    temp_ambient = forecast.temperature - 273.15
-    temp_module = temp_ambient + (system.modules_param['noct'] - 20)/(0.8*system.system_param['irr_ref'])*irradiation
+    temp_ambient = irradiation.temperature - 273.15
+    temp_module = temp_ambient + (system.modules_param['noct'] - 20)/(0.8*system.system_param['irr_ref'])*irr
     
-    power = system.modules_param['p_mpp']*irradiation/system.system_param['irr_ref']*(1 + system.modules_param['temp_coeff']/100*(temp_module - system.system_param['temp_ref']))
+    power = system.modules_param['p_mpp']*irr/system.system_param['irr_ref']*(1 + system.modules_param['temp_coeff']/100*(temp_module - system.system_param['temp_ref']))
     
-    return pd.Series(power, forecast.times, name='power')
+    return pd.Series(power, irradiation.times, name='power')
 
 
 def optimize(system, irradiation, measurement, forgetting=0.99):
