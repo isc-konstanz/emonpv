@@ -5,7 +5,7 @@
     
 """
 
-__version__ = '0.0.2'
+__version__ = '0.0.3'
 
 import logging
 logging.basicConfig(level=logging.INFO)
@@ -13,5 +13,3 @@ logging.basicConfig(level=logging.INFO)
 from . import predict
 from . import systems
 from . import irradiation
-
-from .emoncms import Emoncms

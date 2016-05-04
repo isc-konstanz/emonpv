@@ -5,12 +5,12 @@
     
 """
 import os
+import datetime
 
 from configparser import ConfigParser
 
 import numpy as np
 import pvprediction as pv
-import datetime
 
 
 def main(args=None):
@@ -39,12 +39,12 @@ def main(args=None):
     else:
         datadir = os.path.join(os.path.dirname(here), 'data')
     
-    simulationname = forecast.id + '_SimulatedEnergy.csv';
-    simulationfile = os.path.join(datadir, simulationname)
+    filename = forecast.id + '_SimulatedEnergy.csv';
+    filepath = os.path.join(datadir, filename)
     
-    yieldprediction.index = yieldprediction.index.astype(np.int64)//10**6
+    yieldprediction.index = yieldprediction.index.tz_convert('UTC').astype(np.int64)//10**6
     yieldprediction.index.name = 'time'
-    yieldprediction.to_csv(simulationfile, sep=',', encoding='utf-8')
+    yieldprediction.to_csv(filepath, sep=',', encoding='utf-8')
 
 
 def _get_parser():

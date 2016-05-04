@@ -23,18 +23,18 @@ def energy(forecast, optimize):
         :returns: The systems energy yield.
         
     """
-    prediction = power(forecast, optimize)
+    generation = power(forecast, optimize)
     
-    yieldprediction = pd.DataFrame(data=np.nan, index=forecast.times, columns=list(prediction.columns))
+    energy = pd.DataFrame(data=np.nan, index=forecast.times, columns=list(generation.columns))
     i = 0
-    for t, row in yieldprediction.iterrows():
+    for t, row in energy.iterrows():
         if (i == 0):
-            yieldprediction.ix[i] = prediction.ix[i]
+            energy.ix[i] = generation.ix[i]
         else:
-            yieldprediction.ix[i] = prediction.ix[i] + yieldprediction.ix[i-1]
+            energy.ix[i] = generation.ix[i] + energy.ix[i-1]
         i+=1
     
-    return yieldprediction.rename(columns = {'generation':'yield'})
+    return energy.rename(columns = {'generation':'yield'})
     
 
 def power(irradiation, optimize):
@@ -57,10 +57,12 @@ def power(irradiation, optimize):
                               float(settings.get('Location','altitude')),
                               str(settings.get('Location','timezone')))
     
-    systemids = ['generation']
+    systemids = []
     if (len(systemlist.keys()) > 1):
-        for id in systemlist.keys():
-            systemids.append(id.lower())
+        systemids.append('generation')
+    
+    for id in systemlist.keys():
+        systemids.append(id.lower())
             
     generation = pd.DataFrame(np.nan, irradiation.times, columns=systemids)
     for id, sys in systemlist.items():
@@ -68,10 +70,10 @@ def power(irradiation, optimize):
             optimize(sys, irradiation)
         
         if (len(systemlist.keys()) > 1):
-            generation[id.lower()] = power_system(sys, irradiation)
+            generation[id] = power_system(sys, irradiation)
             generation['generation'] = generation[systemids[1:]].sum(axis=1)
         else:
-            generation['generation'] = power_system(sys, irradiation)
+            generation[id] = power_system(sys, irradiation)
         
     return generation
 
@@ -109,8 +111,8 @@ def power_effective(system, irradiation):
 
 
 def optimize(system, irradiation, measurement, forgetting=0.99):
-    eta = [1]*24
-    cov = [0]*24
+    eta = system.system_param['eta']
+    cov = system.system_param['cov']
     
     transition = power_effective(system, irradiation)*system.modules_param['n']
     
@@ -137,13 +139,10 @@ def optimize(system, irradiation, measurement, forgetting=0.99):
             else:
                 cov[i] = p_prior
                 eta[i] = x_prior
-            
-        elif z > 0:
-            cov[i] = system.system_param['cov'][i]
-            eta[i] = system.system_param['eta'][i]
     
     system.system_param['eta'] = eta
     system.system_param['cov'] = cov
     system.save_parameters()
     
+    return eta
     

@@ -26,7 +26,7 @@ class Emoncms:
             
     
     def feed(self, name, times, timezone):
-        id = requests.get(self.url + 'feed/getid.json?', params={'apikey': self.apikey, 'name': name.lower() + '_out_power'})
+        id = requests.get(self.url + 'feed/getid.json?', params={'apikey': self.apikey, 'name': name})
         
         # Offset end timestamp by one hour for averaging purposes
         timestamps = times.tz_convert('UTC').astype(np.int64)//10**6
