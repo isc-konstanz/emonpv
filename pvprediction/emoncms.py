@@ -6,6 +6,7 @@
     
 """
 import requests
+import datetime
 import numpy as np
 import pandas as pd
 
@@ -26,10 +27,12 @@ class Emoncms:
             
     
     def feed(self, name, times, timezone):
-        id = requests.get(self.url + 'feed/getid.json?', params={'apikey': self.apikey, 'name': name})
+        feedid = requests.get(self.url + 'feed/getid.json?', params={'apikey': self.apikey, 'name': name})
+        
+        # Convert times to UTC UNIX timestamps
+        timestamps = times.tz_convert('UTC').astype(np.int64)//10**6
         
         # Offset end timestamp by one hour for averaging purposes
-        timestamps = times.tz_convert('UTC').astype(np.int64)//10**6
         step = 59*60*1000
         start = timestamps[0]
         end = timestamps[-1] + step
@@ -39,7 +42,7 @@ class Emoncms:
         datapoints = int((end - start)/interval)
         
         params = {'apikey': self.apikey, 
-                  'id': id.text.replace('"', ''), 
+                  'id': feedid.text.replace('"', ''), 
                   'start': start, 
                   'end': end, 
                   'dp': datapoints}

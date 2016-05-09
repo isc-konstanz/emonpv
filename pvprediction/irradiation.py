@@ -39,15 +39,17 @@ def _read_dwdcsv(path, date, timezone):
                       usecols=['time','aswdifd_s','aswdir_s','t_2m','t_g'], 
                       index_col='time', parse_dates=['time'])
         
-    csv = csv.ix[:,:'t_2m'].rename(columns = {'aswdir_s':'direct', 'aswdifd_s':'diffuse', 't_2m':'temperature'})
+    csv = csv.ix[:,:'t_2m'].rename(columns = {'aswdir_s':'direct_horizontal', 'aswdifd_s':'diffuse_horizontal', 't_2m':'temperature'})
     csv.index = csv.index.tz_localize('UTC').tz_convert(timezone)
+    csv.index.name = 'time'
     csv = np.absolute(csv)
     
-    forecast = Irradiation(os.path.basename(path).replace('.csv', ''), 
-                           csv.index, 
-                           csv['direct']+csv['diffuse'], csv['diffuse'], csv['temperature'])
+    # Convert the ambient temperature from Kelvin to Celsius
+    csv['temperature'] = csv['temperature'] - 273.15
     
-    return forecast
+    result = Irradiation(csv)
+    result.key = os.path.basename(path).replace('.csv', '')
+    return result
 
 
 def _get_dwdcsv_nearest(date, path):
@@ -83,48 +85,65 @@ def _get_dwdcsv(date, path):
     return path + '_' + str(datestr) + '.csv'
 
 
-def _read_dwdpublic(id, timezone):
+def _read_dwdpublic(key, timezone):
     from urllib import urlopen
     from zipfile import ZipFile
     from StringIO import StringIO
     
-    url = urlopen('ftp://ftp-cdc.dwd.de/pub/CDC/observations_germany/climate/hourly/solar/stundenwerte_ST_' + id + '.zip')
+    # Retrieve measured temperature values from DWD public ftp server
+    url = urlopen('ftp://ftp-cdc.dwd.de/pub/CDC/observations_germany/climate/hourly/air_temperature/recent/stundenwerte_TU_' + key + '_akt.zip')
     zipfile = ZipFile(StringIO(url.read()))
-    for file in zipfile.namelist():
-        if ('produkt_strahlung_Stundenwerte_' in file):
-            irradiation = pd.read_csv(zipfile.open(file), sep=";",
-                                          usecols=[' MESS_DATUM','DIFFUS_HIMMEL_KW_J','GLOBAL_KW_J'],
-                                          index_col=' MESS_DATUM')
-    index = [i[0] for i in irradiation.index.str.split(':')]
-    irradiation.index = pd.to_datetime(index, format="%Y%m%d%H").tz_localize('UTC').tz_convert(timezone)
-
-    url = urlopen('ftp://ftp-cdc.dwd.de/pub/CDC/observations_germany/climate/hourly/air_temperature/recent/stundenwerte_TU_' + id + '_akt.zip')
+    for f in zipfile.namelist():
+        if ('produkt_temp_Terminwerte_' in f):
+            temp = pd.read_csv(zipfile.open(f), sep=";",
+                                        usecols=[' MESS_DATUM',' LUFTTEMPERATUR'])
+    temp.index = pd.to_datetime(temp[' MESS_DATUM'], format="%Y%m%d%H")
+    temp.index = temp.index.tz_localize('UTC').tz_convert(timezone)
+    temp.index.name = 'time'
+    temp = temp.rename(columns = {' LUFTTEMPERATUR':'temperature'})
+    
+    # Missing values get identified with "-999"
+    temp = temp.replace('-999', np.nan)
+    
+    
+    # Retrieve measured solar irradiation observations from DWD public ftp server
+    url = urlopen('ftp://ftp-cdc.dwd.de/pub/CDC/observations_germany/climate/hourly/solar/stundenwerte_ST_' + key + '.zip')
     zipfile = ZipFile(StringIO(url.read()))
-    for file in zipfile.namelist():
-        if ('produkt_temp_Terminwerte_' in file):
-            temperature = pd.read_csv(zipfile.open(file), sep=";",
-                                          usecols=[' MESS_DATUM',' LUFTTEMPERATUR'],
-                                          index_col=' MESS_DATUM')
-    temperature.index = pd.to_datetime(temperature.index, format="%Y%m%d%H").tz_localize('UTC').tz_convert(timezone)
+    for f in zipfile.namelist():
+        if ('produkt_strahlung_Stundenwerte_' in f):
+            irr = pd.read_csv(zipfile.open(f), sep=";",
+                                        usecols=[' MESS_DATUM','DIFFUS_HIMMEL_KW_J','GLOBAL_KW_J'])
     
-    reference = pd.concat([irradiation, temperature], axis=1).dropna(axis=0)
-    reference = reference.rename(columns = {'GLOBAL_KW_J':'global', 'DIFFUS_HIMMEL_KW_J':'diffuse', ' LUFTTEMPERATUR':'temperature'})
-       
-    return Irradiation(id, irradiation.index, 
-                       reference['global'], reference['diffuse'], reference['temperature'],
-                       method = 'dirint')
+    irr.index = pd.to_datetime(irr[' MESS_DATUM'], format="%Y%m%d%H:%M")
+    irr.index = irr.index.tz_localize('UTC').tz_convert(timezone)
+    irr.index.name = 'time'
     
+    # Shift index by 30 min, to move from interval center values to hourly averages
+    irr.index = irr.index - datetime.timedelta(minutes=30)
+    
+    # Missing values get identified with "-999"
+    irr = irr.replace('-999', np.nan)
+    
+    # Global and diffuse irradiation unit transformation from hourly J/cm^2 to mean W/m^2
+    irr['global_horizontal'] = irr['GLOBAL_KW_J']*(100**2)/3600
+    irr['diffuse_horizontal'] = irr['DIFFUS_HIMMEL_KW_J']*(100**2)/3600
+    
+    reference = pd.concat([irr['global_horizontal'], irr['diffuse_horizontal'], temp['temperature']], axis=1)
+    # Drop rows without either solar irradiation or temperature values
+    reference = reference[(reference.index >= temp.index[0]) & (reference.index >= irr.index[0]) & 
+                          (reference.index <= temp.index[-1]) & (reference.index <= irr.index[-1])]
+    
+    result = Irradiation(reference)
+    result.key = key
+    return result
 
-class Irradiation:
-    def __init__(self, key, times, global_horizontal, diffuse_horizontal, temperature, method='quasch'):
-        self.id = key
-        
-        self.times = times
-        self.global_horizontal = global_horizontal
-        self.diffuse_horizontal = diffuse_horizontal
-        self.temperature = temperature
-        
-        self.method = method
+    
+class Irradiation(pd.DataFrame):
+    _metadata = ['key']
+ 
+    @property
+    def _constructor(self):
+        return Irradiation
     
     
     def calculate(self, system):
@@ -135,30 +154,32 @@ class Irradiation:
             :param system: The photovoltaic system, solar irradiation forecast on a horizontal surface.
             
         """
-        timestamps = pd.date_range(self.times[0], self.times[-1] + pd.DateOffset(minutes=59), freq='min')
+        timestamps = pd.date_range(self.index[0], self.index[-1] + pd.DateOffset(minutes=59), freq='min').tz_convert('UTC')
         pressure = pv.atmosphere.alt2pres(system.location.altitude)
+        
+        dhi = self.diffuse_horizontal.resample('1min', fill_method='ffill', kind='timestamp', how='last')
+        dhi.index = dhi.index.tz_convert('UTC')
+            
+        if 'global_horizontal' in self.columns:
+            ghi = self.global_horizontal.resample('1min', fill_method='ffill', kind='timestamp', how='last')
+        else:
+            ghi = self.direct_horizontal.resample('1min', fill_method='ffill', kind='timestamp', how='last') + dhi
+        ghi.index = ghi.index.tz_convert('UTC')
         
         # Get the solar angles, determining the suns irradiation on a surface by an implementation of the NREL SPA algorithm
         angles = pv.solarposition.get_solarposition(timestamps, system.location.latitude, system.location.longitude, altitude=system.location.altitude, pressure=pressure)
         
-        global_horizontal = self.global_horizontal.resample('1min', fill_method='ffill', kind='timestamp', how='last')
-        diffuse_horizontal = self.diffuse_horizontal.resample('1min', fill_method='ffill', kind='timestamp', how='last')
-        
-        method = self.method.lower()
-        if method == 'dirint':
-            ztemp = angles['apparent_zenith'].copy()
-            ztemp[angles['apparent_zenith'] > 87] = np.NaN
-            ztemp = ztemp.dropna(axis=0)
-            dnitemp = pv.irradiance.dirint(global_horizontal[ztemp.index], ztemp, ztemp.index, pressure=pressure)
-            dnitemp = pd.concat([global_horizontal, dnitemp], axis=1)
-            direct_normal = dnitemp.dni.fillna(0)
-        elif method in ['quasch', 'quaschning']:
-            # Determine direct normal irradiance as defined by Quaschning
-            direct_normal = (global_horizontal - diffuse_horizontal)*(1/np.sin(np.deg2rad(angles['elevation'])))
-            direct_normal.loc[direct_normal <= 0] = 0
+        if 'global_horizontal' in self.columns:
+            zenith = angles['apparent_zenith'].copy()
+            zenith[angles['apparent_zenith'] > 87] = np.NaN
+            zenith = zenith.dropna(axis=0)
+            dni = pv.irradiance.dirint(ghi[zenith.index], zenith, zenith.index, pressure=pressure)
+            dni = pd.Series(dni, index=timestamps).fillna(0)
         else:
-            raise ValueError('invalid method selection {}'.format(method))
-            
+            # Determine direct normal irradiance as defined by Quaschning
+            dni = ((ghi - dhi)*(1/np.sin(np.deg2rad(angles['elevation'])))).fillna(0)
+            dni.loc[dni <= 0] = 0
+          
         # Determine extraterrestrial radiation and airmass
         extra = pv.irradiance.extraradiation(timestamps)
         airmass_rel = pv.atmosphere.relativeairmass(angles['apparent_zenith'])
@@ -167,27 +188,30 @@ class Irradiation:
         # Calculate the total irradiation, using the perez model
         irradiation = pv.irradiance.total_irrad(system.modules_param['tilt'], system.modules_param['azimuth'], 
                                                 angles['apparent_zenith'], angles['azimuth'], 
-                                                direct_normal, global_horizontal, diffuse_horizontal, 
+                                                dni, ghi, dhi, 
                                                 dni_extra=extra, airmass=airmass, 
                                                 albedo=system.modules_param['albedo'], 
                                                 model='perez')
         
 #         direct = pv.irradiance.beam_component(system.modules_param['tilt'], system.modules_param['azimuth'], 
 #                                               angles['zenith'], angles['azimuth'], 
-#                                               direct_normal)#         diffuse = pv.irradiance.perez(surface_tilt=system.modules_param['tilt'], surface_azimuth=system.modules_param['azimuth'], 
-#                                       solar_zenith=angles['apparent_zenith'], solar_azimuth=angles['azimuth'], 
-#                                       dhi=diffuse_horizontal, dni=direct_normal, dni_extra=extra, 
-#                                       airmass=airmass)
+#                                               dni)
 #         
+#         diffuse = pv.irradiance.perez(surface_tilt=system.modules_param['tilt'], surface_azimuth=system.modules_param['azimuth'], 
+#                                       solar_zenith=angles['apparent_zenith'], solar_azimuth=angles['azimuth'], 
+#                                       dhi=dhi, dni=dni, dni_extra=extra, 
+#                                       airmass=airmass)
+#          
 #         reflected = pv.irradiance.grounddiffuse(surface_tilt=system.modules_param['tilt'], 
-#                                                 ghi=global_horizontal, 
+#                                                 ghi=ghi, 
 #                                                 albedo=system.modules_param['albedo'])
         
         # Calculate total irradiation and replace values smaller than specific threshold
         # Check if still necessary, for better forecasts
-#         total = direct.fillna(0) + diffuse.fillna(0) + reflected.fillna(0)
         total = irradiation['poa_global'].fillna(0)
+#         total = direct.fillna(0) + diffuse.fillna(0) + reflected.fillna(0)
         total_hourly = total.resample('1h', how='mean')
         total_hourly.loc[total_hourly < 0.01] = 0
+        total_hourly.index = total_hourly.index.tz_convert(system.location.tz)
         
         return pd.Series(total_hourly, name='irradiation')

@@ -31,7 +31,9 @@ def main(args=None):
                                        var=os.path.join(referencedir, settings.get("DWD","key")), 
                                        method='DWD_CSV')
     
-    yieldprediction = pv.predict.energy(forecast, args.optimize)
+#     if args.optimize:
+    
+    yieldprediction = pv.predict.energy(forecast)
     
     
     if (args.datadir != None):

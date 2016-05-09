@@ -7,8 +7,6 @@
 """
 import os
 import json
-import numpy as np
-import pandas as pd
 import pvlib as pv
 
 from configparser import ConfigParser
@@ -22,7 +20,7 @@ def read(latitude, longitude, altitude, timezone):
     config = ConfigParser()
     config.read(settings)
     
-    loc = pv.location.Location(latitude, longitude, timezone, altitude)
+    loc = pv.location.Location(latitude, longitude, tz=timezone, altitude=altitude)
     for section in config.sections():
         system = System(loc, section, config)
         systems[section] = system
@@ -31,12 +29,12 @@ def read(latitude, longitude, altitude, timezone):
 
 
 class System:
-    def __init__(self, location, id, parameters):
+    def __init__(self, location, sysid, parameters):
         self.location = location
-        self.id = id
+        self.id = sysid
         
         self.modules_param = {}
-        for (key, value) in parameters.items(id):
+        for (key, value) in parameters.items(sysid):
             self.modules_param[key] = self._parse_parameter(value)
         
         self.system_param = self._load_parameters()
