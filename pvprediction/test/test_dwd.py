@@ -20,7 +20,7 @@ def main(args=None):
     settings = ConfigParser()
     settings.read(settingsfile)
     
-    irradiation = pv.irradiation.read(settings.get('DWD','id'), settings.get('Location','timezone'), method='DWD')
+    irradiation = pv.weather.read(settings.get('DWD','id'), settings.get('Location','timezone'), method='DWD')
     
     simulationfile = os.path.join(os.path.dirname(os.path.dirname(here)), 'data', 'settings.cfg')
     irradiation.to_csv(simulationfile, sep=',', encoding='utf-8')

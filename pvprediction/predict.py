@@ -5,16 +5,14 @@
     ~~~~~
     
 """
-import os
+import logging
+logger = logging.getLogger('pvprediction')
+
 import numpy as np
 import pandas as pd
 
-import systems
 
-from configparser import ConfigParser
-
-
-def energy(forecast):
+def energy(systems, weather):
     """ 
         Calculates the energy yield of a list of configured photovoltaic system installations, 
         given by a solar irradiation forecast.
@@ -23,54 +21,44 @@ def energy(forecast):
         :returns: The systems energy yield.
         
     """
-    generation = power(forecast)
+    generation = power(systems, weather)
     
-    energy = pd.DataFrame(data=np.nan, index=forecast.times, columns=list(generation.columns))
-    i = 0
-    for t, row in energy.iterrows():
-        if (i == 0):
-            energy.ix[i] = generation.ix[i]
-        else:
-            energy.ix[i] = generation.ix[i] + energy.ix[i-1]
-        i+=1
+    energy = pd.DataFrame(data=np.nan, index=generation.index, columns=list(generation.columns))
+    energy.rename(columns = {'generation':'yield'})
     
-    return energy.rename(columns = {'generation':'yield'})
+    energy.iloc[0] = generation.iloc[0]
+    for i in range(1,energy.size):
+        energy.iloc[i] = generation.iloc[i] + energy.iloc[i-1]
+    
+    return energy
     
 
-def power(irradiation, temperature):
+def power(systems, weather):
     """ 
         Calculates the net output power of a list of configured photovoltaic system installations, 
         given by a solar irradiation.
     
         :param irradiation: The solar irradiation on a horizontal surface.
-        :param optimize: Boolean value, if parameters should be optimized before predicting irradiation.
         :returns: The systems generated power.
         
     """
-    here = os.path.abspath(os.path.dirname(__file__))
-    settingsfile = os.path.join(os.path.dirname(here), 'conf', 'settings.cfg')
-    settings = ConfigParser()
-    settings.read(settingsfile)
-    
-    systemlist = systems.read(float(settings.get('Location','latitude')), 
-                              float(settings.get('Location','longitude')), 
-                              float(settings.get('Location','altitude')),
-                              str(settings.get('Location','timezone')))
     
     systemids = []
-    if (len(systemlist.keys()) > 1):
+    if (len(systems.keys()) > 1):
         systemids.append('generation')
     
-    for sysid in systemlist.keys():
+    for sysid in systems.keys():
         systemids.append(sysid.lower())
     
-    generation = pd.DataFrame(np.nan, irradiation.index, columns=systemids)
-    for sysid, sys in systemlist.items():
-        if (len(systemlist.keys()) > 1):
-            generation[sysid] = power_system(sys, irradiation, temperature)
+    generation = pd.DataFrame(np.nan, weather.index, columns=systemids)
+    for sysid, sys in systems.items():
+        irradiation = weather.calculate(sys)
+        
+        if (len(systems.keys()) > 1):
+            generation[sysid] = power_system(sys, irradiation, weather.temperature)
             generation['generation'] = generation[systemids[1:]].sum(axis=1)
         else:
-            generation[sysid] = power_system(sys, irradiation, temperature)
+            generation[sysid] = power_system(sys, irradiation, weather.temperature)
         
     return generation
 

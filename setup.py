@@ -37,14 +37,15 @@ setup(
     
     author='Adrian Minde',
     author_email='adrian.minde@isc-konstanz.de',
-    url='https://bitbucket.org/cossmic/yieldprediction',
+    url='https://bitbucket.org/cossmic/pvprediction',
     
     packages=['pvprediction'],
     
-    install_requires=['numpy >= 1.8.2',
-                      'pandas >= 0.13.1',
-                      'cvxopt >= 1.1.7',
-                      'pvlib >= 0.2.2'],
+    install_requires=['numpy >= 1.11.0',
+                      'pandas >= 0.17.0',
+                      'configparser >= 3.3.0',
+#                       'cvxopt >= 1.1.7',
+                      'pvlib >= 0.3.2'],
     
-    scripts=[path.join(here, 'bin/', 'pvyieldprediction')],
+#     scripts=[path.join(here, 'bin/', 'pvyieldprediction')],
 )

@@ -26,14 +26,19 @@ def main(args=None):
     settings = ConfigParser()
     settings.read(settingsfile)
     
-    forecast = pv.irradiation.forecast(datetime.datetime.now(), 
-                                       settings.get('Location','timezone'), 
-                                       var=os.path.join(referencedir, settings.get("DWD","key")), 
-                                       method='DWD_CSV')
+    forecast = pv.weather.forecast(datetime.datetime.now(), 
+                                   settings.get('Location','timezone'), 
+                                   var=os.path.join(referencedir, settings.get("DWD","key")), 
+                                   method='DWD_CSV')
+        
+    systems = pv.systems.read(float(settings.get('Location','latitude')), 
+                              float(settings.get('Location','longitude')), 
+                              float(settings.get('Location','altitude')),
+                              str(settings.get('Location','timezone')))
     
 #     if args.optimize:
     
-    yieldprediction = pv.predict.energy(forecast)
+    yieldprediction = pv.predict.energy(systems, forecast)
     
     
     if (args.datadir != None):
@@ -41,7 +46,7 @@ def main(args=None):
     else:
         datadir = os.path.join(os.path.dirname(here), 'data')
     
-    filename = forecast.id + '_SimulatedEnergy.csv';
+    filename = forecast.key + '_yield.csv';
     filepath = os.path.join(datadir, filename)
     
     yieldprediction.index = yieldprediction.index.tz_convert('UTC').astype(np.int64)//10**6

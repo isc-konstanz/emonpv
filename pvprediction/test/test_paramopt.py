@@ -27,22 +27,22 @@ def main(args=None):
     
     emoncms = Emoncms(settings.get("Emoncms","URL"), settings.get("Emoncms","APIkey"))
     
-    systemlist = pv.systems.read(float(settings.get('Location','latitude')), 
+    systems = pv.systems.read(float(settings.get('Location','latitude')), 
                                  float(settings.get('Location','longitude')), 
                                  float(settings.get('Location','altitude')),
                                  str(settings.get('Location','timezone')))
     
     referencedir = os.path.join(os.path.dirname(here), 'ref')
     
-    forecast = pv.irradiation.forecast(datetime.datetime.now(), 
-                                       settings.get('Location','timezone'), 
-                                       var=os.path.join(referencedir, settings.get("DWD","key")), 
-                                       method='DWD_CSV')
+    forecast = pv.weather.forecast(datetime.datetime.now(), 
+                                   settings.get('Location','timezone'), 
+                                   var=os.path.join(referencedir, settings.get("DWD","key")), 
+                                   method='DWD_CSV')
     
-    dwd_meas = pv.irradiation.reference(datetime.datetime.now(), 
-                                        settings.get('Location','timezone'), 
-                                        var=settings.get("DWD","id"), 
-                                        method='DWD_PUB')
+    dwd_meas = pv.weather.reference(datetime.datetime.now(), 
+                                    settings.get('Location','timezone'), 
+                                    var=settings.get("DWD","id"), 
+                                    method='DWD_PUB')
     
     reference = None
     measurements = pd.Series(np.nan, name='measurements')
@@ -50,13 +50,13 @@ def main(args=None):
     for i in range(-175, 1):
         time = start + datetime.timedelta(days=i)
         time = time.replace(hour=0)
-        forecast = pv.irradiation.forecast(time, 
-                                           settings.get('Location','timezone'), 
-                                           var=os.path.join(referencedir, settings.get("DWD","key")), 
-                                           method='DWD_CSV')
+        forecast = pv.weather.forecast(time, 
+                                       settings.get('Location','timezone'), 
+                                       var=os.path.join(referencedir, settings.get("DWD","key")), 
+                                       method='DWD_CSV')
         
         logger.info('Starting optimized prediction for forecast: %s', forecast.key)
-        for sysid, sys in systemlist.items():
+        for sysid, sys in systems.items():
             times = forecast.index - datetime.timedelta(days=1)
             try:
                 if reference is None or not reference.index.equals(times):
@@ -71,7 +71,7 @@ def main(args=None):
                 if not measurements.empty and (measurements > 0).any() and measurements.index.equals(times):
 #                     result = sys.system_param['eta']
                     power_eff = pv.predict.power_effective(sys, reference.calculate(sys), reference.temperature.dropna()).dropna()*sys.modules_param['n']
-#                     forecast_prior = pv.irradiation.forecast(times[0], 
+#                     forecast_prior = pvprediction.weather.forecast(times[0], 
 #                                                              settings.get('Location','timezone'), 
 #                                                              var=os.path.join(referencedir, settings.get("DWD","key")), 
 #                                                              method='DWD_CSV')
