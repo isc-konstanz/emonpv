@@ -1,0 +1,19 @@
+syntax: glob
+
+# Executables
+**/build/**  
+*.o
+.depend
+
+# IDE (eclipse)
+.project
+.cproject
+
+# Python
+*.pyc
+.cache/*
+
+# pvprediction
+pvprediction/data/**
+ref/**
+data/**
