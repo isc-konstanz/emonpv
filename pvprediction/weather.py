@@ -18,7 +18,7 @@ import datetime
 def forecast(date, timezone, longitude=None, latitude=None, var=None, method='DWD'):
     if method == 'DWD_CSV':
         csv = _get_dwdcsv_nearest(date, var)
-        return _read_dwdcsv(csv, date, timezone)
+        return _read_dwdcsv(csv, timezone)
         
     else:
         raise ValueError('Invalid irradiation forecast method "{}"'.method)
@@ -34,18 +34,21 @@ def reference(date, timezone, longitude=None, latitude=None, var=None, method='D
 # def _read_dwd_grib2():
     
 
-def _read_dwdcsv(path, date, timezone):
+def _read_dwdcsv(path, timezone):
     csv = pd.read_csv(path, 
                       usecols=['time','aswdifd_s','aswdir_s','t_2m','t_g'], 
                       index_col='time', parse_dates=['time'])
         
     csv = csv.ix[:,:'t_2m'].rename(columns = {'aswdir_s':'direct_horizontal', 'aswdifd_s':'diffuse_horizontal', 't_2m':'temperature'})
-    csv.index = csv.index.tz_localize('UTC').tz_convert(timezone)
     csv.index.name = 'time'
-    csv = np.absolute(csv)
     
-    # Convert the ambient temperature from Kelvin to Celsius
-    csv['temperature'] = csv['temperature'] - 273.15
+    if not csv.empty:
+        csv.index = csv.index.tz_localize('UTC').tz_convert(timezone)
+        
+        csv = np.absolute(csv)
+        
+        # Convert the ambient temperature from Kelvin to Celsius
+        csv['temperature'] = csv['temperature'] - 273.15
     
     result = Weather(csv)
     result.key = os.path.basename(path).replace('.csv', '')
@@ -55,6 +58,9 @@ def _read_dwdcsv(path, date, timezone):
 def _get_dwdcsv_nearest(date, path):
     cswdir = os.path.dirname(path)
     dwdkey = os.path.basename(path)
+    
+    if isinstance(date, pd.tslib.Timestamp):
+        date = date.tz_convert('UTC')
     
     ref = int(date.strftime('%Y%m%d%H'))
     diff = 1970010100
