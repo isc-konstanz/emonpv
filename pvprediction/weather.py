@@ -6,7 +6,7 @@
     
 """
 import logging
-logger = logging.getLogger('pvprediction')
+logger = logging.getLogger('pvprediction.weather')
 
 import os
 import numpy as np
@@ -67,10 +67,10 @@ def _get_dwdcsv_nearest(date, path):
                     diff = d
                     csv = f
     except IOError:
-        logger.error('Unable to read irradiance forecast file in "%s"', format(dir))
+        logger.error('Unable to read irradiance forecast file in "%s"', cswdir)
     else:
         if(csv == None):
-            raise IOError("Unable to find irradiance forecast files in \"{}\"".format(dir))
+            raise IOError('Unable to find irradiance forecast files in "%s"', cswdir)
         else:
             return os.path.join(cswdir, csv)
 

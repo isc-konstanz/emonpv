@@ -4,6 +4,9 @@
     Predicts the yield of photovoltaic energy systems by a given solar irradiance forecast
     
 """
+import logging
+logger = logging.getLogger('pvyieldprediction')
+
 import os
 import datetime
 
@@ -14,54 +17,68 @@ import pvprediction as pv
 
 
 def main(args=None):
+    logger.info('Starting pvyieldprediction')
+    
     here = os.path.abspath(os.path.dirname(__file__))
     args = _get_parser().parse_args()
     
-    if (args.referencedir != None):
-        referencedir = args.referencedir
+    if (args.configdir != None):
+        configdir = args.configdir
     else:
-        referencedir = os.path.join(os.path.dirname(here), 'ref')
+        configdir = os.path.join(os.path.dirname(here), 'conf')
     
-    settingsfile = os.path.join(os.path.dirname(here), 'conf', 'settings.cfg')
+    settingsfile = os.path.join(configdir, 'settings.cfg')
     settings = ConfigParser()
     settings.read(settingsfile)
     
-    forecast = pv.weather.forecast(datetime.datetime.now(), 
-                                   settings.get('Location','timezone'), 
-                                   var=os.path.join(referencedir, settings.get("DWD","key")), 
-                                   method='DWD_CSV')
-        
-    systems = pv.systems.read(float(settings.get('Location','latitude')), 
-                              float(settings.get('Location','longitude')), 
-                              float(settings.get('Location','altitude')),
-                              str(settings.get('Location','timezone')))
-    
-#     if args.optimize:
-    
-    yieldprediction = pv.predict.energy(systems, forecast)
-    
-    
-    if (args.datadir != None):
-        datadir = args.datadir
+    if (args.weatherdir != None):
+        weatherdir = args.weatherdir
     else:
-        datadir = os.path.join(os.path.dirname(here), 'data')
+        weatherdir = os.path.join(os.path.dirname(here), 'ref')
     
-    filename = forecast.key + '_yield.csv';
-    filepath = os.path.join(datadir, filename)
-    
-    yieldprediction.index = yieldprediction.index.tz_convert('UTC').astype(np.int64)//10**6
-    yieldprediction.index.name = 'time'
-    yieldprediction.to_csv(filepath, sep=',', encoding='utf-8')
+    try:
+        forecast = pv.weather.forecast(datetime.datetime.now(), 
+                                       settings.get('Location','timezone'), 
+                                       var=os.path.join(weatherdir, settings.get("DWD","key")), 
+                                       method='DWD_CSV')
+        
+        systems = pv.systems.read(configdir,
+                                  float(settings.get('Location','latitude')), 
+                                  float(settings.get('Location','longitude')), 
+                                  float(settings.get('Location','altitude')),
+                                  str(settings.get('Location','timezone')))
+        
+    #     if args.optimize:
+        
+        yieldprediction = pv.predict.energy(systems, forecast)
+        
+        if (args.datadir != None):
+            datadir = args.datadir
+        else:
+            datadir = os.path.join(os.path.dirname(here), 'data')
+        
+        filename = forecast.key + '_yield.csv';
+        filepath = os.path.join(datadir, filename)
+        
+        yieldprediction.index = yieldprediction.index.tz_convert('UTC').astype(np.int64)//10**6
+        yieldprediction.index.name = 'time'
+        yieldprediction.to_csv(filepath, sep=',', encoding='utf-8')
 
+    except IOError as e:
+        logger.error('Error while predicting energy yield: %s', e.message)
 
 def _get_parser():
     from argparse import ArgumentParser
     
     parser = ArgumentParser(description=__doc__)
     
-    parser.add_argument('-r','--reference', 
-                        dest='referencedir',
-                        help="Directory of solar irradiance reference files", 
+    parser.add_argument('-c','--config', 
+                        dest='configdir',
+                        help="Directory of system configuration files", 
+                        metavar='DIR')
+    parser.add_argument('-w','--weather', 
+                        dest='weatherdir',
+                        help="Directory of solar irradiance and temperature files", 
                         metavar='DIR')
     parser.add_argument('-d','--data', 
                         dest='datadir',

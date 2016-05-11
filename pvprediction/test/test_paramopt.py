@@ -21,18 +21,20 @@ from pvprediction.emoncms import Emoncms
 def main(args=None):
     here = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
     
-    settingsfile = os.path.join(os.path.dirname(here), 'conf', 'settings.cfg')
+    configdir = os.path.join(os.path.dirname(here), 'conf')
+    referencedir = os.path.join(os.path.dirname(here), 'ref')
+    
+    settingsfile = os.path.join(configdir, 'settings.cfg')
     settings = ConfigParser()
     settings.read(settingsfile)
     
     emoncms = Emoncms(settings.get("Emoncms","URL"), settings.get("Emoncms","APIkey"))
     
-    systems = pv.systems.read(float(settings.get('Location','latitude')), 
-                                 float(settings.get('Location','longitude')), 
-                                 float(settings.get('Location','altitude')),
-                                 str(settings.get('Location','timezone')))
-    
-    referencedir = os.path.join(os.path.dirname(here), 'ref')
+    systems = pv.systems.read(configdir,
+                              float(settings.get('Location','latitude')), 
+                              float(settings.get('Location','longitude')), 
+                              float(settings.get('Location','altitude')),
+                              settings.get('Location','timezone'))
     
     forecast = pv.weather.forecast(datetime.datetime.now(), 
                                    settings.get('Location','timezone'), 

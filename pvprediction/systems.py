@@ -5,6 +5,9 @@
     ~~~~~
     
 """
+import logging
+logger = logging.getLogger('pvprediction.systems')
+
 import os
 import json
 import pvlib as pv
@@ -12,32 +15,33 @@ import pvlib as pv
 from configparser import ConfigParser
 
 
-def read(latitude, longitude, altitude, timezone):
+def read(configdir, latitude, longitude, altitude, timezone):
     systems = {}
     
-    here = os.path.abspath(os.path.dirname(__file__))
-    settings = os.path.join(os.path.dirname(here), 'conf', 'systems.cfg')
+    configfile = os.path.join(configdir, 'systems.cfg')
     config = ConfigParser()
-    config.read(settings)
+    config.read(configfile)
     
     loc = pv.location.Location(latitude, longitude, tz=timezone, altitude=altitude)
     for section in config.sections():
-        system = System(loc, section, config)
+        logger.debug('System "%s" found', section)
+        
+        system = System(configdir, section, config, loc)
         systems[section] = system
 
     return systems
 
 
 class System:
-    def __init__(self, location, sysid, parameters):
-        self.location = location
+    def __init__(self, configdir, sysid, parameters, location):
         self.id = sysid
+        self.location = location
         
         self.modules_param = {}
         for (key, value) in parameters.items(sysid):
             self.modules_param[key] = self._parse_parameter(value)
         
-        self.system_param = self._load_parameters()
+        self.system_param = self._load_parameters(configdir)
       
     
     def save_parameters(self):
@@ -53,18 +57,18 @@ class System:
             json.dump(params_var, paramjson)
     
     
-    def _load_parameters(self):
+    def _load_parameters(self, configdir):
         here = os.path.abspath(os.path.dirname(__file__))
-        paramfile_default = os.path.join(os.path.dirname(here), 'conf', 'systems_param.cfg')
+        datadir = os.path.join(here, "data")
+        
+        defaultfile = os.path.join(configdir, 'system_default.cfg')
         config = ConfigParser()
-        config.read(paramfile_default)
+        config.read(defaultfile)
         
         params = {}
         for (key, value) in config.items('Default'):
             params[key] = self._parse_parameter(value)
         
-        
-        datadir = os.path.join(here, "data")
         if not os.path.exists(datadir):
             os.makedirs(datadir)
         

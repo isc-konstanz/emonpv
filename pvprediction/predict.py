@@ -6,7 +6,7 @@
     
 """
 import logging
-logger = logging.getLogger('pvprediction')
+logger = logging.getLogger('pvprediction.predict')
 
 import numpy as np
 import pandas as pd
@@ -17,7 +17,8 @@ def energy(systems, weather):
         Calculates the energy yield of a list of configured photovoltaic system installations, 
         given by a solar irradiation forecast.
     
-        :param forecast: The solar irradiance forecast on a horizontal surface.
+        :param systems: The solar irradiance forecast on a horizontal surface.
+        :param weather: This method does the same as :class:`Weather`
         :returns: The systems energy yield.
         
     """
@@ -42,6 +43,8 @@ def power(systems, weather):
         :returns: The systems generated power.
         
     """
+    if not systems:
+        logger.warn('System list is empty')
     
     systemids = []
     if (len(systems.keys()) > 1):
@@ -52,6 +55,8 @@ def power(systems, weather):
     
     generation = pd.DataFrame(np.nan, weather.index, columns=systemids)
     for sysid, sys in systems.items():
+        logger.debug('Calculating pv generation for system "%s"', sysid)
+        
         irradiation = weather.calculate(sys)
         
         if (len(systems.keys()) > 1):
