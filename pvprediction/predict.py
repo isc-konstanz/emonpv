@@ -129,4 +129,44 @@ def optimize(system, transition, reference, eta, cov, forgetting=0.99):
     system.save_parameters()
     
     return eta
+
+
+def optimise_static(system, transition, reference, eta):
+    import cvxopt as opt
+
+    # Get multi index of non-empty rows
+    index = reference.index[pd.concat([reference, transition], axis=1).sum(axis=1) > 0]
     
+    eff = np.zeros(index.size)
+    for i in range(0, index.size):
+        eff[i] = eta[index[i]]
+    
+    ref = np.matrix(reference.ix[index].sum(axis=1)).T
+    trans = np.diag(transition.ix[index].sum(axis=1))
+    
+    
+    # Solve the quadratic problem
+    #
+    # minimize    (1/2)*x'*Q*x + q'*x 
+    # subject to  G*x <= h
+    Q = 2*opt.matrix(trans.T*trans, tc='d')
+    p = -2*opt.matrix(ref.T*trans, tc='d').T
+    
+    # Define optimization bounds
+    # 0 <= eta <= 1
+    G = opt.matrix(np.vstack([-np.eye(len(index)), 
+                              np.eye(len(index))]))
+    h = opt.matrix(np.vstack([np.zeros((len(index), 1)), 
+                              np.ones((len(index), 1))]))
+    
+    # Chose last estimated efficiency as initial values
+    init = {}
+    init['x'] = opt.matrix(eff, tc='d')
+    result = opt.solvers.qp(Q, p, G, h, initvals=init)
+    
+    for i in range(0, index.size):
+        eta[index[i]] = result['x'][i]
+    system.system_param['eta'] = eta
+    system.save_parameters()
+
+    return eta
