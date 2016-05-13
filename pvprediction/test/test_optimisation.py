@@ -20,6 +20,7 @@ from pvprediction.emoncms import Emoncms
 
 def main(args=None):
     method_ref = 'forecast'
+    method_opt = 'static'
     here = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
     
     configdir = os.path.join(os.path.dirname(here), 'conf')
@@ -40,15 +41,19 @@ def main(args=None):
     forecast = pv.weather.forecast(datetime.datetime.now(), 
                                    settings.get('Location','timezone'), 
                                    var=os.path.join(weatherdir, settings.get("DWD","key")), 
-                                   method_ref='DWD_CSV')
+                                   method='DWD_CSV')
     
     if method_ref == 'reference':
         dwd_meas = pv.weather.reference(datetime.datetime.now(), 
                                         settings.get('Location','timezone'), 
                                         var=settings.get("DWD","id"), 
-                                        method_ref='DWD_PUB')
+                                        method='DWD_PUB')
+        
+    if method_opt == 'static':
+        transitions = pd.DataFrame()
+        references = pd.DataFrame()
     
-    reference = None
+    reference = pd.DataFrame()
     measurements = pd.Series(np.nan, name='measurements')
     start = forecast.index[0]
     for i in range(-170, 1):
@@ -56,13 +61,13 @@ def main(args=None):
         forecast = pv.weather.forecast(time, 
                                        settings.get('Location','timezone'), 
                                        var=os.path.join(weatherdir, settings.get("DWD","key")), 
-                                       method_ref='DWD_CSV')
+                                       method='DWD_CSV')
         
         logger.info('Starting optimized prediction for forecast: %s', forecast.key)
         for sysid, sys in systems.items():
             times = forecast.index - datetime.timedelta(days=1)
             try:
-                if method_ref == 'reference' and (reference is None or not reference.index.equals(times)):
+                if method_ref == 'reference' and (reference.empty or not reference.index.equals(times)):
                     reference = dwd_meas[(dwd_meas.index >= times[0] - datetime.timedelta(minutes=30)) & 
                                          (dwd_meas.index <= times[-1] + datetime.timedelta(minutes=30))]
                     reference.key = sysid + '_dwd'
@@ -72,7 +77,18 @@ def main(args=None):
                     measurements.name = 'measurements'
                 
                 if not measurements.empty and (measurements > 0).any() and measurements.index.equals(times):
-                    result = _optimise_rec(times, sys, settings, weatherdir, measurements, reference=reference, method=method_ref)
+                    if not method_ref:
+                        result = sys.system_param['eta']
+                        
+                    elif method_opt == 'recursive':
+                        result = _optimize_rec(times[0], sys, settings, weatherdir, 
+                                               measurements, reference=reference, 
+                                               method=method_ref)
+                        
+                    elif method_opt == 'static':
+                        result, transitions, references = _optimize_static(times[0], sys, settings, weatherdir, 
+                                                                           measurements, transitions, references, reference=reference, 
+                                                                           method=method_ref)
                     
                     eta = pd.Series(np.nan, index=forecast.index, name='eta')
                     for i in eta.index:
@@ -119,35 +135,56 @@ def main(args=None):
                         _concat_file(os.path.join(datadir, 'innovation_ref.csv'), error_ref, forecast.key)
                     
             except AmbiguousTimeError:
+                # AmbiguousTimeError will be thrown for some pandas version, if a daylight savings time crossing gets converted
                 logger.warn('Error retrieving measurement data due to daylight savings timestamps for forecast: %s', forecast.key)
 
 
-def _optimise_rec(time, system, settings, weatherdir, measurements, reference=None, method=None):
+def _optimize_rec(time, system, settings, weatherdir, measurements, reference=None, method=None):
     power_eff = None
     if method == 'forecast':
-        forecast_prior = _parse_forecasts(time[0], os.path.join(weatherdir, settings.get("DWD","key")), settings.get('Location','timezone'))
+        forecast_prior = _parse_forecasts(time, os.path.join(weatherdir, settings.get("DWD","key")), settings.get('Location','timezone'))
         power_eff = pv.predict.power_effective(system, forecast_prior.calculate(system), forecast_prior.temperature)*system.modules_param['n']
-        
+    
     elif method == 'reference':
         power_eff = pv.predict.power_effective(system, reference.calculate(system), reference.temperature.dropna()).dropna()*system.modules_param['n']
+    
+    eta = pv.predict.optimize(system, power_eff, measurements, 
+                              system.system_param['eta'], system.system_param['cov'], 
+                              float(settings.get('Optimization','forgetting')))
+    
+    return eta
+
+
+def _optimize_static(time, system, settings, weatherdir, measurements, transitions, references, reference=None, method=None):
+    if not measurements.isnull().any():
+        earliest = time - datetime.timedelta(days=int(settings.get('Optimization','days')))
+        if not references.empty and references.columns[0] < earliest:
+            references = references.drop(references.columns[0], axis=1)
         
-    elif method == 'combination':
-        forecast_prior = _parse_forecasts(time[0], os.path.join(weatherdir, settings.get("DWD","key")), settings.get('Location','timezone'))
-        irr_forecast = pv.predict.power_effective(system, forecast_prior.calculate(system), forecast_prior.temperature)
-        irr_ref = pv.predict.power_effective(system, reference.calculate(system), reference.temperature.dropna()).dropna()
-        power_eff = pd.concat([irr_forecast, irr_forecast, irr_ref], axis=1).mean(axis=1)*system.modules_param['n']
+        meas = measurements.copy()
+        meas.name = meas.index[0]
+        meas.index = meas.index.hour
+        references = pd.concat([references, meas], axis=1)
         
-    if not method:
-        result = system.system_param['eta']
+        power_eff = None
+        if method == 'forecast':
+            forecast_prior = _parse_forecasts(time, os.path.join(weatherdir, settings.get("DWD","key")), settings.get('Location','timezone'))
+            power_eff = pv.predict.power_effective(system, forecast_prior.calculate(system), forecast_prior.temperature)*system.modules_param['n']
+        
+        elif method == 'reference':
+            power_eff = pv.predict.power_effective(system, reference.calculate(system), reference.temperature.dropna()).dropna()*system.modules_param['n']
+        
+        power_eff.name = power_eff.index[0]
+        power_eff.index = power_eff.index.hour
+        transitions = pd.concat([transitions, power_eff], axis=1)
+        
+        eta = pv.predict.optimise_static(system, transitions, references, system.system_param['eta'])
+    
     else:
-        result = pv.predict.optimize(system, power_eff, measurements, 
-                                     system.system_param['eta'], system.system_param['cov'], 
-                                     float(settings.get('Optimization','forgetting')))
-
-    return result
-
-
-# def _optimise_static():
+        eta = system.system_param['eta']
+        logger.warn('Unable to find valid measurements for "%s". Optimization will be skipped', time)
+    
+    return eta, transitions, references
 
 
 def _parse_forecasts(time, path, timezone):
