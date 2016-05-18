@@ -28,7 +28,7 @@ def energy(systems, weather):
     energy.rename(columns = {'generation':'yield'})
     
     energy.iloc[0] = generation.iloc[0]
-    for i in range(1,energy.size):
+    for i in range(1, len(generation.index)):
         energy.iloc[i] = generation.iloc[i] + energy.iloc[i-1]
     
     return energy
