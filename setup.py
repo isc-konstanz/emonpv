@@ -42,7 +42,7 @@ setup(
     packages=['pvprediction'],
     
     install_requires=['numpy >= 1.11.0',
-                      'pandas >= 0.17.0',
+                      'pandas >= 0.18.0',
                       'configparser >= 3.3.0',
 #                       'cvxopt >= 1.1.7',
                       'pvlib >= 0.3.2'],
