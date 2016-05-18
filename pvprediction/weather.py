@@ -67,7 +67,7 @@ def _get_dwdcsv_nearest(date, path):
     csv = None
     try:
         for f in os.listdir(cswdir):
-            if (dwdkey + '_' in f) and (f.endswith('.csv')):
+            if dwdkey + '_' in f and not '_yield' in f and f.endswith('.csv'):
                 d = abs(ref - int(f[3:-4]))
                 if (d < diff):
                     diff = d
@@ -163,13 +163,13 @@ class Weather(pd.DataFrame):
         timestamps = pd.date_range(self.index[0], self.index[-1] + pd.DateOffset(minutes=59), freq='min').tz_convert('UTC')
         pressure = pv.atmosphere.alt2pres(system.location.altitude)
         
-        dhi = self.diffuse_horizontal.resample('1min', fill_method='ffill', kind='timestamp', how='last')
+        dhi = self.diffuse_horizontal.resample('1min', kind='timestamp').last().ffill()
         dhi.index = dhi.index.tz_convert('UTC')
             
         if 'global_horizontal' in self.columns:
-            ghi = self.global_horizontal.resample('1min', fill_method='ffill', kind='timestamp', how='last')
+            ghi = self.global_horizontal.resample('1min', kind='timestamp').last().ffill()
         else:
-            ghi = self.direct_horizontal.resample('1min', fill_method='ffill', kind='timestamp', how='last') + dhi
+            ghi = self.direct_horizontal.resample('1min', kind='timestamp').last().ffill() + dhi
         ghi.index = ghi.index.tz_convert('UTC')
         
         # Get the solar angles, determining the suns irradiation on a surface by an implementation of the NREL SPA algorithm
@@ -216,7 +216,7 @@ class Weather(pd.DataFrame):
         # Check if still necessary, for better forecasts
         total = irradiation['poa_global'].fillna(0)
 #         total = direct.fillna(0) + diffuse.fillna(0) + reflected.fillna(0)
-        total_hourly = total.resample('1h', how='mean')
+        total_hourly = total.resample('1h').mean()
         total_hourly.loc[total_hourly < 0.01] = 0
         total_hourly.index = total_hourly.index.tz_convert(system.location.tz)
         

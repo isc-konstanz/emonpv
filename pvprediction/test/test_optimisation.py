@@ -24,11 +24,13 @@ def main(args=None):
     here = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
     
     configdir = os.path.join(os.path.dirname(here), 'conf')
-    weatherdir = os.path.join(os.path.dirname(here), 'ref')
     
     settingsfile = os.path.join(configdir, 'settings.cfg')
     settings = ConfigParser()
     settings.read(settingsfile)
+    
+    weatherdir = os.path.join(str(settings.get('General','datadir')), 'ref')
+    simdir = os.path.join(str(settings.get('General','datadir')), 'sim')
     
     emoncms = Emoncms(settings.get("Emoncms","URL"), settings.get("Emoncms","APIkey"))
     
@@ -99,9 +101,8 @@ def main(args=None):
                     
                     
                     
-                    datadir = os.path.join(os.path.dirname(here), 'data')
                     filename = forecast.key + '_opt_' + sysid + '.csv';
-                    filepath = os.path.join(datadir, filename)
+                    filepath = os.path.join(simdir, filename)
                     
                     est = pv.predict.power_effective(sys, forecast.calculate(sys), forecast.temperature)*eta*sys.modules_param['n']
                     est.name = 'estimation'
@@ -127,12 +128,12 @@ def main(args=None):
                     
                     
                     if method_ref:
-                        _concat_file(os.path.join(datadir, 'efficiency.csv'), eta, forecast.key)
+                        _concat_file(os.path.join(simdir, 'efficiency.csv'), eta, forecast.key)
                         
-                    _concat_file(os.path.join(datadir, 'innovation.csv'), error_est, forecast.key)
+                    _concat_file(os.path.join(simdir, 'innovation.csv'), error_est, forecast.key)
                     
                     if method_ref == 'reference':
-                        _concat_file(os.path.join(datadir, 'innovation_ref.csv'), error_ref, forecast.key)
+                        _concat_file(os.path.join(simdir, 'innovation_ref.csv'), error_ref, forecast.key)
                     
             except AmbiguousTimeError:
                 # AmbiguousTimeError will be thrown for some pandas version, if a daylight savings time crossing gets converted

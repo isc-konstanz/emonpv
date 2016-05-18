@@ -34,7 +34,7 @@ def main(args=None):
     if (args.weatherdir != None):
         weatherdir = args.weatherdir
     else:
-        weatherdir = os.path.join(os.path.dirname(here), 'ref')
+        weatherdir = str(settings.get('General','datadir'))
     
     try:
         forecast = pv.weather.forecast(datetime.datetime.now(), 
@@ -42,23 +42,19 @@ def main(args=None):
                                        var=os.path.join(weatherdir, settings.get("DWD","key")), 
                                        method='DWD_CSV')
         
-        systems = pv.systems.read(configdir,
-                                  float(settings.get('Location','latitude')), 
-                                  float(settings.get('Location','longitude')), 
-                                  float(settings.get('Location','altitude')),
-                                  str(settings.get('Location','timezone')))
+        systems = pv.systems.read(configdir)
         
     #     if args.optimize:
         
         yieldprediction = pv.predict.energy(systems, forecast)
         
-        if (args.datadir != None):
-            datadir = args.datadir
+        if (args.simdir != None):
+            simdir = args.simdir
         else:
-            datadir = os.path.join(os.path.dirname(here), 'data')
+            simdir = str(settings.get('General','datadir'))
         
         filename = forecast.key + '_yield.csv';
-        filepath = os.path.join(datadir, filename)
+        filepath = os.path.join(simdir, filename)
         
         yieldprediction.index = yieldprediction.index.tz_convert('UTC').astype(np.int64)//10**6
         yieldprediction.index.name = 'time'
@@ -80,8 +76,8 @@ def _get_parser():
                         dest='weatherdir',
                         help="Directory of solar irradiance and temperature files", 
                         metavar='DIR')
-    parser.add_argument('-d','--data', 
-                        dest='datadir',
+    parser.add_argument('-s','--simulation', 
+                        dest='simdir',
                         help="Directory in which simulation output files will be placed", 
                         metavar='DIR')
     parser.add_argument('-o','--optimize', 
