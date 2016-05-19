@@ -25,13 +25,14 @@ def energy(systems, weather):
     generation = power(systems, weather)
     
     energy = pd.DataFrame(data=np.nan, index=generation.index, columns=list(generation.columns))
-    if 'generation' in energy.columns:
-        energy.rename(columns={'generation':'yield'}, inplace=True)
     
     energy.iloc[0] = generation.iloc[0]
     for i in range(1, len(generation.index)):
         energy.iloc[i] = generation.iloc[i] + energy.iloc[i-1]
     
+    if 'generation' in energy.columns:
+        energy.rename(columns={'generation':'yield'}, inplace=True)
+        
     return energy
     
 
