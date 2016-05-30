@@ -1,8 +1,13 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-    pvprediction
+    pvprediction.weather
     ~~~~~
+    
+    This module provides functions to read :class:`pvprediction.Weather` objects, 
+    used as reference to calculate a photovoltaic installations' generated power.
+    The provided environmental data contains temperatures and horizontal 
+    solar irradiation, which can be used, to calculate the effective irradiance 
+    on defined, tilted photovoltaic systems.
     
 """
 import logging
@@ -15,8 +20,54 @@ import pvlib as pv
 import datetime
 
 
-def forecast(date, timezone, longitude=None, latitude=None, var=None, method='DWD'):
-    if method == 'DWD_CSV':
+def forecast(date, timezone, longitude=None, latitude=None, var=None, method='DWD_CSV'):
+    """ 
+    Reads the predicted weather data for a specified location, retrieved through 
+    several possible methods:
+    
+    - DWD_CSV:
+        Reads an hourly interval of 23 hours from a csv file, parsed from data provided by
+        the DWDs' (Deutscher Wetterdienst) Global Data Set ftp server, where a new data set 
+        of the following 23 hours gets provided every 6 hours in GRIB2 format.
+        The csv directory has to be specified with the 'var' parameter.
+    
+    
+    :param date: 
+        the date for which the closest possible weather forecast will be looked up for.
+        For many applications, passing datetime.datetime.now() will suffice.
+    :type date: 
+        :class:`pandas.tslib.Timestamp` or datetime
+    
+    :param timezone: 
+        See http://en.wikipedia.org/wiki/List_of_tz_database_time_zones for a list of 
+        valid time zones.
+    :type timezone:
+        str or unicode
+    
+    :param longitude: 
+        the locations degree north of the equator in decimal degrees notation.
+    :type longitude:
+        float
+    
+    :param latitude: 
+        the locations degree east of the prime meridian in decimal degrees notation.
+    :type latitude:
+        float
+    
+    :param method: 
+        the defining method, how the weather data should be retrieved.
+    :type method:
+        str or unicode
+    
+    
+    :returns: 
+        the Weather object, containing the data columns 'global_horizontal' or 
+        'direct_horizontal', 'diffuse_horizontal' and 'temperature', indexed by 
+        timezone aware :class:`pandas.DatetimeIndex`.
+    :rtype: 
+        :class:`pvprediction.Weather`
+    """
+    if method.lower() == 'dwd_csv':
         csv = _get_dwdcsv_nearest(date, var)
         return _read_dwdcsv(csv, timezone)
         
@@ -24,8 +75,44 @@ def forecast(date, timezone, longitude=None, latitude=None, var=None, method='DW
         raise ValueError('Invalid irradiation forecast method "{}"'.method)
 
 
-def reference(date, timezone, longitude=None, latitude=None, var=None, method='DWD'):
-    if method == 'DWD_PUB':
+def reference(date, timezone, var=None, method='DWD_PUB'):
+    """ 
+    Reads historical weather data for a specified location, retrieved through 
+    several possible methods:
+    
+    - DWD_PUB:
+        Reads an hourly interval of 23 hours from a text file, provided by the DWDs' 
+        (Deutscher Wetterdienst) public ftp server, where data will be updated roughly
+        once a month.
+        The DWD specific location key has to be specified with the 'var' parameter.
+    
+    
+    :param date: 
+        the date for which the closest possible weather forecast will be looked up for.
+        For many applications, passing datetime.datetime.now() will suffice.
+    :type date: 
+        :class:`pandas.tslib.Timestamp` or datetime
+    
+    :param timezone: 
+        See http://en.wikipedia.org/wiki/List_of_tz_database_time_zones for a list of 
+        valid time zones.
+    :type timezone:
+        str or unicode
+    
+    :param method: 
+        the defining method, how the weather data should be retrieved.
+    :type method:
+        str or unicode
+    
+    
+    :returns: 
+        the Weather object, containing the data columns 'global_horizontal' or 
+        'direct_horizontal', 'diffuse_horizontal' in W/m^2 and 'temperature' in 
+        degree Celsius, indexed by timezone aware :class:`pandas.DatetimeIndex`.
+    :rtype: 
+        :class:`pvprediction.Weather`
+    """
+    if method.lower() == 'dwd_pub':
         return _read_dwdpublic(var, timezone)
     else:
         raise ValueError('Invalid irradiation reference method "{}"'.method)
@@ -34,8 +121,33 @@ def reference(date, timezone, longitude=None, latitude=None, var=None, method='D
 # def _read_dwd_grib2():
     
 
-def _read_dwdcsv(path, timezone):
-    csv = pd.read_csv(path, 
+def _read_dwdcsv(csvname, timezone):
+    """
+    Reads an hourly interval of 23 hours from a csv file, parsed from data provided by
+    the DWDs' (Deutscher Wetterdienst) Global Data Set ftp server, where a new data set 
+    of the following 23 hours gets provided every 6 hours in GRIB2 format.
+    
+    
+    :param csvname: 
+        the name of the csv file, containing the weather data.
+    :type csvname:
+        str or unicode
+    
+    :param timezone: 
+        See http://en.wikipedia.org/wiki/List_of_tz_database_time_zones for a list of 
+        valid time zones.
+    :type timezone:
+        str or unicode
+    
+    
+    :returns: 
+        the Weather object, containing the data columns 'global_horizontal' or 
+        'direct_horizontal', 'diffuse_horizontal' in W/m^2 and 'temperature' in 
+        degree Celsius, indexed by timezone aware :class:`pandas.DatetimeIndex`.
+    :rtype: 
+        :class:`pvprediction.Weather`
+    """
+    csv = pd.read_csv(csvname, 
                       usecols=['time','aswdifd_s','aswdir_s','t_2m','t_g'], 
                       index_col='time', parse_dates=['time'])
         
@@ -51,11 +163,32 @@ def _read_dwdcsv(path, timezone):
         csv['temperature'] = csv['temperature'] - 273.15
     
     result = Weather(csv)
-    result.key = os.path.basename(path).replace('.csv', '')
+    result.key = os.path.basename(csvname).replace('.csv', '')
     return result
 
 
 def _get_dwdcsv_nearest(date, path):
+    """
+    Retrieve the csv file closest to a passed date, following the file naming
+    scheme "KEY_YYYYMMDDHH.csv"
+    
+    
+    :param date: 
+        the date for which the closest possible csv file will be looked up for.
+    :type date: 
+        :class:`pandas.tslib.Timestamp` or datetime
+    
+    :param path: 
+        the directory, in which csv files should be looked up in.
+    :type path:
+        str or unicode
+    
+    
+    :returns: 
+        the full path and filename of the closest found csv file.
+    :rtype: 
+        str
+    """
     cswdir = os.path.dirname(path)
     dwdkey = os.path.basename(path)
     
@@ -81,17 +214,33 @@ def _get_dwdcsv_nearest(date, path):
             return os.path.join(cswdir, csv)
 
 
-def _get_dwdcsv(date, path):
-    date = date.tz_convert('UTC')
-    # Add daylight savings time offset, if necessary
-    if date.dst() != datetime.timedelta(0):
-        date = date + pd.DateOffset(seconds=date.dst().total_seconds())
-    datestr = date.strftime('%Y%m%d%H')
-    
-    return path + '_' + str(datestr) + '.csv'
-
-
 def _read_dwdpublic(key, timezone):
+    """
+    Reads an hourly interval of 23 hours from a text file, provided by the DWDs' 
+    (Deutscher Wetterdienst) public ftp server, where data will be updated roughly
+    once a month.
+    
+    
+    :param key: 
+        the DWD specific location key. Information about possible locations can be found with:
+        ftp://ftp-cdc.dwd.de/pub/CDC/observations_germany/climate/hourly/solar/ST_Beschreibung_Stationen.txt
+    :type key:
+        str or unicode
+    
+    :param timezone: 
+        See http://en.wikipedia.org/wiki/List_of_tz_database_time_zones for a list of 
+        valid time zones.
+    :type timezone:
+        str or unicode
+    
+    
+    :returns: 
+        the Weather object, containing the data columns 'global_horizontal' or 
+        'direct_horizontal', 'diffuse_horizontal' in W/m^2 and 'temperature' in 
+        degree Celsius, indexed by timezone aware :class:`pandas.DatetimeIndex`.
+    :rtype: 
+        :class:`pvprediction.Weather`
+    """
     from urllib import urlopen
     from zipfile import ZipFile
     from StringIO import StringIO
@@ -145,6 +294,18 @@ def _read_dwdpublic(key, timezone):
 
     
 class Weather(pd.DataFrame):
+    """
+    The Weather object provides horizontal solar irradiation and temperature
+    data as a :class:`pandas.DataFrame`. It needs to contain specific columns, 
+    to being able to calculate the total solar irradiation on a defined photovoltaic
+    systems' tilted surface.
+    
+    A Weather DataFrame contains either the columns 'global_horizontal' or 
+    'direct_horizontal', additional to 'diffuse_horizontal' and 'temperature'.
+    Depending on which columns are available, :func:`calculate` will calculate
+    the total irradiance on the passed photovoltaic systems' tilted surface in a 
+    slightly adjusted matter.
+    """
     _metadata = ['key']
  
     @property
@@ -154,11 +315,15 @@ class Weather(pd.DataFrame):
     
     def calculate(self, system):
         """ 
-            Calculates the global irradiation on a tilted surface, consisting out of the sum of
-            direct, diffuse and reflected irradiance components.
-            
-            :param system: The photovoltaic system, solar irradiation forecast on a horizontal surface.
-            
+        Calculates the total solar irradiation on a defined photovoltaic systems' 
+        tilted surface, consisting out of the sum of direct, diffuse and reflected 
+        irradiance components.
+        
+        :param system: 
+            the photovoltaic system, defining the surface orientation and tilt to 
+            calculate the irradiance for.
+        :type system: 
+            :class:`pvprediction.System`
         """
         timestamps = pd.date_range(self.index[0], self.index[-1] + pd.DateOffset(minutes=59), freq='min').tz_convert('UTC')
         pressure = pv.atmosphere.alt2pres(system.location.altitude)

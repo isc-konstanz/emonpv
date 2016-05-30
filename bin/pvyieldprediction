@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """    
     Predicts the yield of photovoltaic energy systems by a given solar irradiance forecast
@@ -42,7 +41,7 @@ def main(args=None):
                                        var=os.path.join(weatherdir, settings.get("DWD","key")), 
                                        method='DWD_CSV')
         
-        systems = pv.systems.read(configdir)
+        systems = pv.system.read(configdir)
         
     #     if args.optimize:
         
