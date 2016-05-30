@@ -21,7 +21,7 @@ def main(args=None):
     here = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
     
     method_ref = 'forecast'
-    method_opt = 'static'
+    method_opt = 'recursive'
     
     configdir = os.path.join(os.path.dirname(here), 'conf')
     
@@ -42,10 +42,8 @@ def main(args=None):
     
     systems = pv.system.read(configdir)
     
-    forecast = pv.weather.forecast(datetime.datetime.now(), 
-                                   settings.get('Location','timezone'), 
-                                   var=os.path.join(weatherdir, settings.get("DWD","key")), 
-                                   method='DWD_CSV')
+    forecast = pv.weather.forecast(datetime.datetime.now(), settings.get('Location','timezone'), 
+                                   var=weatherdir, method='DWD_CSV')
     
     if method_ref == 'reference':
         dwd_meas = pv.weather.reference(datetime.datetime.now(), 
@@ -62,10 +60,8 @@ def main(args=None):
     start = forecast.index[0]
     for i in range(-170, 1):
         time = start + datetime.timedelta(days=i)
-        forecast = pv.weather.forecast(time, 
-                                       settings.get('Location','timezone'), 
-                                       var=os.path.join(weatherdir, settings.get("DWD","key")), 
-                                       method='DWD_CSV')
+        forecast = pv.weather.forecast(time, settings.get('Location','timezone'), 
+                                       var=weatherdir, method='DWD_CSV')
         
         logger.info('Starting optimized prediction for forecast: %s', forecast.key)
         for sysid, sys in systems.items():
@@ -80,7 +76,7 @@ def main(args=None):
                     measurements, meas_detailed = emoncms.feed('device' + sys.id.lower() + '_out_power', times, settings.get('Location','timezone'))
                     measurements.name = 'measurements'
                 
-                if not measurements.empty and (measurements > 0).any() and not measurements.isnull().any() and measurements.index.equals(times):
+                if not measurements.empty and (measurements > 0).any() and measurements.index.equals(times):
                     if not method_opt:
                         result = sys.system_param['eta']
                         
@@ -102,45 +98,46 @@ def main(args=None):
                     measurements.name = 'measurements'
                     
                     
-                    
-                    filename = forecast.key + '_opt_' + sysid + '.csv';
-                    filepath = os.path.join(simdir, filename)
-                    
-                    est = pv.predict.power_effective(sys, forecast.calculate(sys), forecast.temperature)*eta*sys.modules_param['n']
-                    est.name = 'estimation'
-                    
-                    e_est = pd.Series(est - measurements, name='e_est')
-                    e_rel_est = (e_est/measurements).replace(np.inf,0).replace(-np.inf,0).fillna(0)*100
-                    
-                    if method_ref == 'reference':
-                        reference = dwd_meas[(dwd_meas.index >= forecast.index[0] - datetime.timedelta(minutes=30)) & 
-                                             (dwd_meas.index <= forecast.index[-1] + datetime.timedelta(minutes=30))]
-                        reference.key = sysid + '_dwd'
-                         
-                        ref = pv.predict.power_effective(sys, reference.calculate(sys), reference.temperature.dropna()).dropna()*eta*sys.modules_param['n']
-                        ref.name = 'reference'
+                    if not measurements.isnull().any():
+                        filename = forecast.key + '_opt_' + sysid + '.csv';
+                        filepath = os.path.join(simdir, filename)
                         
-                        e_ref = pd.Series(ref - measurements, name='e_ref')
-                        e_rel_ref = (e_ref/measurements).replace(np.inf,0).replace(-np.inf,0).fillna(0)*100
+                        est = pv.predict.power_effective(sys, forecast.calculate(sys), forecast.temperature)*eta*sys.modules_param['n']
+                        est.name = 'estimation'
                         
-                        sim = pd.concat([measurements, est, ref, e_est, e_ref], axis=1)
-                    
-                    else:
-                        sim = pd.concat([measurements, est, e_est], axis=1)
-                        
-                    sim.to_csv(filepath, sep=',', encoding='utf-8')
-                    
-                    
-                    if not method_ref is None:
-                        _concat_file(os.path.join(simdir, 'efficiency.csv'), eta, forecast.key)
-                        
-                    _concat_file(os.path.join(simdir, 'innovation.csv'), e_est, forecast.key)
-                    _concat_file(os.path.join(simdir, 'error.csv'), e_rel_est, forecast.key)
-                    
-                    if method_ref == 'reference':
-                        _concat_file(os.path.join(simdir, 'innovation_ref.csv'), e_ref, forecast.key)
-                        _concat_file(os.path.join(simdir, 'error_ref.csv'), e_rel_ref, forecast.key)
-                
+                        if not est.isnull().any():
+                            e_est = pd.Series(est - measurements, name='e_est')
+                            e_rel_est = (e_est/measurements).replace(np.inf,0).replace(-np.inf,0).fillna(0)*100
+                            
+                            if method_ref == 'reference':
+                                reference = dwd_meas[(dwd_meas.index >= forecast.index[0] - datetime.timedelta(minutes=30)) & 
+                                                     (dwd_meas.index <= forecast.index[-1] + datetime.timedelta(minutes=30))]
+                                reference.key = sysid + '_dwd'
+                                 
+                                ref = pv.predict.power_effective(sys, reference.calculate(sys), reference.temperature.dropna()).dropna()*eta*sys.modules_param['n']
+                                ref.name = 'reference'
+                                
+                                e_ref = pd.Series(ref - measurements, name='e_ref')
+                                e_rel_ref = (e_ref/measurements).replace(np.inf,0).replace(-np.inf,0).fillna(0)*100
+                                
+                                sim = pd.concat([measurements, est, ref, e_est, e_ref], axis=1)
+                            
+                            else:
+                                sim = pd.concat([measurements, est, e_est], axis=1)
+                                
+                            sim.to_csv(filepath, sep=',', encoding='utf-8')
+                            
+                            
+                            if not method_ref is None:
+                                _concat_file(os.path.join(simdir, 'efficiency.csv'), eta, forecast.key)
+                                
+                            _concat_file(os.path.join(simdir, 'innovation.csv'), e_est, forecast.key)
+                            _concat_file(os.path.join(simdir, 'error.csv'), e_rel_est, forecast.key)
+                            
+                            if method_ref == 'reference':
+                                _concat_file(os.path.join(simdir, 'innovation_ref.csv'), e_ref, forecast.key)
+                                _concat_file(os.path.join(simdir, 'error_ref.csv'), e_rel_ref, forecast.key)
+                                
                 else:
                     logger.warn('Unable to find valid measurements for "%s"', times[0])
             
@@ -152,7 +149,7 @@ def main(args=None):
 def _optimize_rec(time, system, settings, weatherdir, measurements, reference=None, method=None):
     power_eff = None
     if method == 'forecast':
-        forecast_prior = _parse_forecasts(time, os.path.join(weatherdir, settings.get("DWD","key")), settings.get('Location','timezone'))
+        forecast_prior = _parse_forecasts(time, weatherdir, settings.get('Location','timezone'))
         power_eff = pv.predict.power_effective(system, forecast_prior.calculate(system), forecast_prior.temperature)*system.modules_param['n']
     
     elif method == 'reference':
@@ -176,7 +173,7 @@ def _optimize_static(time, system, settings, weatherdir, measurements, transitio
     
     power_eff = None
     if method == 'forecast':
-        forecast_prior = _parse_forecasts(time, os.path.join(weatherdir, settings.get("DWD","key")), settings.get('Location','timezone'))
+        forecast_prior = _parse_forecasts(time, weatherdir, settings.get('Location','timezone'))
         power_eff = pv.predict.power_effective(system, forecast_prior.calculate(system), forecast_prior.temperature)*system.modules_param['n']
     
     elif method == 'reference':
@@ -198,8 +195,8 @@ def _parse_forecasts(time, path, timezone):
     for i in range(1,4):
         t = time + datetime.timedelta(hours=6*i)
         f = pv.weather.forecast(t, timezone, var=path, method='DWD_CSV')
-        if f[0:6].isnull().any(axis=1).any():
-            f = forecast[0:6]
+        if f.empty or f[0:6].isnull().any(axis=1).any() or f.index[0] != t:
+            f = forecast[t:]
         
         result = pd.concat([result, f[0:6]], axis=0)
     
