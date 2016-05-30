@@ -1,8 +1,12 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-    pvprediction
+    pvprediction.predict
     ~~~~~
+    
+    This module provides functions to predict photovoltaic generation and yield
+    data, based on passed :class:`pvprediction.System` and :class:`pvprediction.Weather`
+    objects, containing specific system orientation and location data, as well as 
+    solar irradiation and temperature data.
     
 """
 import logging
@@ -14,13 +18,30 @@ import pandas as pd
 
 def energy(systems, weather):
     """ 
-        Calculates the energy yield of a list of configured photovoltaic system installations, 
-        given by a solar irradiation forecast.
+    Determines the energy yield of a dict of configured photovoltaic system 
+    installations, given by solar irradiation and temperature data.
+    The returned pandas DataFrame contains columns for each system, indicated
+    by its id, as well as all systems sum.
     
-        :param systems: The solar irradiance forecast on a horizontal surface.
-        :param weather: This method does the same as :class:`Weather`
-        :returns: The systems energy yield.
-        
+    
+    :param systems: 
+        the dictionary of photovoltaic systems, the yield should be calculated for.
+        Listed System objects are indexed by their specified system id.
+    :type systems: 
+        dict of :class:`pvprediction.System`
+    
+    :param weather:
+        the solar irradiance data on a horizontal surface in W/m^2 
+        and local temperature in degree Celsius.
+    :type weather: 
+        :class:`pvprediction.Weather`
+    
+    
+    :returns: 
+        the systems total calculated hourly energy yield, as well as the
+        separate single systems' yield.
+    :rtype: 
+        :class:`pandas.DataFrame`
     """
     generation = power(systems, weather)
     
@@ -30,6 +51,8 @@ def energy(systems, weather):
     for i in range(1, len(generation.index)):
         energy.iloc[i] = generation.iloc[i] + energy.iloc[i-1]
     
+    # When more than one systems generation is calculated, a total generation column will
+    # be present and will be renamed
     if 'generation' in energy.columns:
         energy.rename(columns={'generation':'yield'}, inplace=True)
         
@@ -37,16 +60,32 @@ def energy(systems, weather):
     
 
 def power(systems, weather):
-    """ 
-        Calculates the net output power of a list of configured photovoltaic system installations, 
-        given by a solar irradiation.
-    
-        :param irradiation: The solar irradiation on a horizontal surface.
-        :returns: The systems generated power.
-        
     """
-    if not systems:
-        logger.warn('System list is empty')
+    Determines the net output power of a dict of configured photovoltaic system 
+    installations, given by solar irradiation and temperature data.
+    The returned pandas DataFrame contains columns for each system, indicated
+    by its id, as well as all systems sum.
+    
+    
+    :param systems: 
+        the dictionary of photovoltaic systems, the generation should be calculated for.
+        Listed System objects are indexed by their specified system id.
+    :type systems: 
+        dict of :class:`pvprediction.System`
+    
+    :param weather:
+        the solar irradiance data on a horizontal surface in W/m^2 
+        and local temperature in degree Celsius.
+    :type weather: 
+        :class:`pvprediction.Weather`
+    
+    
+    :returns: 
+        the systems total calculated hourly generated power, as well as the
+        separate single systems' generation.
+    :rtype: 
+        :class:`pandas.DataFrame`
+    """
     
     systemids = []
     if (len(systems.keys()) > 1):
@@ -57,8 +96,6 @@ def power(systems, weather):
     
     generation = pd.DataFrame(np.nan, weather.index, columns=systemids)
     for sysid, sys in systems.items():
-        logger.debug('Calculating pv generation for system "%s"', sysid)
-        
         irradiation = weather.calculate(sys)
         
         if (len(systems.keys()) > 1):
@@ -71,6 +108,37 @@ def power(systems, weather):
 
 
 def power_system(system, irradiation, temperature):
+    """
+    Determines the net output power of one specified photovoltaic system 
+    installation, given by solar irradiation and local temperature data, 
+    including various loss schemes.
+    
+    
+    :param system: 
+        the photovoltaic system, the yield should be calculated for.
+    :type system: 
+        :class:`pvprediction.System`
+    
+    :param irradiation:
+        the solar irradiance data on a horizontal surface in W/m^2.
+    :type irradiation:
+        :class:`pandas.Series`
+    
+    :param temperature:
+        the local temperature in degree Celsius.
+    :type temperature:
+        :class:`pandas.Series`
+    
+    
+    :returns: 
+        the systems' hourly generated average power.
+    :rtype: 
+        :class:`pandas.Series`
+    """
+    
+    # The systems efficiency eta is an array with a value for each hour of the day,
+    # with the index indicating the hour, and needs to be arranged to corresponding
+    # timestamps
     eta = pd.Series(np.nan, index=irradiation.index, name='eta')
     for i in eta.index:
         eta.ix[i] = system.system_param['eta'][i.tz_convert('UTC').hour]
@@ -83,14 +151,32 @@ def power_system(system, irradiation, temperature):
 
 def power_effective(system, irradiation, temperature):
     """ 
-        Calculates the net output power of one specified photovoltaic system installation, 
-        given by a solar irradiation, including various loss schemes.
+    Calculates the effective output power of one specified photovoltaic 
+    system installation, given by solar irradiation and local temperature data.
     
-        :param system: The installed photovoltaic system, whose generation should be calculated.
-        :param irradiation: The solar irradiation on a horizontal surface.
-        :returns: The systems generated power.
-        
+    
+    :param system: 
+        the photovoltaic system, the yield should be calculated for.
+    :type system: 
+        :class:`pvprediction.System`
+    
+    :param irradiation:
+        the solar irradiance data on a horizontal surface in W/m^2.
+    :type irradiation:
+        :class:`pandas.Series`
+    
+    :param temperature:
+        the local temperature in degree Celsius.
+    :type temperature:
+        :class:`pandas.Series`
+    
+    
+    :returns: 
+        the systems' hourly effective generated average power.
+    :rtype: 
+        :class:`pandas.Series`
     """
+    logger.debug('Calculating pv generation for system "%s"', system.id)
     
     temp_module = temperature + (system.modules_param['noct'] - 20)/(0.8*system.system_param['irr_ref'])*irradiation
     
@@ -100,20 +186,70 @@ def power_effective(system, irradiation, temperature):
     return power
 
 
-def optimize(system, transition, reference, eta, cov, forgetting=0.99):
+def optimize(system, transition, reference, forgetting=0.99):
+    """ 
+    Optimize the overall efficiency for each hour of the power prediction, 
+    such as inverter or reflection losses, soiling, shading or degradation.
+    Every hour will be separately optimized recursively, based on the error 
+    of the prior estimation and reference.
+    
+    
+    :param system: 
+        the photovoltaic system, the hourly efficiency should be estimated for.
+    :type system: 
+        :class:`pvprediction.System`
+    
+    :param transition:
+        the prior estimated effective power in W/m^2.
+    :type transition:
+        :class:`pandas.Series`
+    
+    :param reference:
+        the reference value, to which the prediction error will be calculated 
+        for in W/m^2.
+    :type reference:
+        :class:`pandas.Series`
+    
+    :param forgetting:
+        the forgetting factor for the optimization. Smaller forgetting factors result
+        in a smaller weight of past values and result in more flexible results.
+    :type forgetting:
+        float
+    
+    
+    :returns: 
+        the array of calculated efficiency estimations, indexed by its 
+        corresponding UTC hour.
+    :rtype: 
+        :class:`numpy.array`
+    """
+    logger.debug('Starting efficiency parameter optimization for system "%s"', system.id)
+    
+    eta = system.system_param['eta']
+    cov = system.system_param['cov']
+    
     for i in reference.index:
+        # Stored efficiency and covariance values are indexed by their according 
+        # UTC hour of the day
         hour = i.tz_convert('UTC').hour
         z = reference.loc[i]
         
         if not np.isnan(z) and z > 0:
             h = float(transition.loc[i])
-            x_prior = system.system_param['eta'][hour]
-            p_prior = system.system_param['cov'][hour]
+            x_prior = eta[hour]
+            p_prior = cov[hour]
             if p_prior == 0.0:
                 p_prior = system.system_param['sigma']**2
             
+            # Calculate Kalman gain, taking a forgetting factor into account, to 
+            # enable the optimization to react to more recent environmental trends
             k = p_prior*h/(forgetting + h*p_prior*h)
+            
+            # Calculate the certainty for the new estimate
             p = (1. - k*h)*p_prior/forgetting
+            
+            # Avoid covariance convergance to zero, as this would stop the optimization
+            # due to absolute certainty
             if p > 0:
                 cov[hour] = p
                 
@@ -125,6 +261,9 @@ def optimize(system, transition, reference, eta, cov, forgetting=0.99):
             else:
                 cov[hour] = p_prior
                 eta[hour] = x_prior
+                
+        else: logger.warn('Unable to find valid measurement to optimize '
+                          'efficiency for hour %d of system "%s"', hour, system.id)
     
     system.system_param['eta'] = eta
     system.system_param['cov'] = cov
@@ -133,18 +272,50 @@ def optimize(system, transition, reference, eta, cov, forgetting=0.99):
     return eta
 
 
-def optimise_static(system, transition, reference, eta):
+def optimise_static(system, transition, reference):
+    """ 
+    Optimize the overall efficiency for each hour of the power prediction, 
+    such as inverter or reflection losses, soiling, shading or degradation.
+    Every hour will be optimized statically with cvxopt, based on the error 
+    of the prior estimation and reference.
+    
+    
+    :param system: 
+        the photovoltaic system, the hourly efficiency should be estimated for.
+    :type system: 
+        :class:`pvprediction.System`
+    
+    :param transition:
+        the estimated effective power for several prior days in W/m^2.
+    :type transition: 
+        :class:`pandas.DataFrame`
+    
+    :param reference:
+        the reference values for several prior days, to which the prediction 
+        error will be calculated for in W/m^2.
+    :type reference: 
+        :class:`pandas.DataFrame`
+    
+    
+    :returns: 
+        the array of calculated efficiency estimations, indexed by its 
+        corresponding UTC hour.
+    :rtype: 
+        :class:`numpy.array`
+    """
     import cvxopt as opt
+    
+    eta = system.system_param['eta']
 
     # Get multi index of non-empty rows
-    index = reference.index[pd.concat([reference, transition], axis=1).sum(axis=1) > 0]
+    index = np.flatnonzero((reference + transition).sum(axis=1))
     
     eff = np.zeros(index.size)
     for i in range(0, index.size):
         eff[i] = eta[index[i]]
     
-    ref = np.matrix(reference.ix[index].sum(axis=1)).T
-    trans = np.diag(transition.ix[index].sum(axis=1))
+    ref = np.matrix(reference.ix[index].mean(axis=1)).T
+    trans = np.diag(transition.ix[index].mean(axis=1))
     
     
     # Solve the quadratic problem

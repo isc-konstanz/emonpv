@@ -4,6 +4,11 @@
     pvprediction
     ~~~~~
     
+    PV prediction provides a set of functions to predict the yield and generation of photovoltaic systems.
+    To improve prediction performance, the recursive optimization of hourly efficiency values may be used.
+    It utilizes the independent PVLIB toolbox, originally developed in MATLAB at Sandia National Laboratories,
+    and can be found on GitHub "https://github.com/pvlib/pvlib-python".
+    
 """
 import re
 from os import path
@@ -32,7 +37,8 @@ setup(
     
     version=version,
     
-    description='PV prediction provides a set functions to predict the yield of photovoltaic energy systems.',
+    description='PV prediction provides a set of functions to predict the yield and generation of photovoltaic systems. '
+                'To improve prediction performance, the recursive optimization of hourly efficiency values may be used.',
     long_description=readme,
     
     author='Adrian Minde',
