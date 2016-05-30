@@ -60,8 +60,9 @@ def main(args=None):
     start = forecast.index[0]
     for i in range(-170, 1):
         time = start + datetime.timedelta(days=i)
-        forecast = pv.weather.forecast(time, settings.get('Location','timezone'), 
-                                       var=weatherdir, method='DWD_CSV')
+        forecast = _parse_forecasts(time, weatherdir, settings.get('Location','timezone'))
+#         forecast = pv.weather.forecast(time, settings.get('Location','timezone'), 
+#                                        var=weatherdir, method='DWD_CSV')
         
         logger.info('Starting optimized prediction for forecast: %s', forecast.key)
         for sysid, sys in systems.items():
@@ -130,7 +131,7 @@ def main(args=None):
                             
                             if not method_ref is None:
                                 _concat_file(os.path.join(simdir, 'efficiency.csv'), eta, forecast.key)
-                                
+                            
                             _concat_file(os.path.join(simdir, 'innovation.csv'), e_est, forecast.key)
                             _concat_file(os.path.join(simdir, 'error.csv'), e_rel_est, forecast.key)
                             
@@ -200,6 +201,7 @@ def _parse_forecasts(time, path, timezone):
         
         result = pd.concat([result, f[0:6]], axis=0)
     
+    result.key = forecast.key
     return result
 
 
@@ -213,7 +215,8 @@ def _concat_file(filename, series, key):
         series.index = series.index.hour
         series.index.name = 'hours'
         
-        csv = pd.concat([csv, series], axis=1).fillna(0)
+        # Concat series to existing file and check for duplicate index
+        csv = pd.concat([csv, series.groupby(series.index).first()], axis=1).fillna(0)
         csv.to_csv(filename, sep=',', encoding='utf-8')
 
 
