@@ -36,10 +36,8 @@ def main(args=None):
         weatherdir = str(settings.get('General','datadir'))
     
     try:
-        forecast = pv.weather.forecast(datetime.datetime.now(), 
-                                       settings.get('Location','timezone'), 
-                                       var=os.path.join(weatherdir, settings.get("DWD","key")), 
-                                       method='DWD_CSV')
+        forecast = pv.weather.forecast(datetime.datetime.now(), settings.get('Location','timezone'), 
+                                       var=weatherdir, method='DWD_CSV')
         
         systems = pv.system.read(configdir)
         

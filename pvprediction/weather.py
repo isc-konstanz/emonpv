@@ -189,8 +189,6 @@ def _get_dwdcsv_nearest(date, path):
     :rtype: 
         str
     """
-    cswdir = os.path.dirname(path)
-    dwdkey = os.path.basename(path)
     
     if isinstance(date, pd.tslib.Timestamp):
         date = date.tz_convert('UTC')
@@ -199,19 +197,19 @@ def _get_dwdcsv_nearest(date, path):
     diff = 1970010100
     csv = None
     try:
-        for f in os.listdir(cswdir):
-            if dwdkey + '_' in f and not '_yield' in f and f.endswith('.csv'):
+        for f in os.listdir(path):
+            if not '_yield' in f and f.endswith('.csv'):
                 d = abs(ref - int(f[3:-4]))
                 if (d < diff):
                     diff = d
                     csv = f
     except IOError:
-        logger.error('Unable to read irradiance forecast file in "%s"', cswdir)
+        logger.error('Unable to read irradiance forecast file in "%s"', path)
     else:
         if(csv == None):
-            raise IOError('Unable to find irradiance forecast files in "%s"', cswdir)
+            raise IOError('Unable to find irradiance forecast files in "%s"', path)
         else:
-            return os.path.join(cswdir, csv)
+            return os.path.join(path, csv)
 
 
 def _read_dwdpublic(key, timezone):

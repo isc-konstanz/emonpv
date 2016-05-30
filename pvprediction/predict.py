@@ -234,33 +234,34 @@ def optimize(system, transition, reference, forgetting=0.99):
         hour = i.tz_convert('UTC').hour
         z = reference.loc[i]
         
-        if not np.isnan(z) and z > 0:
-            h = float(transition.loc[i])
-            x_prior = eta[hour]
-            p_prior = cov[hour]
-            if p_prior == 0.0:
-                p_prior = system.system_param['sigma']**2
-            
-            # Calculate Kalman gain, taking a forgetting factor into account, to 
-            # enable the optimization to react to more recent environmental trends
-            k = p_prior*h/(forgetting + h*p_prior*h)
-            
-            # Calculate the certainty for the new estimate
-            p = (1. - k*h)*p_prior/forgetting
-            
-            # Avoid covariance convergance to zero, as this would stop the optimization
-            # due to absolute certainty
-            if p > 0:
-                cov[hour] = p
+        if not np.isnan(z):
+            if z > 0:
+                h = float(transition.loc[i])
+                x_prior = eta[hour]
+                p_prior = cov[hour]
+                if p_prior == 0.0:
+                    p_prior = system.system_param['sigma']**2
                 
-                x = x_prior + k*(z - h*x_prior)
-                if x > 1:
-                    x = 1
-                eta[hour] = x
-            
-            else:
-                cov[hour] = p_prior
-                eta[hour] = x_prior
+                # Calculate Kalman gain, taking a forgetting factor into account, to 
+                # enable the optimization to react to more recent environmental trends
+                k = p_prior*h/(forgetting + h*p_prior*h)
+                
+                # Calculate the certainty for the new estimate
+                p = (1. - k*h)*p_prior/forgetting
+                
+                # Avoid covariance convergance to zero, as this would stop the optimization
+                # due to absolute certainty
+                if p > 0:
+                    cov[hour] = p
+                    
+                    x = x_prior + k*(z - h*x_prior)
+                    if x > 1:
+                        x = 1
+                    eta[hour] = x
+                
+                else:
+                    cov[hour] = p_prior
+                    eta[hour] = x_prior
                 
         else: logger.warn('Unable to find valid measurement to optimize '
                           'efficiency for hour %d of system "%s"', hour, system.id)

@@ -10,7 +10,7 @@
     
 """
 
-__version__ = '0.0.12'
+__version__ = '0.0.13'
 
 import logging
 logging.basicConfig(level=logging.INFO)
