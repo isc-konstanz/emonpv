@@ -1,7 +1,12 @@
+#!/usr/bin/python
 # -*- coding: utf-8 -*-
-"""    
-    Predicts the yield of photovoltaic energy systems by a given solar irradiance forecast
+"""
+    pvyieldprediction
+    ~~~~~
     
+    This command line script predicts the yield of photovoltaic systems by the latest 
+    solar irradiance forecast provided in a specified directory
+
 """
 import logging
 logger = logging.getLogger('pvyieldprediction')
@@ -23,6 +28,7 @@ def main(args=None):
     
     if (args.configdir != None):
         configdir = args.configdir
+        logger.debug('PV system configurations will be read in from "%s"', configdir)
     else:
         configdir = os.path.join(os.path.dirname(here), 'conf')
     
@@ -32,8 +38,13 @@ def main(args=None):
     
     if (args.weatherdir != None):
         weatherdir = args.weatherdir
+        logger.debug('Weather forecast data will be read in from "%s"', weatherdir)
     else:
         weatherdir = str(settings.get('General','datadir'))
+    
+    if not os.path.exists(weatherdir):
+        logger.error('The specified directory "%s" does not exist', weatherdir)
+        quit()
     
     try:
         forecast = pv.weather.forecast(datetime.datetime.now(), settings.get('Location','timezone'), 
@@ -41,24 +52,30 @@ def main(args=None):
         
         systems = pv.system.read(configdir)
         
-    #     if args.optimize:
-        
         yieldprediction = pv.predict.energy(systems, forecast)
         
-        if (args.simdir != None):
-            simdir = args.simdir
+        if yieldprediction.empty:
+            logger.error('PV yield prediction returned empty')
         else:
-            simdir = str(settings.get('General','datadir'))
-        
-        filename = forecast.key + '_yield.csv';
-        filepath = os.path.join(simdir, filename)
-        
-        yieldprediction.index = yieldprediction.index.tz_convert('UTC').astype(np.int64)//10**6
-        yieldprediction.index.name = 'time'
-        yieldprediction.to_csv(filepath, sep=',', encoding='utf-8')
+            if (args.simdir != None):
+                simdir = args.simdir
+                logger.debug('Simulation results will be saved in "%s"', simdir)
+            else:
+                simdir = str(settings.get('General','datadir'))
+            
+            filename = forecast.key + '_yield.csv';
+            filepath = os.path.join(simdir, filename)
+            
+            logger.info('PV yield prediction successful and saved as "%s"', filename)
+            
+            # convert the index times to UNIX timestamps and print the result as csv file
+            yieldprediction.index = yieldprediction.index.tz_convert('UTC').astype(np.int64)//10**6
+            yieldprediction.index.name = 'time'
+            yieldprediction.to_csv(filepath, sep=',', encoding='utf-8')
 
     except IOError as e:
         logger.error('Error while predicting energy yield: %s', e.message)
+
 
 def _get_parser():
     from argparse import ArgumentParser
