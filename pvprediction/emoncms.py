@@ -111,5 +111,5 @@ class Emoncms:
         
         avg = pd.Series(data.resample('1h').mean(), name='average')
         
-        return avg, data
+        return avg
 
