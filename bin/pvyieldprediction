@@ -52,6 +52,9 @@ def main(args=None):
         
         systems = pv.system.read(configdir)
         
+        if args.optimize:
+            _optimize(forecast.index, systems, settings, weatherdir)
+            
         yieldprediction = pv.predict.energy(systems, forecast)
         
         if yieldprediction.empty:
@@ -66,15 +69,41 @@ def main(args=None):
             filename = forecast.key + '_yield.csv';
             filepath = os.path.join(simdir, filename)
             
-            logger.info('PV yield prediction successful and saved as "%s"', filename)
-            
             # convert the index times to UNIX timestamps and print the result as csv file
             yieldprediction.index = yieldprediction.index.tz_convert('UTC').astype(np.int64)//10**6
             yieldprediction.index.name = 'time'
             yieldprediction.to_csv(filepath, sep=',', encoding='utf-8')
+            
+            logger.info('PV yield prediction successfully saved as "%s"', filename)
 
     except IOError as e:
         logger.error('Error while predicting energy yield: %s', e.message)
+
+
+def _optimize(times, systems, settings, weatherdir):
+    from pvprediction.emoncms import Emoncms
+    emoncms = Emoncms(settings.get("Emoncms","URL"), settings.get("Emoncms","APIkey"))
+    
+    # Parse forecasted weather data for the prior day, taking only the first 6 hours
+    # of a forecast, as inaccuracies increase with the amount of time looked into the future
+    prior = times[0:6] - datetime.timedelta(days=1)
+    forecast_prior = pv.weather.forecast(prior[0], settings.get('Location','timezone'), var=weatherdir)[0:6]
+    
+    if not forecast_prior.empty and forecast_prior.index.equals(prior):
+        logger.debug('Using prior forecast "%s.csv" to calculate prediction error', forecast_prior.key)
+    
+        for sysid, sys in systems.items():
+            logger.info('Optimizing efficiency values for system "%s"', sysid)
+            
+            # Request measured generation data from emoncms for the prior days' first 6 hours
+            # and calculate the systems effective power, to optimize against their prediction error
+            measurements = emoncms.feed('device' + sys.id.lower() + '_out_power', prior, settings.get('Location','timezone'))
+            power_eff = pv.predict.power_effective(sys,  forecast_prior.calculate(sys),  forecast_prior.temperature)*sys.modules_param['n']
+            
+            pv.predict.optimize(sys, power_eff, measurements, float(settings.get('Optimization','forgetting')))
+            
+    else:
+        logger.warn('Optimization skipped, as corresponding prior forecast for %s was not found', prior[0].strftime('%d. %b %Y'))
 
 
 def _get_parser():

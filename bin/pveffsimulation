@@ -111,7 +111,7 @@ def main(args=None):
                     # The measurements for the next day will already be retrieved for comparison and only
                     # needs to be requested once in the beginning and after failures
                     if measurements.empty or not measurements.index.equals(times):
-                        measurements, meas_detailed = emoncms.feed('device' + sys.id.lower() + '_out_power', times, settings.get('Location','timezone'))
+                        measurements = emoncms.feed('device' + sys.id.lower() + '_out_power', times, settings.get('Location','timezone'))
                         measurements.name = 'measurements'
                     
                     # If the measurements are still empty, an error occurred and will be logged
@@ -133,7 +133,7 @@ def main(args=None):
                         for i in eta.index:
                             eta.ix[i] = result[i.tz_convert('UTC').hour]
                         
-                        measurements, meas_detailed = emoncms.feed('device' + sys.id.lower() + '_out_power', forecast.index, settings.get('Location','timezone'))
+                        measurements = emoncms.feed('device' + sys.id.lower() + '_out_power', forecast.index, settings.get('Location','timezone'))
                         measurements.name = 'measurements'
                         
                         
@@ -180,7 +180,7 @@ def main(args=None):
                                     _concat_file(os.path.join(simdir, 'error_ref.csv'), e_rel_ref, forecast.key)
                                     
                     else:
-                        logger.warn('Unable to find valid measurements for "%s"', times[0])
+                        logger.warn('Unable to find valid measurements for the %s', times[0].strftime('%d. %b %Y'))
                 
                 except AmbiguousTimeError:
                     # AmbiguousTimeError will be thrown for some pandas version, if a daylight savings time crossing gets converted
