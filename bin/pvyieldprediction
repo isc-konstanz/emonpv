@@ -49,32 +49,34 @@ def main(args=None):
     try:
         forecast = pv.weather.forecast(datetime.datetime.now(), settings.get('Location','timezone'), 
                                        var=weatherdir, method='DWD_CSV')
-        
-        systems = pv.system.read(configdir)
-        
-        if args.optimize:
-            _optimize(forecast.index, systems, settings, weatherdir)
+        if not forecast.empty:
+            systems = pv.system.read(configdir)
             
-        yieldprediction = pv.predict.energy(systems, forecast)
-        
-        if yieldprediction.empty:
-            logger.error('PV yield prediction returned empty')
-        else:
-            if (args.simdir != None):
-                simdir = args.simdir
-                logger.debug('Simulation results will be saved in "%s"', simdir)
+            if args.optimize:
+                _optimize(forecast.index, systems, settings, weatherdir)
+                
+            yieldprediction = pv.predict.energy(systems, forecast)
+            
+            if yieldprediction.empty:
+                logger.error('PV yield prediction returned empty')
             else:
-                simdir = str(settings.get('General','datadir'))
-            
-            filename = forecast.key + '_yield.csv';
-            filepath = os.path.join(simdir, filename)
-            
-            # convert the index times to UNIX timestamps and print the result as csv file
-            yieldprediction.index = yieldprediction.index.tz_convert('UTC').astype(np.int64)//10**6
-            yieldprediction.index.name = 'time'
-            yieldprediction.to_csv(filepath, sep=',', encoding='utf-8')
-            
-            logger.info('PV yield prediction successfully saved as "%s"', filename)
+                if (args.simdir != None):
+                    simdir = args.simdir
+                    logger.debug('Simulation results will be saved in "%s"', simdir)
+                else:
+                    simdir = str(settings.get('General','datadir'))
+                
+                filename = forecast.key + '_yield.csv';
+                filepath = os.path.join(simdir, filename)
+                
+                # convert the index times to UNIX timestamps and print the result as csv file
+                yieldprediction.index = yieldprediction.index.tz_convert('UTC').astype(np.int64)//10**6
+                yieldprediction.index.name = 'time'
+                yieldprediction.to_csv(filepath, sep=',', encoding='utf-8')
+                
+                logger.info('PV yield prediction successfully saved as "%s"', filename)
+        else:
+            logger.error('Parsed weather forecast "%s" was empty', forecast.key)
 
     except IOError as e:
         logger.error('Error while predicting energy yield: %s', e.message)
