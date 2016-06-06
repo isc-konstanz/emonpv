@@ -6,14 +6,16 @@ syntax: glob
 .depend
 
 # IDE (eclipse)
+.settings/*
 .project
 .cproject
+.pydevproject
 
 # Python
 *.pyc
 .cache/*
 
 # pvprediction
-forecast/**
-data/**
-conf/**
+conf/*
+data/*
+forecast/*
