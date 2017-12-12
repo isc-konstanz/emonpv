@@ -1,57 +1,65 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-    pvprediction
+    pvforecast
     ~~~~~
     
-    PV prediction provides a set of functions to predict the yield and generation of photovoltaic systems.
+    PV forecast provides a set of functions to forecast the energy generation of photovoltaic systems.
     To improve prediction performance, the recursive optimization of hourly efficiency values may be used.
     It utilizes the independent PVLIB toolbox, originally developed in MATLAB at Sandia National Laboratories,
     and can be found on GitHub "https://github.com/pvlib/pvlib-python".
     
 """
-import re
 from os import path
 
 try:
     from setuptools import setup
 except ImportError:
-    from distutils.core import setup
+    from distutils.core import setup
 
 here = path.abspath(path.dirname(__file__))
 
-# Get the long description from the README file
-with open(path.join(here, 'pvprediction/', '__init__.py'), 'r') as f:
-    version = re.search(r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]',
-                        f.read(), re.MULTILINE).group(1)
 
-if not version:
-    raise RuntimeError('Cannot find version information')
+VERSION = '0.2.0'
+
+DESCRIPTION = 'PV forecast provides a set of functions to forecast the energy generation of photovoltaic systems.'
 
 # Get the long description from the README file
 with open(path.join(here, 'README.md')) as f:
-    readme = f.read()
+    README = f.read()
+
+NAME = 'pvforecast'
+LICENSE = 'GPLv3'
+AUTHOR = 'ISC Konstanz'
+MAINTAINER_EMAIL = 'adrian.minde@isc-konstanz.de'
+URL = 'https://github.com/isc-konstanz/pvforecast'
+
+INSTALL_REQUIRES = ['numpy >= 1.9.0',
+                    'pandas >= 0.14.0',
+                    'emonpy >= 0.1.2',
+                    'pvlib >= 0.3.2']
+#                   'cvxopt >= 1.1.7']
+
+PACKAGES = ['pvforecast']
+
+# SCRIPTS = ['bin/pvforecast']
+
+SETUPTOOLS_KWARGS = {
+    'zip_safe': False,
+    'scripts': [],
+    'include_package_data': True
+}
 
 setup(
-    name='pvprediction',
-    
-    version=version,
-    
-    description='PV prediction provides a set of functions to predict the yield and generation of photovoltaic systems. '
-                'To improve prediction performance, the recursive optimization of hourly efficiency values may be used.',
-    long_description=readme,
-    
-    author='Adrian Minde',
-    author_email='adrian.minde@isc-konstanz.de',
-    url='https://bitbucket.org/cossmic/pvprediction',
-    
-    packages=['pvprediction'],
-    
-    install_requires=['numpy >= 1.11.0',
-                      'pandas >= 0.18.0',
-                      'configparser >= 3.3.0',
-#                       'cvxopt >= 1.1.7',
-                      'pvlib >= 0.3.2'],
-    
-#     scripts=[path.join(here, 'bin/', 'pvyieldprediction')],
+    name = NAME,
+    version = VERSION,
+    license = LICENSE,
+    description = DESCRIPTION,
+    long_description=README,
+    author = AUTHOR,
+    author_email = MAINTAINER_EMAIL,
+    url = URL,
+    packages = PACKAGES,
+    install_requires = INSTALL_REQUIRES,
+    **SETUPTOOLS_KWARGS
 )

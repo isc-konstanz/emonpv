@@ -1,22 +1,16 @@
-![![# # README # #](https://bitbucket.org/repo/jB8qoo/images/3894100078-PV_panels.png)](https://bitbucket.org/repo/jB8qoo/images/323630632-PV_panels.png)
+This repository provides a set of python functions and scripts to forecast the energy generation of photovoltaic system.
+To improve the prediction performance, a recursive optimization of hourly efficiency values may be used.  
+It utilizes the independent PVLIB toolbox, originally developed in MATLAB at Sandia National Laboratories,
+and can be found on GitHub "https://github.com/pvlib/pvlib-python".
 
-This python-based software tool was developed in order to use the hourly weather prediction data from CoSSMic's weather data provider [Deutscher Wetterdienst](http://dwd.de/) (DWD) in order to predict the corresponding Photovoltaic (PV) energy from the various installations of CoSSMic users. The prediction data is updated each six-hours from DWD and is being pushed to the [CoSSMic](http://cossmic.eu/) (**Co**llaborating **S**mart **S**olar-powered **Mic**rogrids) server. 
-The tool will run on Raspberry Pi, an embedded computer dedicated to each user participating in the project. The necessary tests have been performed to test the performance of the tool on the Pi.
+This tool was originally developed during the course of the European [CoSSMic](http://cossmic.eu/) (**Co**llaborating **S**mart **S**olar-powered **Mic**rogrids) project. The consortium addressed the coupling of solar panels with smart energy sharing solutions and storage capabilities, while researching a decentralized, agent-based model approach, to optimize the potentials to exchange energy inside small communities.
 
-For more details about the tool and the necessary configuration, please check the respective [wiki](https://bitbucket.org/cossmic/pvprediction/wiki/Home) documentation. 
+*The CoSSMic project has received funding from the European Commission under the FP7 framework.*
 
-### How do I get set up? ###
 
-A descriptive guideline about the [installation](https://bitbucket.org/cossmic/pvprediction/wiki/Home#markdown-header-2-installation) and [configuration](https://bitbucket.org/cossmic/pvprediction/wiki/Home#markdown-header-3-configuration) can be found in the wiki documentation.
+## Contact
 
-The set up process of a whole houshold client system can be followed in the developer-guide [CoSSMic installation](https://bitbucket.org/cossmic/developer-guide/wiki/CoSSMic%20installation) documentation.
+![ISC logo](https://github.com/isc-konstanz/pvforecast/blob/master/doc/img/ISC_logo.png)
 
-More information about the DWD weather prediction configuration will be added later on.
-
-### Contribution guidelines ###
-
-Not yet specified.
-
-### Who do I talk to? ###
-* **Ahmed Mahran** (ahmed.mahran@isc-konstanz.de)
-* **Joachim Glatz-Reichenbach ** (joachim.glatz-reichenbach@isc-konstanz.de)
+- [**ISC** Konstanz](http://isc-konstanz.de/) (International Solar Energy Research Center)
+- **Adian Minde**: adrian.minde@isc-konstanz.de

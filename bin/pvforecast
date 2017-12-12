@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """
-    pvyieldprediction
+    pvforecast
     ~~~~~
     
     This command line script predicts the yield of photovoltaic systems by the latest 
@@ -9,7 +9,7 @@
 
 """
 import logging
-logger = logging.getLogger('pvyieldprediction')
+logger = logging.getLogger('pvforecast')
 
 import os
 import datetime
@@ -17,11 +17,11 @@ import datetime
 from configparser import ConfigParser
 
 import numpy as np
-import pvprediction as pv
+import pvforecast as pv
 
 
 def main(args=None):
-    logger.info('Starting pvyieldprediction')
+    logger.info('Starting pvforecast')
     
     here = os.path.abspath(os.path.dirname(__file__))
     args = _get_parser().parse_args()
@@ -58,7 +58,7 @@ def main(args=None):
             yieldprediction = pv.predict.energy(systems, forecast)
             
             if yieldprediction.empty:
-                logger.error('PV yield prediction returned empty')
+                logger.error('PV forecast returned empty')
             else:
                 if (args.simdir != None):
                     simdir = args.simdir
@@ -74,7 +74,7 @@ def main(args=None):
                 yieldprediction.index.name = 'time'
                 yieldprediction.to_csv(filepath, sep=',', encoding='utf-8')
                 
-                logger.info('PV yield prediction successfully saved as "%s"', filename)
+                logger.info('PV forecast successfully saved as "%s"', filename)
         else:
             logger.error('Parsed weather forecast "%s" was empty', forecast.key)
 

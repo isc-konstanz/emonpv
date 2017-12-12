@@ -1,18 +1,18 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """
-    pveffsimulation
+    pvsimulation
     ~~~~~
     
     This command line script simulates the efficiency optimization for a generation 
     prediction of photovoltaic systems. The prediction will be based over a whole
     period of succeeding daily weather forecast files in a defined directory.
     
-    To learn how to configure specific settings, see "pveffsimulation --help"
+    To learn how to configure specific settings, see "pvsimulation --help"
     
 """
 import logging
-logger = logging.getLogger('pveffsimulation')
+logger = logging.getLogger('pvsimulation')
 
 import os
 import datetime
@@ -21,12 +21,12 @@ from configparser import ConfigParser
 
 import numpy as np
 import pandas as pd
-import pvprediction as pv
+import pvforecast as pv
 from pvprediction.emoncms import Emoncms
 
 
 def main(args=None):
-    logger.info('Starting pveffsimulation')
+    logger.info('Starting pvsimulation')
     
     here = os.path.abspath(os.path.dirname(__file__))
     args = _get_parser().parse_args()
