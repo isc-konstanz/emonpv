@@ -53,17 +53,16 @@ def read(configdir):
     datadir = str(settings.get('General','datadir'))
     
     # Read the system orientation and datasheet parameters
-    configfile = os.path.join(configdir, 'systems.cfg')
+    configfile = os.path.join(configdir, 'system_config.cfg')
     config = ConfigParser()
     config.read(configfile)
-    
-    loc = pv.location.Location(float(settings.get('Location','latitude')), 
-                               float(settings.get('Location','longitude')), 
-                               altitude=float(settings.get('Location','altitude')),
-                               tz=str(settings.get('Location','timezone')))
-    
+
     for section in config.sections():
-        logger.debug('System "%s" found', section)
+        print('System "'+section+'" found')
+        loc = pv.location.Location(float(config.get(section,'latitude')), 
+                           float(config.get(section,'longitude')), 
+                           altitude=float(config.get(section,'altitude')),
+                           tz=str(config.get(section,'timezone')))
         
         system = System(datadir, defaults.items('Default'), loc, 
                         section, config.items(section))
@@ -190,5 +189,33 @@ class System:
         try:
             return int(parameter)
         except ValueError:
-            return float(parameter)
+            try:
+                return float(parameter)
+            except ValueError:
+                return str(parameter)
         
+def configure(name, system):
+    from pvlib.pvsystem import PVSystem, retrieve_sam, LocalizedPVSystem
+    from pvlib.location import Location
+    
+    tz = system.modules_param['timezone']
+    longitude = system.modules_param['longitude']
+    latitude = system.modules_param['latitude']
+    altitude = system.modules_param['altitude']
+    tilt = system.modules_param['tilt']
+    azimuth = system.modules_param['azimuth']
+    albedo = system.modules_param['albedo']
+    modules_per_string = system.modules_param['n']
+    strings_per_inverter = system.modules_param['m']
+    module_name = system.modules_param['module_name']
+    inverter_name = system.modules_param['inverter_name']
+    if not inverter_name:
+        inverter_name = 'Sunways__NT12000'
+    
+    sandia_modules = retrieve_sam(path='../conf/cec_module.csv')
+    cec_inverters = retrieve_sam(path='../conf/cec_inverter.csv')
+    module = sandia_modules[module_name]
+    inverter = cec_inverters[inverter_name]
+    system = PVSystem(tilt, azimuth, albedo, None, None, module, modules_per_string, strings_per_inverter, None, inverter, name=name)
+    location = Location(latitude, longitude, tz, altitude, name)
+    return LocalizedPVSystem(system, location)

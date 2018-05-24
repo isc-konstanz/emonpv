@@ -18,6 +18,9 @@ import numpy as np
 import pandas as pd
 import pvlib as pv
 import datetime
+from pvlib.forecast import ForecastModel
+import requests
+import json
 
 
 def forecast(date, timezone, longitude=None, latitude=None, var=None, method='DWD_CSV'):
@@ -70,7 +73,10 @@ def forecast(date, timezone, longitude=None, latitude=None, var=None, method='DW
     if method.lower() == 'dwd_csv':
         csv = _get_dwdcsv_nearest(date, var)
         return _read_dwdcsv(csv, timezone)
-        
+    elif method.lower() == 'cosmo_de':
+        return _read_cosmo_de(date, timezone, longitude, latitude)
+    elif method.lower() == 'icon_eu':
+        return _read_icon_eu(date, timezone, longitude, latitude)
     else:
         raise ValueError('Invalid irradiation forecast method "{}"'.method)
 
@@ -117,6 +123,17 @@ def reference(date, timezone, var=None, method='DWD_PUB'):
     else:
         raise ValueError('Invalid irradiation reference method "{}"'.method)
 
+
+def check_update(date, timezone, longitude, latitude, method='COSMO_DE'):
+    #date = pd.Timestamp(date).tz_localize('UTC').tz_convert(timezone)
+    if method.lower() == 'dwd_csv':
+        return (True, None)
+    elif method.lower() == 'cosmo_de':
+        return COSMO_DE().is_new(latitude, longitude, date)
+    elif method.lower() == 'icon_eu':
+        return ICON_EU().is_new(latitude, longitude, date)
+    else:
+        raise ValueError('Invalid forecast method "{}"'.method)
 
 # def _read_dwd_grib2():
     
@@ -239,35 +256,35 @@ def _read_dwdpublic(key, timezone):
     :rtype: 
         :class:`pvforecast.Weather`
     """
-    from urllib import urlopen
+    from urllib import request
     from zipfile import ZipFile
-    from StringIO import StringIO
+    from io import BytesIO
     
     # Retrieve measured temperature values from DWD public ftp server
-    url = urlopen('ftp://ftp-cdc.dwd.de/pub/CDC/observations_germany/climate/hourly/air_temperature/recent/stundenwerte_TU_' + key + '_akt.zip')
-    zipfile = ZipFile(StringIO(url.read()))
+    url = request.urlopen('ftp://ftp-cdc.dwd.de/pub/CDC/observations_germany/climate/hourly/air_temperature/recent/stundenwerte_TU_' + key + '_akt.zip')
+    zipfile = ZipFile(BytesIO(url.read()))
     for f in zipfile.namelist():
-        if ('produkt_temp_Terminwerte_' in f):
+        if ('produkt_tu_stunde_' in f):
             temp = pd.read_csv(zipfile.open(f), sep=";",
-                                        usecols=[' MESS_DATUM',' LUFTTEMPERATUR'])
-    temp.index = pd.to_datetime(temp[' MESS_DATUM'], format="%Y%m%d%H")
+                                        usecols=['MESS_DATUM','TT_TU'])
+    temp.index = pd.to_datetime(temp['MESS_DATUM'], format="%Y%m%d%H")
     temp.index = temp.index.tz_localize('UTC').tz_convert(timezone)
     temp.index.name = 'time'
-    temp = temp.rename(columns = {' LUFTTEMPERATUR':'temperature'})
+    temp = temp.rename(columns = {'TT_TU':'temperature'})
     
     # Missing values get identified with "-999"
     temp = temp.replace('-999', np.nan)
     
     
     # Retrieve measured solar irradiation observations from DWD public ftp server
-    url = urlopen('ftp://ftp-cdc.dwd.de/pub/CDC/observations_germany/climate/hourly/solar/stundenwerte_ST_' + key + '.zip')
-    zipfile = ZipFile(StringIO(url.read()))
+    url = request.urlopen('ftp://ftp-cdc.dwd.de/pub/CDC/observations_germany/climate/hourly/solar/stundenwerte_ST_' + key + '_row.zip')
+    zipfile = ZipFile(BytesIO(url.read()))
     for f in zipfile.namelist():
-        if ('produkt_strahlung_Stundenwerte_' in f):
+        if ('produkt_st_stunde_' in f):
             irr = pd.read_csv(zipfile.open(f), sep=";",
-                                        usecols=[' MESS_DATUM','DIFFUS_HIMMEL_KW_J','GLOBAL_KW_J'])
+                                        usecols=['MESS_DATUM','FD_LBERG','FG_LBERG'])
     
-    irr.index = pd.to_datetime(irr[' MESS_DATUM'], format="%Y%m%d%H:%M")
+    irr.index = pd.to_datetime(irr['MESS_DATUM'], format="%Y%m%d%H:%M")
     irr.index = irr.index.tz_localize('UTC').tz_convert(timezone)
     irr.index.name = 'time'
     
@@ -278,8 +295,8 @@ def _read_dwdpublic(key, timezone):
     irr = irr.replace('-999', np.nan)
     
     # Global and diffuse irradiation unit transformation from hourly J/cm^2 to mean W/m^2
-    irr['global_horizontal'] = irr['GLOBAL_KW_J']*(100**2)/3600
-    irr['diffuse_horizontal'] = irr['DIFFUS_HIMMEL_KW_J']*(100**2)/3600
+    irr['global_horizontal'] = irr['FG_LBERG']*(100**2)/3600
+    irr['diffuse_horizontal'] = irr['FD_LBERG']*(100**2)/3600
     
     reference = pd.concat([irr['global_horizontal'], irr['diffuse_horizontal'], temp['temperature']], axis=1)
     # Drop rows without either solar irradiation or temperature values
@@ -290,6 +307,14 @@ def _read_dwdpublic(key, timezone):
     result.key = key
     return result
 
+
+def _read_cosmo_de(date, timezone, longitude, latitude):
+    date = pd.Timestamp(date).tz_localize('UTC').tz_convert(timezone)
+    return COSMO_DE().get_processed_data(latitude, longitude, date, None)#start + pd.Timedelta(days=7)
+
+def _read_icon_eu(date, timezone, longitude, latitude):
+    date = pd.Timestamp(date).tz_localize('UTC').tz_convert(timezone)
+    return ICON_EU().get_processed_data(latitude, longitude, date, None)#start + pd.Timedelta(days=7)
     
 class Weather(pd.DataFrame):
     """
@@ -353,6 +378,12 @@ class Weather(pd.DataFrame):
         extra = pv.irradiance.extraradiation(timestamps)
         airmass_rel = pv.atmosphere.relativeairmass(angles['apparent_zenith'])
         airmass = pv.atmosphere.absoluteairmass(airmass_rel, pressure)
+
+
+        #kappa = 1.041
+        #z = np.radians(angles['apparent_zenith'])
+        #eps = ((dhi + dni) / dhi + kappa * (z ** 3)) / (1 + kappa * (z ** 3))
+        #print(eps)
         
         # Calculate the total irradiation, using the perez model
         irradiation = pv.irradiance.total_irrad(system.modules_param['tilt'], system.modules_param['azimuth'], 
@@ -361,7 +392,7 @@ class Weather(pd.DataFrame):
                                                 dni_extra=extra, airmass=airmass, 
                                                 albedo=system.modules_param['albedo'], 
                                                 model='perez')
-        
+
 #         direct = pv.irradiance.beam_component(system.modules_param['tilt'], system.modules_param['azimuth'], 
 #                                               angles['zenith'], angles['azimuth'], 
 #                                               dni)
@@ -384,3 +415,298 @@ class Weather(pd.DataFrame):
         total_hourly.index = total_hourly.index.tz_convert(system.location.tz)
         
         return pd.Series(total_hourly, name='irradiation')
+
+def convertDate(date):
+    return pd.to_datetime(date.replace('T', ' '))
+
+class COSMO_DE(ForecastModel):
+    """
+    Subclass of the ForecastModel class representing COSMO-DE
+    forecast model.
+
+    Model data corresponds to 2.8km resolution forecasts.
+
+    Parameters
+    ----------
+    set_type: string, default 'best'
+        Type of model to pull data from.
+
+    Attributes
+    ----------
+    dataframe_variables: list
+        Common variables present in the final set of data.
+    model: string
+        Name of the UNIDATA forecast model.
+    model_type: string
+        UNIDATA category in which the model is located.
+    variables: dict
+        Defines the variables to obtain from the weather
+        model and how they should be renamed to common variable names.
+    units: dict
+        Dictionary containing the units of the standard variables
+        and the model specific variables.
+    """
+
+    def __init__(self, set_type='best'):
+        model_type = 'Forecast Model Data'
+
+        model = 'COSMO-DE Forecast'
+
+        self.variables = {
+            "high_clouds": "Bedeckungsgrad mit hohen Wolken [%]",
+            "longwave_sfc": "langwellige Strahlungsbilanz a d Oberfl [W/m^2]",
+            "longwave_toa": "langwellige Strahlungsbilanz am Modelloberrand [W/m^2]",
+            "low_clouds": "Bedeckungsgrad mit niedrigen Wolken [%]",
+            "maxwindspeed10m": "max Windgeschwindigkeit in 10m Hoehe (Boeen) [m/s]",
+            "mid_clouds": "Bedeckungsgrad mit mittleren Wolken [%]",
+            "pressure_msl": "Luftdruck auf Meeresh\u00f6he [Pa]",
+            "relative_humidity": "rel. Luftfeuchtigkeit auf 2m [%]",
+            "shortwave_diffuse_downwards": "diffuse, abwaerts gerichtete kurzwellige Strahlung a d Oberfl [W/m^2]",
+            "shortwave_diffuse_upwards": "diffuse, aufwaerts gerichtete kurzwellige Strahlung a d Oberfl [W/m^2]",
+            "shortwave_direct": "direkte kurzwellige Strahlung a d Oberfl [W/m^2]",
+            "shortwave_sfc": "kurzwellige Strahlungsbilanz a d Oberfl [W/m^2]",
+            "shortwave_toa": "kurzwellige Strahlungsbilanz am Modelloberrand [W/m^2]",
+            "t2m": "2m Temperatur [C]",
+            "total_clouds": "Gesamtbedeckungsgrad mit Wolken [%]",
+            "winddirection10m": "Windrichtung [Grad]",
+            "windspeed10m": "Windgeschwindigkeit in 10m Hoehe [m/s]", }
+
+        self.output_variables = [
+            'temp_air',
+            'wind_speed',
+            'ghi',
+            'dni',
+            'dhi',
+            'total_clouds',
+            'low_clouds',
+            'mid_clouds',
+            'high_clouds']
+
+        super(COSMO_DE, self).__init__(model_type, model, set_type)
+
+    def process_data(self, data, cloud_cover='total_clouds', **kwargs):
+        """
+        Defines the steps needed to convert raw forecast data
+        into processed forecast data.
+
+        Parameters
+        ----------
+        data: DataFrame
+            Raw forecast data
+        cloud_cover: str, default 'total_clouds'
+            The type of cloud cover used to infer the irradiance.
+
+        Returns
+        -------
+        data: DataFrame
+            Processed forecast data.
+        """
+        data = super(COSMO_DE, self).process_data(data, **kwargs)
+        data['temp_air'] = data['t2m']
+        data['wind_speed'] = data['windspeed10m']
+        irrads = self.cloud_cover_to_irradiance(data[cloud_cover], **kwargs)
+        data = data.join(irrads, how='outer')
+        return data[self.output_variables]
+    
+    def get_data(self, latitude, longitude, start, end,
+                 vert_level=None, query_variables=None,
+                 close_netcdf_data=True):
+        """
+        Submits a query to the UNIDATA servers using Siphon NCSS and
+        converts the netcdf data to a pandas DataFrame.
+
+        Parameters
+        ----------
+        latitude: float
+            The latitude value.
+        longitude: float
+            The longitude value.
+        start: datetime or timestamp
+            The start time.
+        end: datetime or timestamp
+            The end time.
+        vert_level: None, float or integer, default None
+            Vertical altitude of interest.
+        query_variables: None or list, default None
+            If None, uses self.variables.
+        close_netcdf_data: bool, default True
+            Controls if the temporary netcdf data file should be closed.
+            Set to False to access the raw data.
+
+        Returns
+        -------
+        forecast_data : DataFrame
+            column names are the weather model's variable names.
+        """
+        self.latitude = latitude
+        self.longitude = longitude
+        self.set_location(start, latitude, longitude)
+
+        self.start = start
+        self.end = end
+
+        url = 'http://52.30.78.76/solar/'+str(longitude)+'/'+str(latitude)
+        r = json.loads(requests.get(url, headers={'Authorization': 'Basic aXNjOkxlZWc5YWh0aG8='}).text)
+
+        cols = list(dict(r['timesteps'][0]['models']['COSMO_DE']).keys())
+        vals = [[y[w] for w in cols] for y in [x["models"]['COSMO_DE'] for x in r['timesteps']]]
+        
+        self.data = pd.DataFrame(vals, columns=cols)
+        self.data['date'] = self.data['date'].apply(convertDate)
+        self.data = self.data.set_index('date')
+
+        if pd.Timestamp.now() - pd.to_datetime(r['meta']['COSMO_DE']['run']) < pd.Timedelta(3, unit='h'):
+            self.data.to_csv(str(longitude)+'_'+str(latitude)+'_cosmo_de_'+r['meta']['COSMO_DE']['run'].replace(':', '_')+'.csv', sep=',', encoding='utf-8')
+            
+        return self.data
+    
+    def is_new(self, latitude, longitude, date):
+        url = 'http://52.30.78.76/solar/'+str(longitude)+'/'+str(latitude)
+        r = json.loads(requests.get(url, headers={'Authorization': 'Basic aXNjOkxlZWc5YWh0aG8='}).text)
+        return (pd.Timestamp(date) - pd.to_datetime(r['meta']['COSMO_DE']['run']) < pd.Timedelta(3, unit='h'), pd.to_datetime(r['meta']['COSMO_DE']['run']))
+
+class ICON_EU(ForecastModel):
+    """
+    Subclass of the ForecastModel class representing ICON-EU
+    forecast model.
+
+    Model data corresponds to 6.5km resolution forecasts.
+
+    Parameters
+    ----------
+    set_type: string, default 'best'
+        Type of model to pull data from.
+
+    Attributes
+    ----------
+    dataframe_variables: list
+        Common variables present in the final set of data.
+    model: string
+        Name of the UNIDATA forecast model.
+    model_type: string
+        UNIDATA category in which the model is located.
+    variables: dict
+        Defines the variables to obtain from the weather
+        model and how they should be renamed to common variable names.
+    units: dict
+        Dictionary containing the units of the standard variables
+        and the model specific variables.
+    """
+
+    def __init__(self, set_type='best'):
+        model_type = 'Forecast Model Data'
+
+        model = 'ICON-EU Forecast'
+
+        self.variables = {
+            "high_clouds": "Bedeckungsgrad mit hohen Wolken [%]",
+            "longwave_sfc": "langwellige Strahlungsbilanz a d Oberfl [W/m^2]",
+            "longwave_toa": "langwellige Strahlungsbilanz am Modelloberrand [W/m^2]",
+            "low_clouds": "Bedeckungsgrad mit niedrigen Wolken [%]",
+            "maxwindspeed10m": "max Windgeschwindigkeit in 10m Hoehe (Boeen) [m/s]",
+            "mid_clouds": "Bedeckungsgrad mit mittleren Wolken [%]",
+            "pressure_msl": "Luftdruck auf Meeresh\u00f6he [Pa]",
+            "relative_humidity": "rel. Luftfeuchtigkeit auf 2m [%]",
+            "shortwave_diffuse_downwards": "diffuse, abwaerts gerichtete kurzwellige Strahlung a d Oberfl [W/m^2]",
+            "shortwave_diffuse_upwards": "diffuse, aufwaerts gerichtete kurzwellige Strahlung a d Oberfl [W/m^2]",
+            "shortwave_direct": "direkte kurzwellige Strahlung a d Oberfl [W/m^2]",
+            "shortwave_sfc": "kurzwellige Strahlungsbilanz a d Oberfl [W/m^2]",
+            "shortwave_toa": "kurzwellige Strahlungsbilanz am Modelloberrand [W/m^2]",
+            "t2m": "2m Temperatur [C]",
+            "total_clouds": "Gesamtbedeckungsgrad mit Wolken [%]",
+            "winddirection10m": "Windrichtung [Grad]",
+            "windspeed10m": "Windgeschwindigkeit in 10m Hoehe [m/s]", }
+
+        self.output_variables = [
+            'temp_air',
+            'wind_speed',
+            'ghi',
+            'dni',
+            'dhi',
+            'total_clouds',
+            'low_clouds',
+            'mid_clouds',
+            'high_clouds']
+
+        super(ICON_EU, self).__init__(model_type, model, set_type)
+
+    def process_data(self, data, cloud_cover='total_clouds', **kwargs):
+        """
+        Defines the steps needed to convert raw forecast data
+        into processed forecast data.
+
+        Parameters
+        ----------
+        data: DataFrame
+            Raw forecast data
+        cloud_cover: str, default 'total_clouds'
+            The type of cloud cover used to infer the irradiance.
+
+        Returns
+        -------
+        data: DataFrame
+            Processed forecast data.
+        """
+        data = super(ICON_EU, self).process_data(data, **kwargs)
+        data['temp_air'] = data['t2m']
+        data['wind_speed'] = data['windspeed10m']
+        #data['ghi'] = data['windspeed10m']
+        #data['dni'] = data['windspeed10m']
+        #data['dhi'] = data['windspeed10m']
+        irrads = self.cloud_cover_to_irradiance(data[cloud_cover], **kwargs)
+        data = data.join(irrads, how='outer')
+        return data[self.output_variables]
+    
+    def get_data(self, latitude, longitude, start, end,
+                 vert_level=None, query_variables=None,
+                 close_netcdf_data=True):
+        """
+        Submits a query to the UNIDATA servers using Siphon NCSS and
+        converts the netcdf data to a pandas DataFrame.
+
+        Parameters
+        ----------
+        latitude: float
+            The latitude value.
+        longitude: float
+            The longitude value.
+        start: datetime or timestamp
+            The start time.
+        end: datetime or timestamp
+            The end time.
+        vert_level: None, float or integer, default None
+            Vertical altitude of interest.
+        query_variables: None or list, default None
+            If None, uses self.variables.
+        close_netcdf_data: bool, default True
+            Controls if the temporary netcdf data file should be closed.
+            Set to False to access the raw data.
+
+        Returns
+        -------
+        forecast_data : DataFrame
+            column names are the weather model's variable names.
+        """
+        self.latitude = latitude
+        self.longitude = longitude
+        self.set_location(start, latitude, longitude)
+
+        self.start = start
+        self.end = end
+        
+        #Wetterdaten vom Server holen!
+        url = 'http://52.30.78.76/solar/'+str(longitude)+'/'+str(latitude)
+        r = json.loads(requests.get(url, headers={'Authorization': 'Basic aXNjOkxlZWc5YWh0aG8='}).text)
+        i = list(dict(r['timesteps'][0]['models']['ICON_EU']).keys())
+        c = [[z[w] for w in i] for z in [x["models"]['ICON_EU'] for x in r['timesteps']]]
+        
+        self.data = pd.DataFrame(c, columns=i)
+        self.data['date'] = self.data['date'].apply(convertDate)
+        self.data = self.data.set_index('date')
+        #pd.DataFrame(index=[], columns=self.variables).fillna(0)
+        return self.data
+    
+    def is_new(self, latitude, longitude, date):
+        url = 'http://52.30.78.76/solar/'+str(longitude)+'/'+str(latitude)
+        r = json.loads(requests.get(url, headers={'Authorization': 'Basic aXNjOkxlZWc5YWh0aG8='}).text)
+        return (pd.Timestamp(date) - pd.to_datetime(r['meta']['ICON_EU']['run']) < pd.Timedelta(3, unit='h'), pd.to_datetime(r['meta']['ICON_EU']['run']))

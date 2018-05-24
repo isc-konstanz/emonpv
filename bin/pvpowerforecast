@@ -1,0 +1,110 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+"""
+    pvpowerforecast
+    ~~~~~
+    
+    This command line script predicts the yield of photovoltaic systems by the latest 
+    solar irradiance forecast provided in a specified directory
+
+"""
+import logging
+logger = logging.getLogger('pvpowerforecast')
+
+import os
+import datetime
+
+from configparser import ConfigParser
+
+import pvforecast as pv
+
+from pvforecast.model import ModelChain
+from pvlib.location import Location
+
+
+def main(args=None):
+    logger.info('Starting pvpowerforecast')
+    
+    here = os.path.abspath(os.path.dirname(__file__))
+    args = _get_parser().parse_args()
+    
+    if (args.configdir != None):
+        configdir = args.configdir
+        logger.debug('PV system configurations will be read in from "%s"', configdir)
+    else:
+        configdir = os.path.join(os.path.dirname(here), 'conf')
+    
+    if (args.weathermodel != None):
+        model = args.weathermodel
+        logger.debug('Weather model to be used: "%s"', model)
+    else:
+        model = 'COSMO_DE'
+        
+    settingsfile = os.path.join(configdir, 'system_config.cfg')
+    settings = ConfigParser()
+    settings.read(settingsfile)
+    sys_config = pv.system.read(configdir)
+    runFlag = False
+    
+    try:
+        for sys in settings:
+            if sys != 'DEFAULT':
+                tz = settings.get(sys,'timezone')
+                longitude = float(settings.get(sys,'longitude'))
+                latitude = float(settings.get(sys,'latitude'))
+                altitude = float(settings.get(sys,'altitude'))
+                date = datetime.datetime.now()
+                
+                #check for update
+                is_new, run = pv.weather.check_update(date, tz, longitude, latitude, method=model)
+                if(is_new or runFlag or True):
+                    runFlag = True
+                    forecast = pv.weather.forecast(date, tz, longitude, latitude, method=model)
+                    
+                    if not forecast.empty:
+                        system = pv.system.configure(sys, sys_config[sys])
+                        
+                        # use a ModelChain object to calculate modeling intermediates
+                        mc = ModelChain(system, Location(latitude, longitude, tz, altitude, sys))
+                        
+                        # extract relevant data for model chain
+                        mc.run_model(forecast.index, weather=forecast);
+            
+                        yieldprediction = mc.ac
+                        
+                        if yieldprediction.empty:
+                            logger.error('PV forecast returned empty')
+                        else:
+                            filename = './results/'+sys+'_cosmo_de_'+ str(int((run - datetime.datetime(1970,1,1)).total_seconds())) + '_yield.csv';
+                            yieldprediction = yieldprediction.to_frame()
+                            yieldprediction = yieldprediction.rename(columns= {0: 'power'})
+                            yieldprediction.index.name = 'time'
+                            yieldprediction.to_csv(filename, sep=',', encoding='utf-8')
+                            
+                            logger.info('PV forecast successfully saved as "%s"', filename)
+                    else:
+                        logger.error('Parsed weather forecast "%s" was empty', forecast.key)
+        
+                else:
+                    print('Latest forecast for ' + sys + ' is still up-to-date')
+    except IOError as e:
+        logger.error('Error while predicting energy yield: %s', e.message)
+
+
+def _get_parser():
+    from argparse import ArgumentParser
+    
+    parser = ArgumentParser(description=__doc__)
+    
+    parser.add_argument('-c','--config', 
+                        dest='configdir',
+                        help="Directory of system configuration files", 
+                        metavar='DIR')
+    parser.add_argument('-w','--weather', 
+                        dest='weathermodel',
+                        help="Weather model which is used: COSMO_DE or ICON_EU")
+    return parser
+
+
+if __name__ == "__main__":
+    main()
