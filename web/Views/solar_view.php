@@ -3,107 +3,16 @@
 ?>
 
 <script type="text/javascript" src="<?php echo $path; ?>Modules/solar/Views/solar.js"></script>
+<script type="text/javascript" src="<?php echo $path; ?>Lib/tablejs/table.js?v=<?php echo $version; ?>"></script>
+<script type="text/javascript" src="<?php echo $path; ?>Lib/tablejs/custom-table-fields.js?v=<?php echo $version; ?>"></script>
 
 <style>
-    .block-bound {
-      background-color: rgb(68,179,226);
+    #system-list input[type="text"] {
+      width: 88%;
     }
-
-    .block-content {
-        background-color:#fff;
-        color:#333;
-        padding:10px;
-    }
-
-    .block-title {
-        padding: 10px;
-        float:left;
-        color: grey;
-        font-weight: bold;
-    }
-
-    .thing {
-        margin-bottom:10px;
-        border: 1px solid #aaa;
-    }
-
-    .thing-info {
-        background-color: #ddd;
-        cursor: pointer;
-    }
-
-    .thing-configure {
-        float:right;
-        padding:10px;
-        width:30px;
-        text-align:center;
-        color:#666;
-        border-left: 1px solid #eee;
-    }
-
-    .thing-configure:hover {
-        background-color:#eaeaea;
-    }
-
-    .thing-list {
-        padding: 0px 5px 5px 5px;
-        background-color: #ddd;
-    }
-
-    .thing-list-item {
-        margin-bottom: 12px;
-    }
-
-    .item-list {
-        background-color: #f0f0f0;
-        border-bottom: 1px solid #fff;
-        border-item-left: 2px solid #f0f0f0;
-        height: 41px;
-    }
-
-    .item {
-        color: grey;
-        padding-top: 5px;
-    }
-
-    .item-name {
-        text-align: right;
-        font-weight: bold;
-        width: 80%;
-    }
-
-    .item-input {
-        text-align: right;
-        font-weight: bold;
-        width: 1%;
-    }
-
-    .item-input .text {
-        color: dimgrey;
-        margin-right: 8px;
-    }
-
-    .item-left {
-        text-align: right;
-    }
-
-    .item-right {
-        text-align: left;
-        width: 5%;
-    }
-
-    input.number {
-        margin-bottom: 2px;
-        margin-right: 8px;
-        text-align: right;
-        width: 55px;
-        color: grey;
-        background-color: white;
-    }
-
-    input.number[disabled] {
-        background-color: #eee;
-    }
+    #system-list td:nth-of-type(1) { width:20%;}
+    #system-list td:nth-of-type(3) { width:14px; text-align: center; }
+    #system-list td:nth-of-type(4) { width:14px; text-align: center; }
 </style>
 
 <div>
@@ -118,60 +27,98 @@
             <?php echo _('Solar Systems may consist of several photovoltaic installations, for which power forecasts will be generated.'); ?><br>
             <?php echo _('The systems power forecast may be constantly improved through live measurements, where one separate power meterering point is linked to a configured Solar System. This corresponds e.g. to several module installations of different orientations on a building roof, connected to one single inverter. You may want the next link as a guide for generating your request: '); ?><a href="api"><?php echo _('Solar Systems API helper'); ?></a>
         </p>
-       </div>
+    </div>
+    
+    <div id="toolbar_bottom"><hr>
+        <button id="system-new" class="btn btn-small" >&nbsp;<i class="icon-plus-sign" ></i>&nbsp;<?php echo _('New System'); ?></button>
+    </div>
     <div id="system-loader" class="ajax-loader"></div>
 </div>
 
+<?php require "Modules/solar/Views/solar_dialog.php"; ?>
+
 <script>
-
-const INTERVAL = 10000;
-var path = "<?php echo $path; ?>";
-
-var systems = {};
-
-function update() {
-    solar.list(function(result) {
-        if (result.length != 0) {
-            $("#system-none").hide();
-            $("#local-header").show();
-            $("#api-help-header").show();
-            if (updater) {
-                draw();
-            }
-        }
-        else {
-            $("#system-none").show();
-            $("#local-header").hide();
-            $("#api-help-header").hide();
-        }
-        $('#system-loader').hide();
-    });
-}
-
-update();
-
-var updater;
-function updaterStart() {
-    clearInterval(updater);
-    updater = null;
-    if (INTERVAL > 0) updater = setInterval(update, INTERVAL);
-}
-function updaterStop() {
-    clearInterval(updater);
-    updater = null;
-}
-updaterStart();
-
-//---------------------------------------------------------------------------------------------
-// Draw systems
-//---------------------------------------------------------------------------------------------
-function draw() {
-    var list = "";
+    const INTERVAL = 10000;
+    var path = "<?php echo $path; ?>";
+    var modules = <?php echo json_encode($modules); ?>;
+    dialog.moduleMeta = modules;
+	
+    var systems = {};
+	
+    // Extend table library field types
+    for (z in customtablefields) table.fieldtypes[z] = customtablefields[z];
+    table.element = "#system-list";
+    table.deletedata = false;
+    table.fields = {
+        'name':{'title':'<?php echo _("Name"); ?>','type':"fixed"},
+        'description':{'title':'<?php echo _('Description'); ?>','type':"fixed"},
+        // Actions
+        'delete-action':{'title':'', 'type':"delete"},
+        'config-action':{'title':'', 'type':"iconconfig", 'icon':'icon-wrench'}
+    }
     
-    $("#system-list").html(list);
-}
+    function update() {
+        var requestTime = (new Date()).getTime();
+        solar.list(function(result, textStatus, xhr) {
+        	// Offset in ms from local to server time
+            table.timeServerLocalOffset = requestTime-(new Date(xhr.getResponseHeader('Date'))).getTime();
+            table.data = result;
+            
+            systems = result;
+            if (systems.length != 0) {
+                $("#system-none").hide();
+                $("#local-header").show();
+                $("#api-help-header").show();
+            }
+            else {
+                $("#system-none").show();
+                $("#local-header").hide();
+                $("#api-help-header").hide();
+            }
+            draw();
+            $('#system-loader').hide();
+        });
+    }
+    
+    update();
+    
+    var updater;
+    function updaterStart() {
+        clearInterval(updater);
+        updater = null;
+        if (INTERVAL > 0) updater = setInterval(update, INTERVAL);
+    }
+    function updaterStop() {
+        clearInterval(updater);
+        updater = null;
+    }
+    updaterStart();
+    
+    //---------------------------------------------------------------------------------------------
+    // Draw systems
+    //---------------------------------------------------------------------------------------------
+    function draw() {
+        table.draw();
+    }
+    
+    // --------------------------------------------------------------------------------------------
+    // Events
+    // --------------------------------------------------------------------------------------------
+    $("#system-list").bind("onDelete", function(e,id,row) {
+        // Get system of clicked row
+        solar.get(id, function(system) {
+            dialog.loadSystemDelete(system, row);
+        });
+    });
+    
+    $("#system-list").on('click', '.icon-wrench', function() {
+        // Get system of clicked row
+        var system = table.data[$(this).attr('row')];
+        dialog.loadSystemConfig(system);
+    });
+    
+    $("#system-new").on('click', function() {
+        dialog.loadSystemConfig();
+    });
 
-// --------------------------------------------------------------------------------------------
-// Events
-// --------------------------------------------------------------------------------------------
 </script>
