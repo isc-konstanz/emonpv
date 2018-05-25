@@ -23,7 +23,7 @@ import requests
 import json
 
 
-def forecast(date, timezone, longitude=None, latitude=None, var=None, method='DWD_CSV'):
+def forecast(date, timezone, longitude=None, latitude=None, var=None, method='DWD_CSV', authKey=''):
     """ 
     Reads the predicted weather data for a specified location, retrieved through 
     several possible methods:
@@ -74,9 +74,9 @@ def forecast(date, timezone, longitude=None, latitude=None, var=None, method='DW
         csv = _get_dwdcsv_nearest(date, var)
         return _read_dwdcsv(csv, timezone)
     elif method.lower() == 'cosmo_de':
-        return _read_cosmo_de(date, timezone, longitude, latitude)
+        return _read_cosmo_de(authKey, date, timezone, longitude, latitude)
     elif method.lower() == 'icon_eu':
-        return _read_icon_eu(date, timezone, longitude, latitude)
+        return _read_icon_eu(authKey, date, timezone, longitude, latitude)
     else:
         raise ValueError('Invalid irradiation forecast method "{}"'.method)
 
@@ -124,14 +124,14 @@ def reference(date, timezone, var=None, method='DWD_PUB'):
         raise ValueError('Invalid irradiation reference method "{}"'.method)
 
 
-def check_update(date, timezone, longitude, latitude, method='COSMO_DE'):
+def check_update(authKey, date, timezone, longitude, latitude, method='COSMO_DE'):
     #date = pd.Timestamp(date).tz_localize('UTC').tz_convert(timezone)
     if method.lower() == 'dwd_csv':
         return (True, None)
     elif method.lower() == 'cosmo_de':
-        return COSMO_DE().is_new(latitude, longitude, date)
+        return COSMO_DE(authKey).is_new(latitude, longitude, date)
     elif method.lower() == 'icon_eu':
-        return ICON_EU().is_new(latitude, longitude, date)
+        return ICON_EU(authKey).is_new(latitude, longitude, date)
     else:
         raise ValueError('Invalid forecast method "{}"'.method)
 
@@ -308,13 +308,13 @@ def _read_dwdpublic(key, timezone):
     return result
 
 
-def _read_cosmo_de(date, timezone, longitude, latitude):
+def _read_cosmo_de(authKey, date, timezone, longitude, latitude):
     date = pd.Timestamp(date).tz_localize('UTC').tz_convert(timezone)
-    return COSMO_DE().get_processed_data(latitude, longitude, date, None)#start + pd.Timedelta(days=7)
+    return COSMO_DE(authKey).get_processed_data(latitude, longitude, date, None)#start + pd.Timedelta(days=7)
 
-def _read_icon_eu(date, timezone, longitude, latitude):
+def _read_icon_eu(authKey, date, timezone, longitude, latitude):
     date = pd.Timestamp(date).tz_localize('UTC').tz_convert(timezone)
-    return ICON_EU().get_processed_data(latitude, longitude, date, None)#start + pd.Timedelta(days=7)
+    return ICON_EU(authKey).get_processed_data(latitude, longitude, date, None)#start + pd.Timedelta(days=7)
     
 class Weather(pd.DataFrame):
     """
@@ -447,7 +447,7 @@ class COSMO_DE(ForecastModel):
         and the model specific variables.
     """
 
-    def __init__(self, set_type='best'):
+    def __init__(self, authKey, set_type='best'):
         model_type = 'Forecast Model Data'
 
         model = 'COSMO-DE Forecast'
@@ -482,6 +482,8 @@ class COSMO_DE(ForecastModel):
             'mid_clouds',
             'high_clouds']
 
+        self.authKey = authKey
+        
         super(COSMO_DE, self).__init__(model_type, model, set_type)
 
     def process_data(self, data, cloud_cover='total_clouds', **kwargs):
@@ -546,7 +548,7 @@ class COSMO_DE(ForecastModel):
         self.end = end
 
         url = 'http://52.30.78.76/solar/'+str(longitude)+'/'+str(latitude)
-        r = json.loads(requests.get(url, headers={'Authorization': 'Basic aXNjOkxlZWc5YWh0aG8='}).text)
+        r = json.loads(requests.get(url, headers={'Authorization': 'Basic ' + self.authKey}).text)
 
         cols = list(dict(r['timesteps'][0]['models']['COSMO_DE']).keys())
         vals = [[y[w] for w in cols] for y in [x["models"]['COSMO_DE'] for x in r['timesteps']]]
@@ -562,7 +564,7 @@ class COSMO_DE(ForecastModel):
     
     def is_new(self, latitude, longitude, date):
         url = 'http://52.30.78.76/solar/'+str(longitude)+'/'+str(latitude)
-        r = json.loads(requests.get(url, headers={'Authorization': 'Basic aXNjOkxlZWc5YWh0aG8='}).text)
+        r = json.loads(requests.get(url, headers={'Authorization': 'Basic ' + self.authKey}).text)
         return (pd.Timestamp(date) - pd.to_datetime(r['meta']['COSMO_DE']['run']) < pd.Timedelta(3, unit='h'), pd.to_datetime(r['meta']['COSMO_DE']['run']))
 
 class ICON_EU(ForecastModel):
@@ -593,7 +595,7 @@ class ICON_EU(ForecastModel):
         and the model specific variables.
     """
 
-    def __init__(self, set_type='best'):
+    def __init__(self, authKey, set_type='best'):
         model_type = 'Forecast Model Data'
 
         model = 'ICON-EU Forecast'
@@ -627,6 +629,8 @@ class ICON_EU(ForecastModel):
             'low_clouds',
             'mid_clouds',
             'high_clouds']
+        
+        self.authKey = authKey
 
         super(ICON_EU, self).__init__(model_type, model, set_type)
 
@@ -696,7 +700,7 @@ class ICON_EU(ForecastModel):
         
         #Wetterdaten vom Server holen!
         url = 'http://52.30.78.76/solar/'+str(longitude)+'/'+str(latitude)
-        r = json.loads(requests.get(url, headers={'Authorization': 'Basic aXNjOkxlZWc5YWh0aG8='}).text)
+        r = json.loads(requests.get(url, headers={'Authorization': 'Basic ' + self.authKey}).text)
         i = list(dict(r['timesteps'][0]['models']['ICON_EU']).keys())
         c = [[z[w] for w in i] for z in [x["models"]['ICON_EU'] for x in r['timesteps']]]
         
@@ -708,5 +712,5 @@ class ICON_EU(ForecastModel):
     
     def is_new(self, latitude, longitude, date):
         url = 'http://52.30.78.76/solar/'+str(longitude)+'/'+str(latitude)
-        r = json.loads(requests.get(url, headers={'Authorization': 'Basic aXNjOkxlZWc5YWh0aG8='}).text)
+        r = json.loads(requests.get(url, headers={'Authorization': 'Basic ' + self.authKey}).text)
         return (pd.Timestamp(date) - pd.to_datetime(r['meta']['ICON_EU']['run']) < pd.Timedelta(3, unit='h'), pd.to_datetime(r['meta']['ICON_EU']['run']))

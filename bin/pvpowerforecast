@@ -40,26 +40,29 @@ def main(args=None):
     else:
         model = 'COSMO_DE'
         
-    settingsfile = os.path.join(configdir, 'system_config.cfg')
+    configfile = os.path.join(configdir, 'system_config.cfg')
+    settingsfile = os.path.join(configdir, 'settings.cfg')
+    configs = ConfigParser()
     settings = ConfigParser()
+    configs.read(configfile)
     settings.read(settingsfile)
     sys_config = pv.system.read(configdir)
     runFlag = False
-    
     try:
-        for sys in settings:
+        for sys in configs:
             if sys != 'DEFAULT':
-                tz = settings.get(sys,'timezone')
-                longitude = float(settings.get(sys,'longitude'))
-                latitude = float(settings.get(sys,'latitude'))
-                altitude = float(settings.get(sys,'altitude'))
+                tz = configs.get(sys,'timezone')
+                longitude = float(configs.get(sys,'longitude'))
+                latitude = float(configs.get(sys,'latitude'))
+                altitude = float(configs.get(sys,'altitude'))
                 date = datetime.datetime.now()
                 
+                authKey = settings.get('Auth', 'key')
                 #check for update
-                is_new, run = pv.weather.check_update(date, tz, longitude, latitude, method=model)
-                if(is_new or runFlag or True):
+                is_new, run = pv.weather.check_update(authKey, date, tz, longitude, latitude, method=model)
+                if(is_new or runFlag):
                     runFlag = True
-                    forecast = pv.weather.forecast(date, tz, longitude, latitude, method=model)
+                    forecast = pv.weather.forecast(date, tz, longitude, latitude, method=model, authKey=authKey)
                     
                     if not forecast.empty:
                         system = pv.system.configure(sys, sys_config[sys])

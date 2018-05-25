@@ -81,7 +81,6 @@ def _parse_raw_sam_df(csvdata, sep=','):
     return df 
 
 def get_module_full_list_df(csv_dir, db_name = 'PV_Module_List_Full_Data'):
-    print(csv_dir)
     data_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), csv_dir)
     csvdata = os.path.join(data_path, db_name + '.csv')
     df =_parse_raw_sam_df(csvdata, ';')
