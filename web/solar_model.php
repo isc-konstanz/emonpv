@@ -12,8 +12,10 @@
 defined('EMONCMS_EXEC') or die('Restricted access');
 
 class Solar {
-
+    
     const DEFAULT_DIR = "/opt/pvforecast/";
+    const DEFAULT_NODE = "pvforecast";
+    const DEFAULT_TAG = "forecast";
 
     public $mysqli;
     public $redis;
@@ -77,6 +79,274 @@ class Solar {
             return array('success'=>true, 'id'=>$moduleid, 'message'=>"Module successfully created");;
         }
         return array('success'=>false, 'message'=>"SQL returned invalid module id insertion");
+    }
+
+    public function init($userid, $id, $template) {
+        $userid = intval($userid);
+        $id = intval($id);
+        
+        if (isset($template)) {
+            $template = (array) json_decode(stripslashes($template));
+        }
+        else {
+            $result = $this->prepare($userid, $id);
+            if (isset($result["success"]) && !$result["success"]) {
+                return $result;
+            }
+            $template = $result;
+        }
+        
+        if (isset($template['feeds'])) {
+            $feeds = $template['feeds'];
+            $this->create_feeds($userid, $feeds);
+        }
+        else {
+            $feeds = [];
+        }
+        
+        if (isset($template['inputs'])) {
+            $inputs = $template['inputs'];
+            $this->create_inputs($userid, $inputs);
+            $this->create_input_processes($userid, $feeds, $inputs);
+        }
+        else {
+            $inputs = [];
+        }
+        
+        return array('success'=>true, 'message'=>'System initialized');
+    }
+
+    private function create_feeds($userid, &$feeds) {
+        global $feed_settings;
+        
+        require_once "Modules/feed/feed_model.php";
+        $feed = new Feed($this->mysqli, $this->redis, $feed_settings);
+        
+        for ($i = 0; $i < count($feeds); $i++) {
+            if (!is_array($feeds[$i])) {
+                $feeds[$i] = (array) $feeds[$i];
+            }
+            
+            if ($feeds[$i]['action'] === 'create') {
+                $options = array();
+                if (isset($fd['interval'])) {
+                    $options['interval'] = $feeds[$i]['interval'];
+                }
+                
+                $result = $feed->create($userid, $feeds[$i]['tag'], $feeds[$i]['name'], intval($feeds[$i]['type']), intval($feeds[$i]['engine']), $options);
+                if($result["success"] === true) {
+                    // Assign the created input id to the inputs array
+                    $feeds[$i]['id'] = $result["feedid"];
+                }
+            }
+        }
+    }
+
+    private function create_inputs($userid, &$inputs) {
+        require_once "Modules/input/input_model.php";
+        $input = new Input($this->mysqli, $this->redis, null);
+        
+        for ($i = 0; $i < count($inputs); $i++) {
+            if (!is_array($inputs[$i])) {
+                $inputs[$i] = (array) $inputs[$i];
+            }
+            
+            if ($inputs[$i]['action'] === 'create') {
+                $inputid = $input->create_input($userid, $inputs[$i]['node'], $inputs[$i]['name']);
+                if($input->exists($inputid)) {
+                    $input->set_fields($inputid, '{"description":"'.$inputs[$i]['description'].'"}');
+                    
+                    // Assign the created input id to the inputs array
+                    $inputs[$i]['id'] = $inputid;
+                }
+            }
+        }
+    }
+
+    private function create_input_processes($userid, $feeds, $inputs) {
+        global $user, $feed_settings;
+        
+        require_once "Modules/feed/feed_model.php";
+        $feed = new Feed($this->mysqli, $this->redis, $feed_settings);
+        
+        require_once "Modules/input/input_model.php";
+        $input = new Input($this->mysqli, $this->redis, $feed);
+        
+        require_once "Modules/process/process_model.php";
+        $process = new Process($this->mysqli, $input, $feed, $user->get_timezone($userid));
+        $process_list = $process->get_process_list(); // emoncms supported processes
+        
+        for ($i = 0; $i < count($inputs); $i++) {
+            if ($inputs[$i]['action'] !== 'none') {
+                if (isset($inputs[$i]['id']) && isset($inputs[$i]['processList'])) {
+                    $processes = array();
+                    foreach($inputs[$i]['processList'] as $process) {
+                        $processes[] = $this->parse_process($feeds, $inputs, (array) $process);
+                    }
+                    if (count($processes) > 0) {
+                        $input->set_processlist($userid, $inputs[$i]['id'], implode(",", $processes), $process_list);
+                    }
+                }
+            }
+        }
+    }
+
+    private function parse_process($feeds, $inputs, $process) {
+        $arguments = (array) $process['arguments'];
+        if (isset($arguments['value'])) {
+            $value = $arguments['value'];
+        }
+        else if ($arguments['type'] === ProcessArg::NONE) {
+            $value = 0;
+        }
+        
+        if ($arguments['type'] === ProcessArg::VALUE) {
+        }
+        else if ($arguments['type'] === ProcessArg::INPUTID) {
+            foreach ($inputs as $input) {
+                if ($input['name'] == $value) {
+                    if (isset($input['id']) && $input['id'] > 0) {
+                        $value = $input['id'];
+                    }
+                }
+            }
+        }
+        else if ($arguments['type'] === ProcessArg::FEEDID) {
+            foreach ($feeds as $feed) {
+                if ($feed['name'] == $value) {
+                    if (isset($feed['id']) && $feed['id'] > 0) {
+                        $value = $feed['id'];
+                    }
+                }
+            }
+        }
+        else if ($arguments['type'] === ProcessArg::NONE) {
+            $value = "";
+        }
+        else if ($arguments['type'] === ProcessArg::TEXT) {
+        }
+        else if ($arguments['type'] === ProcessArg::SCHEDULEID) {
+            //not supporte for now
+        }
+        return $process['process'].":".$value;
+    }
+
+    public function prepare($userid, $id) {
+        $userid = intval($userid);
+        $id = intval($id);
+        
+        $system = $this->get($id);
+        $name = strtolower($system['name']);
+        
+        $feeds = $this->prepare_feeds($userid, $name, $system['modules']);
+        $inputs = $this->prepare_inputs($userid, $feeds);
+        
+        return array('success'=>true, 'feeds'=>$feeds, 'inputs'=>$inputs);
+    }
+
+    private function prepare_feeds($userid, $name, $modules) {
+        $feeds = array();
+        $feeds[] = $this->prepare_feed($userid, $name.'_forecast');
+        
+        $length = count($modules);
+        if ($length > 1) {
+            for ($i = 1; $i <= $length; $i++) {
+                $feeds[] = $this->prepare_feed($userid, $name.$i.'_forecast');
+            }
+        }
+        return $feeds;
+    }
+
+    private function prepare_feed($userid, $name) {
+        global $feed_settings;
+        
+        require_once "Modules/feed/feed_model.php";
+        $feed = new Feed($this->mysqli, $this->redis, $feed_settings);
+        
+        $feedid = $feed->exists_tag_name($userid, self::DEFAULT_TAG, $name);
+        if ($feedid == false) {
+            $feedid = -1;
+            $action = 'create';
+        }
+        else {
+            $action = 'none';
+        }
+        return array(
+            'id'=>$feedid,
+            'name'=>$name,
+            'tag'=>self::DEFAULT_TAG,
+            'type'=>DataType::REALTIME,
+            'engine'=>Engine::MYSQL,
+            'action'=>$action
+        );
+    }
+
+    private function prepare_inputs($userid, $feeds) {
+        global $user, $feed_settings;
+        
+        require_once "Modules/feed/feed_model.php";
+        $feed = new Feed($this->mysqli, $this->redis, $feed_settings);
+        
+        require_once "Modules/input/input_model.php";
+        $input = new Input($this->mysqli, $this->redis, $feed);
+        
+        require_once "Modules/process/process_model.php";
+        $process = new Process($this->mysqli, $input, $feed, $user->get_timezone($userid));
+        $process_list = $process->get_process_list(); // emoncms supported processes
+        
+        $inputs = array();
+        foreach ($feeds as $f) {
+            $name = substr($f['name'], 0, strrpos($f['name'], '_'));
+            
+            $inputid = $input->exists_nodeid_name($userid, self::DEFAULT_NODE, $name);
+            if ($inputid == false) {
+                $action = 'create';
+                $inputid = -1;
+            }
+            else {
+                $action = 'none';
+            }
+            $processes = array();
+            $processes[] = array(
+                'name'=>'Log to Feed',
+                'process'=>1,
+                'arguments'=>array(
+                    'type'=>ProcessArg::FEEDID,
+                    'value'=>$f['name']
+                )
+            );
+            
+            if ($inputid >= 0 && $f['id'] >= 0) {
+                $process_list = '1:'.$f['id'];
+                $process_input = $input->get_processlist($inputid);
+                if (!isset($processes['success'])) {
+                    if ($process_input == '') {
+                        $action = 'set';
+                    }
+                    else if ($process_input != $process_list) {
+                        $action = 'override';
+                    }
+                }
+                else {
+                    if ($process_input == '') {
+                        $action = 'set';
+                    }
+                    else {
+                        $action = 'override';
+                    }
+                }
+            }
+            
+            $inputs[] = array(
+                'id'=>$inputid,
+                'name'=>$name,
+                'node'=>self::DEFAULT_NODE,
+                'description'=>$name." forecast",
+                'processList'=>$processes,
+                'action'=>$action
+            );
+        }
+        return $inputs;
     }
 
     public function exist($id) {
@@ -239,7 +509,7 @@ class Solar {
         return array("success"=>false, "message"=>"Module for type ".$type." does not exist");
     }
 
-    protected function get_module_dir() {
+    private function get_module_dir() {
         global $module_dir;
         if (isset($module_dir) && $module_dir !== "") {
             $module_dir = $module_dir;

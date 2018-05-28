@@ -5,6 +5,7 @@ var dialog =
     module: null,
     modules: [],
     system: null,
+    template: null,
 
     'loadSystemConfig':function(system) {
         if (system != null) {
@@ -17,6 +18,7 @@ var dialog =
             this.system = null;
             this.modules = [];
         }
+        this.template = null;
         this.module = null;
         this.moduleType = null;
         
@@ -154,7 +156,7 @@ var dialog =
 //                                  name: name,
 //                                  type: dialog.deviceType
 //                          };
-//                          dialog.loadSystemInit();
+//                          dialog.loadInitConfig();
                     	}
                     });
                 }
@@ -186,12 +188,215 @@ var dialog =
         
         $("#system-init").off('click').on('click', function() {
             $('#system-modal').modal('hide');
-            dialog.loadSystemInit();
+            dialog.loadInitConfig();
         });
         
         $("#system-delete").off('click').on('click', function() {
             $('#system-modal').modal('hide');
             dialog.loadSystemDelete(dialog.system);
+        });
+    },
+
+    'loadInitConfig': function() {
+    	dialog.template = [];
+        solar.prepare(dialog.system.id, function(result) {
+            if (typeof result.success !== 'undefined' && !result.success) {
+                alert('Unable to initialize system:\n'+result.message);
+                return false;
+            }
+            dialog.template = result;
+            dialog.drawInitConfig();
+        });
+        
+        // Initialize callbacks
+        $("#system-init-confirm").off('click').on('click', function() {
+            $('#system-init-modal').modal('hide');
+            
+            var template = dialog.parseInitTemplate();
+            var foo = JSON.stringify(template);
+            solar.init(dialog.system.id, template, function(result) {
+                if (typeof result.success !== 'undefined' && !result.success) {
+                    alert('Unable to initialize system:\n'+result.message);
+                    return false;
+                }
+            });
+        });
+    },
+
+    'adjustInitModal':function() {
+        var width = $(window).width();
+        var height = $(window).height();
+        
+        if ($("#system-init-modal").length) {
+            var h = height - $("#system-init-modal").position().top - 180;
+            $("#system-init-body").height(h);
+        }
+    },
+
+    'drawInitConfig': function() {
+        $('#system-init-modal').modal('show');
+        $('#system-init-modal-label').html('Initialize System: <b>'+dialog.system.name+'</b>');
+        dialog.adjustInitModal();
+        
+        if (typeof dialog.template.feeds !== 'undefined' && dialog.template.feeds.length > 0) {
+            $('#system-init-feeds').show();
+            var table = "";
+            for (var i = 0; i < dialog.template.feeds.length; i++) {
+                var feed = dialog.template.feeds[i];
+                var row = "";
+                if (feed.action.toLowerCase() == "none") {
+                    row += "<td><input row='"+i+"' class='input-select' type='checkbox' checked disabled /></td>";
+                }
+                else {
+                    row += "<td><input row='"+i+"' class='input-select' type='checkbox' checked /></td>";
+                }
+                row += "<td>"+dialog.drawInitAction(feed.action)+"</td>"
+                row += "<td>"+feed.tag+"</td><td>"+feed.name+"</td>";
+                row += "<td>"+dialog.drawInitProcessList(feed.processList)+"</td>";
+                
+                table += "<tr>"+row+"</tr>";
+            }
+            $('#system-init-feeds-table').html(table);
+        }
+        else {
+            $('#system-init-feeds').hide();
+        }
+        
+        if (typeof dialog.template.inputs !== 'undefined' && dialog.template.inputs.length > 0) {
+            $('#system-init-inputs').show();
+            var table = "";
+            for (var i = 0; i < dialog.template.inputs.length; i++) {
+                var input = dialog.template.inputs[i];
+                var row = "";
+                if (input.action.toLowerCase() == "none") {
+                    row += "<td><input row='"+i+"' class='input-select' type='checkbox' checked disabled /></td>";
+                }
+                else {
+                    row += "<td><input row='"+i+"' class='input-select' type='checkbox' checked /></td>";
+                }
+                row += "<td>"+dialog.drawInitAction(input.action)+"</td>"
+                row += "<td>"+input.node+"</td><td>"+input.name+"</td><td>"+input.description+"</td>";
+                row += "<td>"+dialog.drawInitProcessList(input.processList)+"</td>";
+                
+                table += "<tr>"+row+"</tr>";
+            }
+            $('#system-init-inputs-table').html(table);
+        }
+        else {
+            $('#system-init-inputs').hide();
+            $('#system-init-inputs-table').html("");
+        }
+        
+        return true;
+    },
+
+    'drawInitAction': function(action) {
+        action = action.toLowerCase();
+        
+        var color;
+        if (action === 'create' || action === 'set') {
+            color = "rgb(0,110,205)";
+        }
+        else if (action === 'override') {
+            color = "rgb(255,125,20)";
+        }
+        else {
+            color = "rgb(50,200,50)";
+            action = "exists"
+        }
+        action = action.charAt(0).toUpperCase() + action.slice(1);
+        
+        return "<span style='color:"+color+";'>"+action+"</span>";
+    },
+
+    'drawInitProcessList': function(processList) {
+        if (!processList || processList.length < 1) return "";
+        var out = "";
+        for (var i = 0; i < processList.length; i++) {
+            var process = processList[i];
+            if (process['arguments'] != undefined && process['arguments']['value'] != undefined && process['arguments']['type'] != undefined) {
+                var name = "<small>"+process["name"]+"</small>";
+                var value = process['arguments']['value'];
+                
+                var title;
+                var color = "info";
+                switch(process['arguments']['type']) {
+                case 0: // VALUE
+                    title = "Value: " + value;
+                    break;
+                    
+                case 1: // INPUTID
+                    title = "Input: " + value;
+                    break;
+                    
+                case 2: // FEEDID
+                    title = "Feed: " + value;
+                    break;
+                    
+                case 4: // TEXT
+                    title = "Text: " + value;
+                    break;
+
+                case 5: // SCHEDULEID
+                    title = "Schedule: " + value;
+                    break;
+
+                default:
+                    title = value;
+                    break;
+                }
+                out += "<span class='label label-"+color+"' title='"+title+"' style='cursor:default'>"+name+"</span> ";
+            }
+        }
+        return out;
+    },
+
+    'parseInitTemplate': function() {
+        var template = {};
+        
+        template['feeds'] = [];
+        if (typeof dialog.template.feeds !== 'undefined' && 
+                dialog.template.feeds.length > 0) {
+            
+            var feeds = dialog.template.feeds;
+            $("#system-init-feeds-table tr").find('input[type="checkbox"]:checked').each(function() {
+                template['feeds'].push(feeds[$(this).attr("row")]); 
+            });
+        }
+        
+        template['inputs'] = [];
+        if (typeof dialog.template.inputs !== 'undefined' && 
+                dialog.template.inputs.length > 0) {
+            
+            var inputs = dialog.template.inputs;
+            $("#system-init-inputs-table tr").find('input[type="checkbox"]:checked').each(function() {
+                template['inputs'].push(inputs[$(this).attr("row")]); 
+            });
+        }
+        
+        return template;
+    },
+
+    'loadSystemDelete': function(system, row) {
+        dialog.system = system;
+        
+        $('#system-delete-modal').modal('show');
+        $('#system-delete-modal-label').html('Delete System: <b>'+dialog.system.name+'</b>');
+        
+        // Initialize callbacks
+        dialog.registerDeleteEvents(row);
+    },
+
+    'registerDeleteEvents':function(row) {
+        
+        $("#system-delete-confirm").off('click').on('click', function() {
+            solar.remove(dialog.system.id, function() {
+                if (row != null) {
+                    table.remove(row);
+                }
+                update();
+                $('#system-delete-modal').modal('hide');
+            });
         });
     },
 
@@ -472,165 +677,9 @@ var dialog =
         });
     },
 
-    'loadSystemInit': function() {
-        var result = device.prepareTemplate(dialog.device.id);
-        if (typeof result.success !== 'undefined' && !result.success) {
-            alert('Unable to initialize device:\n'+result.message);
-            return false;
-        }
-        dialog.deviceTemplate = result;
-        dialog.drawInit(result);
-        
-        // Initialize callbacks
-        $("#system-init-confirm").off('click').on('click', function() {
-            $('#system-init-modal').modal('hide');
-            
-            var template = dialog.parseTemplate();
-            var result = device.init(dialog.device.id, template);
-            if (typeof result.success !== 'undefined' && !result.success) {
-                alert('Unable to initialize device:\n'+result.message);
-                return false;
-            }
-        });
-    },
-
-    'drawInit': function(result) {
-        $('#system-init-modal').modal('show');
-        $('#system-init-modal-label').html('Initialize Device: <b>'+dialog.device.name+'</b>');  
-        
-        if (typeof result.feeds !== 'undefined' && result.feeds.length > 0) {
-            $('#system-init-feeds').show();
-            var table = "";
-            for (var i = 0; i < result.feeds.length; i++) {
-                var feed = result.feeds[i];
-                var row = "";
-                if (feed.action.toLowerCase() == "none") {
-                    row += "<td><input row='"+i+"' class='input-select' type='checkbox' checked disabled /></td>";
-                }
-                else {
-                    row += "<td><input row='"+i+"' class='input-select' type='checkbox' checked /></td>";
-                }
-                row += "<td>"+dialog.drawInitAction(feed.action)+"</td>"
-                row += "<td>"+feed.tag+"</td><td>"+feed.name+"</td>";
-                row += "<td>"+dialog.drawInitProcessList(feed.processList)+"</td>";
-                
-                table += "<tr>"+row+"</tr>";
-            }
-            $('#system-init-feeds-table').html(table);
-        }
-        else {
-            $('#system-init-feeds').hide();
-        }
-        
-        if (typeof result.inputs !== 'undefined' && result.inputs.length > 0) {
-            $('#system-init-inputs').show();
-            var table = "";
-            for (var i = 0; i < result.inputs.length; i++) {
-                var input = result.inputs[i];
-                var row = "";
-                if (input.action.toLowerCase() == "none") {
-                    row += "<td><input row='"+i+"' class='input-select' type='checkbox' checked disabled /></td>";
-                }
-                else {
-                    row += "<td><input row='"+i+"' class='input-select' type='checkbox' checked /></td>";
-                }
-                row += "<td>"+dialog.drawInitAction(input.action)+"</td>"
-                row += "<td>"+input.node+"</td><td>"+input.name+"</td><td>"+input.description+"</td>";
-                row += "<td>"+dialog.drawInitProcessList(input.processList)+"</td>";
-                
-                table += "<tr>"+row+"</tr>";
-            }
-            $('#system-init-inputs-table').html(table);
-        }
-        else {
-            $('#system-init-inputs').hide();
-            $('#system-init-inputs-table').html("");
-        }
-        
-        return true;
-    },
-
-    'drawInitAction': function(action) {
-        action = action.toLowerCase();
-        
-        var color;
-        if (action === 'create' || action === 'set') {
-            color = "rgb(0,110,205)";
-        }
-        else if (action === 'override') {
-            color = "rgb(255,125,20)";
-        }
-        else {
-            color = "rgb(50,200,50)";
-            action = "exists"
-        }
-        action = action.charAt(0).toUpperCase() + action.slice(1);
-        
-        return "<span style='color:"+color+";'>"+action+"</span>";
-    },
-
-    'drawInitProcessList': function(processList) {
-        if (!processList || processList.length < 1) return "";
-        var out = "";
-        for (var i = 0; i < processList.length; i++) {
-            var process = processList[i];
-            if (process['arguments'] != undefined && process['arguments']['value'] != undefined && process['arguments']['type'] != undefined) {
-                var name = "<small>"+process["name"]+"</small>";
-                var value = process['arguments']['value'];
-                
-                var title;
-                var color = "info";
-                switch(process['arguments']['type']) {
-                case 0: // VALUE
-                    title = "Value: " + value;
-                    break;
-                    
-                case 1: // INPUTID
-                    title = "Input: " + value;
-                    break;
-                    
-                case 2: // FEEDID
-                    title = "Feed: " + value;
-                    break;
-                    
-                case 4: // TEXT
-                    title = "Text: " + value;
-                    break;
-
-                case 5: // SCHEDULEID
-                    title = "Schedule: " + value;
-                    break;
-
-                default:
-                    title = value;
-                    break;
-                }
-                out += "<span class='label label-"+color+"' title='"+title+"' style='cursor:default'>"+name+"</span> ";
-            }
-        }
-        return out;
-    },
-
-    'loadSystemDelete': function(system, row) {
-        dialog.system = system;
-        
-        $('#system-delete-modal').modal('show');
-        $('#system-delete-modal-label').html('Delete System: <b>'+dialog.system.name+'</b>');
-        
-        // Initialize callbacks
-        dialog.registerDeleteEvents(row);
-    },
-
-    'registerDeleteEvents':function(row) {
-        
-        $("#system-delete-confirm").off('click').on('click', function() {
-            solar.remove(dialog.system.id, function() {
-                if (row != null) {
-                    table.remove(row);
-                }
-                update();
-                $('#system-delete-modal').modal('hide');
-            });
-        });
+    'adjustModal':function() {
+    	dialog.adjustSystemModal();
+    	dialog.adjustInitModal();
+    	dialog.adjustModuleModal();
     }
 }

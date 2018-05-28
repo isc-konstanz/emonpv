@@ -20,7 +20,7 @@ function solar_controller() {
     }
     else if ($route->format == 'json') {
         if ($route->action == "create") {
-            if ($session['userid']>0 && $session['write']) $result = $solar->create($session['userid'],get("name"),get("description"),get("longitude"),get("latitude"),get("modules"));
+            if ($session['userid']>0 && $session['write']) $result = $solar->create($session['userid'],prop("name"),prop("description"),prop("longitude"),prop("latitude"),prop("modules"));
         }
         else if ($route->action == 'list') {
             if ($session['userid']>0 && $session['write']) $result = $solar->get_list($session['userid']);
@@ -28,11 +28,13 @@ function solar_controller() {
         else if ($route->action == 'config') {
             if ($session['admin']) $result = $solar->get_config();
         }
-        else if (get('id') !== null) {
-            $systemid = intval(get('id'));
+        else if (prop('id') !== null) {
+            $systemid = intval(prop('id'));
             if ($solar->exist($systemid)) {
-                if ($route->action == "get") $result = $solar->get($systemid);
-                else if ($route->action == 'set') $result = $solar->set_fields($systemid, get('fields'));
+                if ($route->action == "init") $result = $solar->init($session['userid'],$systemid,prop('template'));
+                else if ($route->action == "prepare") $result = $solar->prepare($session['userid'],$systemid);
+                else if ($route->action == "get") $result = $solar->get($systemid);
+                else if ($route->action == 'set') $result = $solar->set_fields($systemid,prop('fields'));
                 else if ($route->action == "delete") $result = $solar->delete($systemid);
             }
             else {

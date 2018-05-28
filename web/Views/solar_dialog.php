@@ -27,7 +27,7 @@
     }
 
     .modal-adjust {
-        width: 60%; left:20%; /* (100%-width)/2 */
+        width: 40%; left:30%; /* (100%-width)/2 */
         margin-left: auto; margin-right: auto;
         overflow-y: hidden;
     }
@@ -72,10 +72,6 @@
         border-bottom: 1px solid #ffffff;
     }
 
-    #system-modal {
-        width: 40%; left:30%; /* (100%-width)/2 */
-    }
-
     #system-location th {
         text-align: left;
         font-weight: normal;
@@ -103,6 +99,10 @@
     #system-init-inputs table td:nth-of-type(4) { width:10%; }
     #system-init-inputs table td:nth-of-type(5) { width:25%; }
 
+    #module-modal {
+        width: 60%; left:20%; /* (100%-width)/2 */
+    }
+    
     #module-content {
         margin-top: -15px;
     }
@@ -163,43 +163,45 @@
     </div>
 </div>
 
-<div id="system-init-modal" class="modal hide" tabindex="-1" role="dialog" aria-labelledby="system-init-modal-label" aria-hidden="true" data-backdrop="static">
+<div id="system-init-modal" class="modal hide keyboard modal-adjust" tabindex="-1" role="dialog" aria-labelledby="system-init-modal-label" aria-hidden="true" data-backdrop="static">
     <div class="modal-header">
         <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
         <h3 id="system-init-modal-label"><?php echo _('Initialize Solar System'); ?></h3>
     </div>
-    <div class="modal-body">
-        <p><?php echo _('Initializing a system will automaticaly configure inputs and associated feeds.'); ?><br>
-            <b><?php echo _('Warning: '); ?></b><?php echo _('Process lists with dependencies to deselected feeds or inputs will be skipped as a whole'); ?>
-        </p>
-        
-        <div id="system-init-feeds" style="display:none">
-            <label><b><?php echo _('Feeds'); ?></b></label>
-            <table class="table table-hover">
-                <tr>
-                    <th></th>
-                    <th></th>
-                    <th><?php echo _('Tag'); ?></th>
-                    <th><?php echo _('Name'); ?></th>
-                    <th><?php echo _('Process list'); ?></th>
-                </tr>
-                <tbody id="system-init-feeds-table"></tbody>
-            </table>
-        </div>
-        
-        <div id="system-init-inputs" style="display:none">
-            <label><b><?php echo _('Inputs'); ?></b></label>
-            <table class="table table-hover">
-                <tr>
-                    <th></th>
-                    <th></th>
-                    <th><?php echo _('Node'); ?></th>
-                    <th><?php echo _('Key'); ?></th>
-                    <th><?php echo _('Name'); ?></th>
-                    <th><?php echo _('Process list'); ?></th>
-                </tr>
-                <tbody id="system-init-inputs-table"></tbody>
-            </table>
+    <div id="system-init-body"  class="modal-body">
+        <div id="system-init-content" class="content-wrapper" style="max-width:1280px">
+            <p><?php echo _('Initializing a system will automaticaly configure inputs and associated feeds.'); ?><br>
+                <b><?php echo _('Warning: '); ?></b><?php echo _('Process lists with dependencies to deselected feeds or inputs will be skipped as a whole'); ?>
+            </p>
+            
+            <div id="system-init-feeds" style="display:none">
+                <label><b><?php echo _('Feeds'); ?></b></label>
+                <table class="table table-hover">
+                    <tr>
+                        <th></th>
+                        <th></th>
+                        <th><?php echo _('Tag'); ?></th>
+                        <th><?php echo _('Name'); ?></th>
+                        <th><?php echo _('Process list'); ?></th>
+                    </tr>
+                    <tbody id="system-init-feeds-table"></tbody>
+                </table>
+            </div>
+            
+            <div id="system-init-inputs" style="display:none">
+                <label><b><?php echo _('Inputs'); ?></b></label>
+                <table class="table table-hover">
+                    <tr>
+                        <th></th>
+                        <th></th>
+                        <th><?php echo _('Node'); ?></th>
+                        <th><?php echo _('Key'); ?></th>
+                        <th><?php echo _('Name'); ?></th>
+                        <th><?php echo _('Process list'); ?></th>
+                    </tr>
+                    <tbody id="system-init-inputs-table"></tbody>
+                </table>
+            </div>
         </div>
     </div>
     <div class="modal-footer">
@@ -301,7 +303,6 @@
 
 <script>
     $(window).resize(function() {
-        dialog.adjustSystemModal();
-        dialog.adjustModuleModal();
+        dialog.adjustModal();
     });
 </script>
