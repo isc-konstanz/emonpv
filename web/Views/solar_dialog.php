@@ -72,14 +72,17 @@
         border-bottom: 1px solid #ffffff;
     }
 
-    #system-location th {
+    #system-location th, 
+    #module-orientation th, 
+    #module-count th {
         text-align: left;
         font-weight: normal;
         color: #888;
     }
-    #system-location td:nth-of-type(1) { width:118px; }
-    #system-location td:nth-of-type(2) { width:108px; }
-    #system-location td:nth-of-type(3) { width:14px; text-align:center; }
+    #system-location td:nth-of-type(1) { width:109px; text-align:left; }
+    #system-location td:nth-of-type(2) { width:109px; text-align:left; }
+    #system-location td:nth-of-type(3) { width:107px; text-align:left; }
+    #system-location td:nth-of-type(4) { width:14px; text-align:center; }
 
     #system-modules-table td:nth-of-type(1) { width:40%; }
     #system-modules-table th:nth-of-type(3), td:nth-of-type(3) { width:5%; text-align:right; }
@@ -98,7 +101,11 @@
     #system-init-inputs table td:nth-of-type(3) { width:5%; }
     #system-init-inputs table td:nth-of-type(4) { width:10%; }
     #system-init-inputs table td:nth-of-type(5) { width:25%; }
-
+    
+    #module-orientation td:nth-of-type(1), #module-count td:nth-of-type(1) { width:109px; text-align:left; }
+    #module-orientation td:nth-of-type(2), #module-count td:nth-of-type(2) { width:107px; text-align:left; }
+    #module-orientation td:nth-of-type(3), #module-count td:nth-of-type(3) { width:14px; text-align:center; }
+    
     #module-modal {
         width: 60%; left:20%; /* (100%-width)/2 */
     }
@@ -135,11 +142,13 @@
                 <tr>
                     <th><?php echo _('Longitude'); ?></th>
                     <th><?php echo _('Latitude'); ?></th>
+                    <th><?php echo _('Altitude'); ?></th>
                     <th></th>
                 </tr>
 				<tr>
-					<td><input id="system-longitude" class="input-small" type="number" min="0" step="0.00001" required></td>
-					<td><input id="system-latitude" class="input-small" type="number" min="0" step="0.00001" required></td>
+					<td><input id="system-longitude" class="input-small" type="number" step="0.00001" required></td>
+					<td><input id="system-latitude" class="input-small" type="number" step="0.00001" required></td>
+					<td><input id="system-altitude" class="input-small" type="number" required></td>
 					<td>
                         <span id="system-location-tooltip" data-toggle="tooltip" data-placement="bottom">
                             <i class="icon-info-sign" style="margin-bottom:12px; cursor:pointer;"></i>
@@ -257,26 +266,43 @@
             <div class="divider"></div>
             
             <label><b><?php echo _('Count'); ?></b></label>
-            <input id="module-count" class="input-small" type="number" step="1" min="1" placeholder="1" required>
-            <span id="module-count-tooltip" data-toggle="tooltip" data-placement="bottom">
-                <i class="icon-info-sign" style="vertical-align:top; margin-top:8px; margin-left:2px; cursor:pointer;"></i>
-            </span>
+            <table id="module-count">
+                <tr>
+                    <th><?php echo _('Strings'); ?></th>
+                    <th><?php echo _('Modules'); ?></th>
+                    <th></th>
+                </tr>
+				<tr>
+					<td><input id="module-strings" class="input-small" type="number" step="1" min="1" placeholder="1" required></td>
+					<td><input id="module-number" class="input-small" type="number" step="1" min="1" placeholder="1" required></td>
+					<td>
+                        <span id="module-count-tooltip" data-toggle="tooltip" data-placement="bottom">
+                            <i class="icon-info-sign" style="margin-bottom:12px; cursor:pointer;"></i>
+                        </span>
+                    </td>
+				</tr>
+            </table>
             
-            <label><b><?php echo _('Tilt'); ?></b></label>
-            <input id="module-tilt" class="input-medium" type="number" step="0.1" min="0" max="90" placeholder="30" required>
-            <span id="module-tilt-tooltip" data-toggle="tooltip" data-placement="bottom">
-                <i class="icon-info-sign" style="vertical-align:top; margin-top:8px; margin-left:2px; cursor:pointer;"></i>
-            </span>
-            
-            <label><b><?php echo _('Azimuth'); ?></b></label>
-            <input id="module-azimuth" class="input-medium" type="number" step="0.1" min="0" max="359.9" placeholder="180" required>
-            <span id="module-azimuth-tooltip" data-toggle="tooltip" data-placement="bottom">
-                <i class="icon-info-sign" style="vertical-align:top; margin-top:8px; margin-left:2px; cursor:pointer;"></i>
-            </span>
+            <label><b><?php echo _('Orientation'); ?></b></label>
+            <table id="module-orientation">
+                <tr>
+                    <th><?php echo _('Tilt'); ?></th>
+                    <th><?php echo _('Azimuth'); ?></th>
+                    <th></th>
+                </tr>
+				<tr>
+					<td><input id="module-tilt" class="input-small" type="number" step="0.1" min="0" max="90" placeholder="30" required></td>
+					<td><input id="module-azimuth" class="input-small" type="number" step="0.1" min="0" max="359.9" placeholder="180" required></td>
+					<td>
+                        <span id="module-orientation-tooltip" data-toggle="tooltip" data-placement="bottom">
+                            <i class="icon-info-sign" style="margin-bottom:12px; cursor:pointer;"></i>
+                        </span>
+                    </td>
+				</tr>
+            </table>
             
             <label><b><?php echo _('Albedo'); ?></b></label>
             <select id="module-albedo" class="input-medium">
-                <option value="0"><?php echo _('None'); ?></option>
                 <option value="0.18"><?php echo _('Urban'); ?></option>
                 <option value="0.20"><?php echo _('Grass'); ?></option>
                 <option value="0.17"><?php echo _('Soil'); ?></option>

@@ -1,9 +1,9 @@
 var solar = {
 
-    'create':function(name, desc, lon, lat, modules, callback) {
+    'create':function(name, desc, location, modules, callback) {
     	return $.ajax({
 	        url: path+"solar/create.json",
-	        data: "name="+name+"&description="+desc+"&longitude="+lon+"&latitude="+lat+"&modules="+JSON.stringify(modules), 
+	        data: "name="+name+"&description="+desc+"&location="+JSON.stringify(location)+"&modules="+JSON.stringify(modules), 
 	        dataType: 'json',
 	        async: true,
 	        success: callback

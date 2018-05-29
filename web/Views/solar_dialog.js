@@ -38,7 +38,7 @@ var dialog =
         		"regarding the specific system and may be left empty").tooltip({html: true});
         
         $('#system-location-tooltip').attr("title", 
-        		"The geographic coordinates longitude and latitude of the solar system.<br>" +
+        		"The geographic coordinates longitude, latitude and altitude of the solar system.<br>" +
         		"Those may be extracted e.g. by using <a href='https://www.google.de/maps'>Google Maps<a>").tooltip({html: true});
         
         if (this.system != null) {
@@ -46,6 +46,7 @@ var dialog =
             $('#system-description').val(this.system.description);
             $('#system-longitude').val(this.system.longitude);
             $('#system-latitude').val(this.system.latitude);
+            $('#system-altitude').val(this.system.altitude);
             $('#system-delete').show();
             $("#system-init").show();
         }
@@ -54,6 +55,7 @@ var dialog =
             $('#system-description').val('');
             $('#system-longitude').val('');
             $('#system-latitude').val('');
+            $('#system-altitude').val('');
             $('#system-delete').hide();
             $("#system-init").hide();
         }
@@ -83,7 +85,7 @@ var dialog =
                 row = $("#system-modules-row-"+i);
             	row.append("<td>" + module.Manufacturer + "</td>");
                 row.append("<td>" + module.Model_Number + "</td>");
-                row.append("<td>" + dialog.modules[i].count + "</td>");
+                row.append("<td>" + dialog.modules[i].strings*dialog.modules[i].modules + "</td>");
                 row.append("<td><a class='module-edit' title='Edit'><i class='icon-wrench' style='cursor:pointer'></i></a></td>");
                 row.append("<td><a class='module-remove' title='Remove'><i class='icon-trash' style='cursor:pointer'></i></a></td>");
             }
@@ -128,35 +130,42 @@ var dialog =
             var name = $('#system-name').val();
             var lon = $('#system-longitude').val();
             var lat = $('#system-latitude').val();
+            var alt = $('#system-altitude').val();
             
-            if (name && lon && lat && dialog.modules.length > 0) {
+            if (name && lon && lat && alt && dialog.modules.length > 0) {
                 var desc = $('#system-description').val();
                 
                 if (dialog.system != null) {
                     var fields = {};
                     if (dialog.system.name != name) fields['name'] = name;
                     if (dialog.system.description != desc) fields['description'] = desc;
-                    
-                    var foo = JSON.stringify(dialog.system.modules);
-                    var bar = JSON.stringify(dialog.modules);
+                    if (dialog.system.longitude != lon) fields['longitude'] = lon;
+                    if (dialog.system.latitude != lat) fields['latitude'] = lat;
+                    if (dialog.system.altitude != alt) fields['altitude'] = alt;
                     
                     if (JSON.stringify(dialog.system.modules) != JSON.stringify(dialog.modules)) {
                     	fields['modules'] = dialog.modules;
                     }
-                    
                     solar.set(dialog.system.id, fields, dialog.closeSystemConfig);
                 }
                 else {
-                    solar.create(name, desc, lon, lat, dialog.modules, function(result) {
+                	var location = {
+                			longitude: lon,
+                			latitude: lat,
+                			altitude: alt
+                	};
+                    solar.create(name, desc, location, dialog.modules, function(result) {
                     	if (dialog.closeSystemConfig(result)) {
-//                          init = true;
-//                          dialog.device = {
-//                                  id: result,
-//                                  nodeid: node,
-//                                  name: name,
-//                                  type: dialog.deviceType
-//                          };
-//                          dialog.loadInitConfig();
+                            dialog.system = {
+	                                id: result.id,
+	                                name: name,
+	                                description: desc,
+	                    			longitude: lon,
+	                    			latitude: lat,
+	                    			altitude: alt,
+	                    			modules: dialog.modules
+                            };
+                            dialog.loadInitConfig();
                     	}
                     });
                 }
@@ -469,21 +478,22 @@ var dialog =
     'drawModuleConfig':function() {
         $("#module-modal").modal('show');
         dialog.adjustModuleModal();
-
+        
         $('#module-count-tooltip').attr("title", 
-        		"The number of solar modules for the specified orientation in the system.").tooltip({html: true});
+		        "The <b>number of strings</b> and the <b>number of solar modules in each string</b>, " +
+		        "for their specified orientation in the system. " +
+		        "In larger systems, individual modules are connected in both series and parallel. " +
+				"A series-connected set of solar cells or modules is called a string.").tooltip({html: true});
         
-        $('#module-tilt-tooltip').attr("title", 
-        		"The modules tilt from horizontal.").tooltip({html: true});
-        
-        $('#module-azimuth-tooltip').attr("title", 
-        		"The modules horizontal angle measured clockwise from north.").tooltip({html: true});
+        $('#module-orientation-tooltip').attr("title", 
+        		"The modules tilt from horizontal and the azimuth, the horizontal angle measured clockwise from north.").tooltip({html: true});
         
         $('#module-albedo-tooltip').attr("title", 
         		"The modules ground reflectance, depending on the ground the system is installed upon.").tooltip({html: true});
         
         if (dialog.module != null) {
-            $('#module-count').val(dialog.module.count);
+            $('#module-strings').val(dialog.module.strings);
+            $('#module-number').val(dialog.module.modules);
             $('#module-tilt').val(dialog.module.tilt);
             $('#module-azimuth').val(dialog.module.azimuth);
             $('#module-albedo').val(dialog.module.albedo);
@@ -493,10 +503,11 @@ var dialog =
             $("#module-modal-label").html("Configure Solar Module");
         }
         else {
-            $('#module-count').val(1);
+            $('#module-strings').val(1);
+            $('#module-number').val(1);
             $('#module-tilt').val('');
             $('#module-azimuth').val('');
-            $('#module-albedo').val(0);
+            $('#module-albedo').val(0.18);
             $('#module-delete').hide();
             $("#module-save").html("Add");
             $("#module-save").prop('disabled', true);
@@ -599,13 +610,13 @@ var dialog =
         });
 
         $("#module-save").off('click').on('click', function() {
-
-            var count = $('#module-count').val();
             var tilt = $('#module-tilt').val();
             var azimuth = $('#module-azimuth').val();
             var albedo = $('#module-albedo').val();
+            var strings = $('#module-strings').val();
+            var modules = $('#module-number').val();
             
-            if (dialog.moduleType && count && tilt && azimuth && albedo) {
+            if (dialog.moduleType && tilt && azimuth && albedo && strings && modules) {
             	var module;
             	if (dialog.module != null) {
             		module = dialog.module;
@@ -614,10 +625,11 @@ var dialog =
                     module = {
                     		'inverter': '',
                             'type': dialog.moduleType,
-                            'count': count,
                             'tilt': tilt,
                             'azimuth': azimuth,
-                            'albedo': albedo
+                            'albedo': albedo,
+                            'strings': strings,
+                            'modules': modules
                     };
             	}
                 
@@ -626,7 +638,9 @@ var dialog =
                 	if (module.type === dialog.modules[i].type &&
                 			module.tilt === dialog.modules[i].tilt &&
                 			module.azimuth === dialog.modules[i].azimuth &&
-                			module.albedo === dialog.modules[i].albedo) {
+                			module.albedo === dialog.modules[i].albedo &&
+                			module.strings === dialog.modules[i].strings &&
+                			module.modules === dialog.modules[i].modules) {
                 		
                 		index = i;
                 		break;
@@ -635,10 +649,11 @@ var dialog =
                 if (index >= 0) {
                 	if (dialog.module != null) {
                         module['type'] = dialog.moduleType;
-                        module['count'] = count;
                     	module['tilt'] = tilt;
                 		module['azimuth'] = azimuth;
             			module['albedo'] = albedo;
+                        module['strings'] = strings;
+                        module['modules'] = modules;
             			
                     	dialog.modules[index] = module;
                 	}

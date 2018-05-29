@@ -27,7 +27,7 @@ class Solar {
         $this->log = new EmonLogger(__FILE__);
     }
 
-    public function create($userid, $name, $description, $longitude, $latitude, $modules) {
+    public function create($userid, $name, $description, $location, $modules) {
         $userid = intval($userid);
         $name = preg_replace('/[^\p{L}_\p{N}\s-:]/u', '', $name);
         
@@ -38,6 +38,15 @@ class Solar {
             $description = '';
         }
         
+        if (!isset($location)) {
+            return array('success'=>false, 'message'=>"The systems location needs to be specified");
+        }
+        $location = (array) json_decode(stripslashes($location));
+        
+        if (!isset($location['longitude']) || !isset($location['latitude']) || !isset($location['altitude'])) {
+            return array('success'=>false, 'message'=>"The systems location specification is incomplete");
+        }
+        
         if (isset($modules)) {
             $modules = (array) json_decode(stripslashes($modules));
         }
@@ -46,8 +55,8 @@ class Solar {
         }
         
         if (!$this->exists_name($userid, $name)) {
-            $stmt = $this->mysqli->prepare("INSERT INTO solar_system (userid,name,description,longitude,latitude) VALUES (?,?,?,?,?)");
-            $stmt->bind_param("issdd",$userid,$name,$description,$longitude,$latitude);
+            $stmt = $this->mysqli->prepare("INSERT INTO solar_system (userid,name,description,longitude,latitude,altitude) VALUES (?,?,?,?,?,?)");
+            $stmt->bind_param("issddd",$userid,$name,$description,$location['longitude'],$location['latitude'],$location['altitude']);
             $result = $stmt->execute();
             $stmt->close();
             if (!$result) return array('success'=>false, 'message'=>_("Error creating system"));
@@ -68,8 +77,9 @@ class Solar {
     }
 
     private function create_module($userid, $systemid, $module) {
-        $stmt = $this->mysqli->prepare("INSERT INTO solar_modules (userid,systemid,inverter,type,count,tilt,azimuth,albedo) VALUES (?,?,?,?,?,?,?,?)");
-        $stmt->bind_param("iissiddd",$userid,$systemid,$module['inverter'],$module['type'],$module['count'],$module['tilt'],$module['azimuth'],$module['albedo']);
+        $stmt = $this->mysqli->prepare("INSERT INTO solar_modules (systemid,inverter,type,tilt,azimuth,albedo,strings,modules) VALUES (?,?,?,?,?,?,?,?)");
+        $stmt->bind_param("issdddii",$systemid,$module['inverter'],$module['type'],$module['tilt'],$module['azimuth'],$module['albedo'],$module['strings'],$module['modules']);
+        
         $result = $stmt->execute();
         $stmt->close();
         if (!$result) return array('success'=>false, 'message'=>_("Error creating module"));
@@ -403,12 +413,12 @@ class Solar {
         $userid = intval($userid);
         
         $systems = array();
-        $result = $this->mysqli->query("SELECT `id`,`userid`,`name`,`description`,`longitude`,`latitude` FROM solar_system WHERE userid='$userid' ORDER BY name asc");
-        while ($system = (array) $result->fetch_object()) {
+        $sysresult = $this->mysqli->query("SELECT `id`,`userid`,`name`,`description`,`longitude`,`latitude`,`altitude` FROM solar_system WHERE userid='$userid' ORDER BY name asc");
+        while ($system = (array) $sysresult->fetch_object()) {
             $systemid = intval($system['id']);
             $modules = array();
-            $result = $this->mysqli->query("SELECT `id`,`userid`,`systemid`,`inverter`,`type`,`count`,`tilt`,`azimuth`,`albedo` FROM solar_modules WHERE systemid='$systemid'");
-            while ($module = (array) $result->fetch_object()) $modules[] = $module;
+            $modresult = $this->mysqli->query("SELECT `id`,`inverter`,`type`,`tilt`,`azimuth`,`albedo`,`strings`,`modules` FROM solar_modules WHERE systemid='$systemid'");
+            while ($module = (array) $modresult->fetch_object()) $modules[] = $module;
             
             $system['modules'] = $modules;
             $systems[] = $system;
@@ -418,20 +428,20 @@ class Solar {
 
     public function get_config() {
         $systems = array();
-        $result = $this->mysqli->query("SELECT `id`,`userid`,`name`,`description`,`longitude`,`latitude` FROM solar_system ORDER BY name asc");
-        while ($system = (array) $result->fetch_object()) {
+        $sysresult = $this->mysqli->query("SELECT `id`,`userid`,`name`,`description`,`longitude`,`latitude`,`altitude` FROM solar_system ORDER BY name asc");
+        while ($system = (array) $sysresult->fetch_object()) {
             // TODO: Return devicekeys instead of the potent writekey
             global $user;
             $apikey = $user->get_apikey_read($system['userid']);
             
             $systemid = intval($system['id']);
             $modules = array();
-            $result = $this->mysqli->query("SELECT `inverter`,`type`,`count`,`tilt`,`azimuth`,`albedo` FROM solar_modules WHERE systemid='$systemid'");
-            while ($module = (array) $result->fetch_object()) {$type = $module['type'];
-                list($method, $manufacturer, $model) = explode('/', $type);
+            $modresult = $this->mysqli->query("SELECT `inverter`,`type`,`tilt`,`azimuth`,`albedo`,`strings`,`modules` FROM solar_modules WHERE systemid='$systemid'");
+            while ($module = (array) $modresult->fetch_object()) {$type = $module['type'];
+                list($model, $manufacturer, $modelnumber) = explode('/', $type);
                 unset($module['type']);
                 
-                $modules[] = array_merge(array('method'=>$method), $module, $this->get_module($type));
+                $modules[] = array_merge(array('model'=>$model), $module, $this->get_module($type));
             }
             
             $system['apikey'] = $apikey;
@@ -450,11 +460,11 @@ class Solar {
 //         }
 //         else {
             // Get from mysql db
-            $result = $this->mysqli->query("SELECT `id`,`userid`,`name`,`description`,`longitude`,`latitude` FROM solar_system WHERE id = '$id'");
+            $result = $this->mysqli->query("SELECT `id`,`userid`,`name`,`description`,`longitude`,`latitude`,`altitude` FROM solar_system WHERE id = '$id'");
             $system = (array) $result->fetch_object();
             
             $modules = array();
-            $result = $this->mysqli->query("SELECT `id`,`userid`,`systemid`,`inverter`,`type`,`count`,`tilt`,`azimuth`,`albedo` FROM solar_modules WHERE systemid='$id'");
+            $result = $this->mysqli->query("SELECT `id`,`inverter`,`type`,`tilt`,`azimuth`,`albedo`,`strings`,`modules` FROM solar_modules WHERE systemid='$id'");
             while ($module = (array) $result->fetch_object()) {
                 $type = $module['type'];
                 list($method, $manufacturer, $model) = explode('/', $type);
@@ -530,66 +540,106 @@ class Solar {
         $fields = json_decode(stripslashes($fields));
         
         if (isset($fields->name)) {
-            if (preg_replace('/[^\p{N}\p{L}_\s-:]/u','',$fields->name)!=$fields->name) return array('success'=>false, 'message'=>'invalid characters in device name');
-            $stmt = $this->mysqli->prepare("UPDATE solar_system SET name = ? WHERE id = ?");
-            $stmt->bind_param("si",$fields->name,$id);
-            if ($stmt->execute()) {
-//                 if (!$this->redis) {
-//                     $this->redis->hSet("device:".$id,"name",$fields->name);
-//                 }
-            } else $success = false;
-            $stmt->close();
+            $result = $this->set_string($id, "name", $fields->name);
+            if (!$result['success']) {
+                return $result;
+            }
         }
-        
         if (isset($fields->description)) {
-            if (preg_replace('/[^\p{N}\p{L}_\s-:]/u','',$fields->description)!=$fields->description) return array('success'=>false, 'message'=>'invalid characters in device description');
-            $stmt = $this->mysqli->prepare("UPDATE solar_system SET description = ? WHERE id = ?");
-            $stmt->bind_param("si",$fields->description,$id);
-            if ($stmt->execute()) {
-//                 if (!$this->redis) {
-//                     $this->redis->hSet("device:".$id,"description",$fields->description);
-//                 }
-            } else $success = false;
-            $stmt->close();
-        }
-        
-        if (isset($fields->modules)) {
-            $success = $this->set_modules($id, $fields->modules);
-            if ($success) {
-//                 if (!$this->redis) {
-//                     $this->redis->hSet("device:".$id,"modules",json_encode($fields->modules));
-//                 }
+            $result = $this->set_string($id, "description", $fields->name);
+            if (!$result['success']) {
+                return $result;
             }
         }
         
-        if ($success) {
-            return array('success'=>true, 'message'=>'Fields updated');
+        if (isset($fields->longitude)) {
+            $result = $this->set_double($id, "longitude", $fields->longitude);
+            if (!$result['success']) {
+                return $result;
+            }
         }
-        return array('success'=>false, 'message'=>'Fields could not be updated');
+        if (isset($fields->latitude)) {
+            $result = $this->set_double($id, "latitude", $fields->latitude);
+            if (!$result['success']) {
+                return $result;
+            }
+        }
+        if (isset($fields->altitude)) {
+            $result = $this->set_double($id, "altitude", $fields->altitude);
+            if (!$result['success']) {
+                return $result;
+            }
+        }
+        
+        if (isset($fields->modules)) {
+            $result = $this->set_modules($id, $fields->modules);
+            if (!$result['success']) {
+                return $result;
+            }
+        }
+        return array('success'=>true, 'message'=>'Fields successfully updated');
+    }
+
+    private function set_string($id, $key, $value) {
+        if (preg_replace('/[^\p{N}\p{L}_\s-:]/u','', $value) != $value) {
+            return array('success'=>false, 'message'=>"Invalid characters in system $key: $value");
+        }
+        
+        $stmt = $this->mysqli->prepare("UPDATE solar_system SET ".$key." = ? WHERE id = ?");
+        $stmt->bind_param("si",$value,$id);
+        
+        $result = $stmt->execute();
+        $stmt->close();
+        if (!$result) {
+            return array('success'=>true, 'message'=>"Error updating field $key: $value");
+        }
+        
+        if ($this->redis) {
+            $this->redis->hSet("solar:".$id,$key,$value);
+        }
+        return array('success'=>true, 'message'=>"Successfully updated field $key: $value");
+    }
+
+    private function set_double($id, $key, $value) {
+        $stmt = $this->mysqli->prepare("UPDATE solar_system SET ".$key." = ? WHERE id = ?");
+        $stmt->bind_param("di",$value,$id);
+        
+        $result = $stmt->execute();
+        $stmt->close();
+        if (!$result) {
+            return array('success'=>true, 'message'=>"Error updating field $key: $value");
+        }
+        
+        if ($this->redis) {
+            $this->redis->hSet("solar:".$id,$key,$value);
+        }
+        return array('success'=>true, 'message'=>"Successfully updated field $key: $value");
     }
 
     public function set_modules($id, $modules) {
-        $success = true;
-        
         // TODO: Improve module updating process
         $this->mysqli->query("DELETE FROM solar_modules WHERE `systemid`='$id'");
-        foreach($modules as $module) {
-            $module = (array) $module;
+        for ($i = 0; $i < count($modules); $i++) {
+            $module = (array) $modules[$i];
 //             if (isset($module['id'])) {
 //                 $stmt = $this->mysqli->prepare("UPDATE solar_modules SET inverter=?,type=?,count=?,tilt=?,azimuth=?,albedo=? WHERE id=?");
 //                 $stmt->bind_param("ssidddi",$module['inverter'],$module['type'],$module['count'],$module['tilt'],$module['azimuth'],$module['albedo'],$module['id']);
-//                
-//                 if (!$stmt->execute()) {
-//                     $success = false;
-//                 }
+//
+//                 $result = $stmt->execute();
 //                 $stmt->close();
+//                 if (!$result) {
+//                     return array('success'=>true, 'message'=>"Error updating modules");
+//                 }
 //             }
 //             else {
                 $system = $this->get($id);
                 $this->create_module($system['userid'], $id, $module);
 //             }
         }
-        return $success;
+//         if ($this->redis) {
+//             $this->redis->hSet("solar:".$id,"modules",json_encode($modules));
+//         }
+        return array('success'=>true, 'message'=>"Successfully updated modules");
     }
 
     public function delete($id) {

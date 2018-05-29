@@ -20,7 +20,7 @@ function solar_controller() {
     }
     else if ($route->format == 'json') {
         if ($route->action == "create") {
-            if ($session['userid']>0 && $session['write']) $result = $solar->create($session['userid'],prop("name"),prop("description"),prop("longitude"),prop("latitude"),prop("modules"));
+            if ($session['userid']>0 && $session['write']) $result = $solar->create($session['userid'],prop("name"),prop("description"),prop("location"),prop("modules"));
         }
         else if ($route->action == 'list') {
             if ($session['userid']>0 && $session['write']) $result = $solar->get_list($session['userid']);

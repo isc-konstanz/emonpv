@@ -27,7 +27,7 @@
 
 <p><b><?php echo _('Solar System actions'); ?></b></p>
 <table class="table">
-    <tr><td><?php echo _('Create a system'); ?></td><td><a href="<?php echo $path; ?>solar/create.json?name=Roof&longitude=47.67158&latitude=9.15218"><?php echo $path; ?>solar/create.json?name=Roof&longitude=47.67158&latitude=9.15218</a></td></tr>
+    <tr><td><?php echo _('Create a system'); ?></td><td><a href="<?php echo $path; ?>solar/create.json?name=Roof&location={%22longitude%22:47.67158,%22latitude%22:9.15218,%22altitude%22:403}"><?php echo $path; ?>solar/create.json?name=Roof&location={"longitude":47.67158,"latitude":9.15218,"altitude":403}</a></td></tr>
     <tr><td><?php echo _('Initialize a system'); ?></td><td><a href="<?php echo $path; ?>solar/init.json?id=1"><?php echo $path; ?>solar/init.json?id=1</a></td></tr>
     <tr><td><?php echo _('Prepare system initialization'); ?></td><td><a href="<?php echo $path; ?>solar/prepare.json?id=1"><?php echo $path; ?>solar/prepare.json?id=1</a></td></tr>
     <tr><td><?php echo _('List systems'); ?></td><td><a href="<?php echo $path; ?>solar/list.json"><?php echo $path; ?>solar/list.json</a></td></tr>
