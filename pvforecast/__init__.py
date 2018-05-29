@@ -9,10 +9,6 @@
     and can be found on GitHub "https://github.com/pvlib/pvlib-python".
     
 """
-from . import predict
+from ._version import __version__
 
-from . import system
-from .system import System
-
-from . import weather
-from .weather import Weather
+from .model import ModelChain

@@ -18,9 +18,10 @@ except ImportError:
     from distutils.core import setup
 
 here = path.abspath(path.dirname(__file__))
+info = {}
+with open(path.join("pvforecast", "_version.py")) as f: exec(f.read(), info)
 
-
-VERSION = '0.2.0'
+VERSION = info['__version__']
 
 DESCRIPTION = 'PV forecast provides a set of functions to forecast the energy generation of photovoltaic systems.'
 
