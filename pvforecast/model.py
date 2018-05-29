@@ -1,8 +1,18 @@
+# -*- coding: utf-8 -*-
+"""
+    pvforecast.model
+    ~~~~~
+    
+    
+    
+"""
+import numpy as np
+import pandas as pd
+
 from collections import OrderedDict
 from functools import partial
+
 from pvlib import modelchain
-import pandas as pd
-import numpy as np
 
 
 class ModelChain(modelchain.ModelChain):

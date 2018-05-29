@@ -14,13 +14,15 @@ import logging
 logger = logging.getLogger('pvforecast.weather')
 
 import os
+import datetime
+import requests
+import json
+
 import numpy as np
 import pandas as pd
 import pvlib as pv
-import datetime
+
 from pvlib.forecast import ForecastModel
-import requests
-import json
 
 
 def forecast(date, timezone, longitude=None, latitude=None, var=None, method='DWD_CSV', authKey=''):

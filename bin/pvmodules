@@ -1,28 +1,33 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """
-    db_build
+    pvmodules
     ~~~~~
     
     ...
 
 """
 import logging
-logger = logging.getLogger('db_build')
-import os
-import pandas as pd
+logger = logging.getLogger('pvmodules')
+
+from argparse import ArgumentParser
+
 import io
 import json
+import os
 import re
+
+import pandas as pd
 from jsonmerge import merge
+
 try:
     from urllib2 import urlopen
 except ImportError:
     from urllib.request import urlopen
 
 
-def main(args=None):
-    logger.info('Starting db_build')
+def main():
+    logger.info('Starting pvmodules')
     
     here = os.path.abspath(os.path.dirname(__file__))
     args = _get_parser().parse_args()
@@ -49,36 +54,17 @@ def main(args=None):
         logger.info('Merging ...')
         merge_df(json_dir, csv_dir)
         logger.info('Merged SAM and CEC libraries')
+    
     if (args.meta):
         logger.info('Creating meta data ...')
         create_meta_json(json_dir, 'merged.json')
         logger.info('Meta data created')
+    
     if (args.build):
         logger.info('Creating directory structure ...')
         create_directory_structure(json_dir, destination, 'merged.json')
         logger.info('Directory structure created')
 
-    logger.info('db_build successful')
-
-def _parse_raw_sam_df(csvdata, sep=','):
-    df = pd.read_csv(csvdata, skiprows=[1, 2], sep=sep, encoding = "ISO-8859-1")
-    colnames = df.columns.values.tolist()
-    parsedcolnames = []
-    for cn in colnames:
-        parsedcolnames.append(cn.replace(' ', '_'))
-
-    df.columns = parsedcolnames
-
-    df = df.transpose()
-    if 'ADRCoefficients' in df.index:
-        ad_ce = 'ADRCoefficients'
-        # for each inverter, parses a string of coefficients like
-        # ' 1.33, 2.11, 3.12' into a list containing floats:
-        # [1.33, 2.11, 3.12]
-        df.loc[ad_ce] = df.loc[ad_ce].map(lambda x: list(
-            map(float, x.strip(' []').split())))
-
-    return df 
 
 def get_module_full_list_df(csv_dir, db_name = 'PV_Module_List_Full_Data'):
     data_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), csv_dir)
@@ -89,6 +75,7 @@ def get_module_full_list_df(csv_dir, db_name = 'PV_Module_List_Full_Data'):
                                         '?Vpmax': 'beta_Vpmax', 'Average_NOCT': 'T_NOCT', 'Nameplate_Isc': 'I_sc_ref',
                                         'Nameplate_Voc': 'V_oc_ref', 'Nameplate_Ipmax': 'I_mp_ref', 'Nameplate_Vpmax': 'V_mp_ref',
                                         'Adj': 'Adjust', 'gamma_Pmax': 'gamma_R'})
+
 
 def create_module_full_list_json(json_dir, db_name = 'PV_Module_List_Full_Data'):
     df = get_module_full_list_df(db_name = db_name)
@@ -101,6 +88,7 @@ def create_module_full_list_json(json_dir, db_name = 'PV_Module_List_Full_Data')
     with open(json_dir + '/' + db_name + ".json", 'w') as f:
         f.write(json.dumps(json.loads(df.to_json(orient='columns')), indent=2))
 
+
 def get_module_sam_df(csv_dir = 'https://raw.githubusercontent.com/pvlib/pvlib-python/master/pvlib/data', download=True, db_name = 'sam-library-cec-modules-2017-6-5'):
     if download:
         response = urlopen(csv_dir + '/' + db_name + '.csv')
@@ -110,6 +98,7 @@ def get_module_sam_df(csv_dir = 'https://raw.githubusercontent.com/pvlib/pvlib-p
         csvdata = os.path.join(data_path, db_name + '.csv')
     df =_parse_raw_sam_df(csvdata)
     return df.transpose()
+
 
 def create_module_sam_json(json_dir, db_name = 'sam-library-cec-modules-2017-6-5'):
     df = get_module_sam_df(db_name = db_name)
@@ -123,8 +112,9 @@ def create_module_sam_json(json_dir, db_name = 'sam-library-cec-modules-2017-6-5
     df = df.groupby('Manufacturer').apply(lambda x: x.set_index('Model Number')[cols].to_dict(orient='index'))
     with open(json_dir + '/' + db_name+'.json', 'w') as f:
         f.write(json.dumps(json.loads(df.to_json(orient='columns')), indent=2))
-   
-def create_module_sam_json_parsed(json_dir, db_name = 'sam-library-cec-modules-2017-6-5'):
+
+
+def create_module_sam_json_parsed(json_dir, db_name='sam-library-cec-modules-2017-6-5'):
     #'sam-library-cec-inverters-2018-3-18'#'sam-library-cec-modules-2017-6-5'
     #response = urlopen('https://sam.nrel.gov/sites/default/files/'+db_name+'.csv')
     response = urlopen('https://raw.githubusercontent.com/pvlib/pvlib-python/master/pvlib/data/'+db_name+'.csv')
@@ -157,6 +147,7 @@ def create_module_sam_json_parsed(json_dir, db_name = 'sam-library-cec-modules-2
     with open(json_dir + '/' + db_name+'.json', 'w') as f:
         f.write(json.dumps(json.loads(df.to_json(orient='columns')), indent=2))
 
+
 def merge_json(json_dir, json_base = 'PV_Module_List_Full_Data.json', json_head = 'sam-library-cec-modules-2017-6-5.json'):
     data_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), json_dir)
     base = os.path.join(data_path, json_base)
@@ -168,6 +159,7 @@ def merge_json(json_dir, json_base = 'PV_Module_List_Full_Data.json', json_head 
     
     with open(json_dir + "/cec-modules-2017-6-5_merged.json", 'w') as f:
         json.dump(merge(base, head), f, indent=2)
+
 
 def merge_df(json_dir, csv_dir):
     cec = get_module_full_list_df(csv_dir)
@@ -201,6 +193,7 @@ def create_meta_json(json_dir, jsonFrom = 'cec-modules-2017-6-5_merged.json'):
         with open(json_dir + "/PV_Module_List_Meta.json", 'w') as f:
             json.dump(d, f, indent=2)
 
+
 def create_directory_structure(json_dir, destination, jsonFrom = 'cec-modules-2017-6-5_merged.json'):
     data_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), json_dir)
     j = os.path.join(data_path, jsonFrom)
@@ -217,8 +210,28 @@ def create_directory_structure(json_dir, destination, jsonFrom = 'cec-modules-20
                     json.dump(data, f, indent=2)
 
 
+def _parse_raw_sam_df(csvdata, sep=','):
+    df = pd.read_csv(csvdata, skiprows=[1, 2], sep=sep, encoding = "ISO-8859-1")
+    colnames = df.columns.values.tolist()
+    parsedcolnames = []
+    for cn in colnames:
+        parsedcolnames.append(cn.replace(' ', '_'))
+
+    df.columns = parsedcolnames
+
+    df = df.transpose()
+    if 'ADRCoefficients' in df.index:
+        ad_ce = 'ADRCoefficients'
+        # for each inverter, parses a string of coefficients like
+        # ' 1.33, 2.11, 3.12' into a list containing floats:
+        # [1.33, 2.11, 3.12]
+        df.loc[ad_ce] = df.loc[ad_ce].map(lambda x: list(
+            map(float, x.strip(' []').split())))
+
+    return df
+
+
 def _get_parser():
-    from argparse import ArgumentParser
     
     parser = ArgumentParser(description=__doc__)
     
@@ -231,9 +244,19 @@ def _get_parser():
     parser.add_argument('-d','--destination', 
                         dest='destination',
                         help="Destination of final directory structure")
-    parser.add_argument('--build', help="Creates the database directory structure", action='store_const', const=True, default=False)
-    parser.add_argument('--merge', help="Merges SAM and CEC libraries", action='store_const', const=True, default=False)
-    parser.add_argument('--meta', help="Creates a meta json dump", action='store_const', const=True, default=False)
+    parser.add_argument('--build',
+                        help="Creates the database directory structure",
+                        action='store_const',
+                        default=False)
+    parser.add_argument('--merge',
+                        help="Merges SAM and CEC libraries",
+                         action='store_const',
+                         default=False)
+    parser.add_argument('--meta',
+                        help="Creates a meta json dump",
+                        action='store_const',
+                        default=False)
+    
     return parser
 
 
