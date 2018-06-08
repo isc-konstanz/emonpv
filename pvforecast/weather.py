@@ -23,7 +23,7 @@ import requests
 import json
 
 
-def forecast(date, timezone, longitude=None, latitude=None, var=None, method='DWD_CSV', authKey=''):
+def forecast(date, timezone, longitude=None, latitude=None, var=None, method='DWD_CSV', authKey='', altitude=0, name='Default'):
     """ 
     Reads the predicted weather data for a specified location, retrieved through 
     several possible methods:
@@ -77,6 +77,8 @@ def forecast(date, timezone, longitude=None, latitude=None, var=None, method='DW
         return _read_cosmo_de(authKey, date, timezone, longitude, latitude)
     elif method.lower() == 'icon_eu':
         return _read_icon_eu(authKey, date, timezone, longitude, latitude)
+    elif method.lower() == 'meteo_blue':
+        return _read_meteo_blue(authKey, date, timezone, longitude, latitude, altitude, name)
     else:
         raise ValueError('Invalid irradiation forecast method "{}"'.method)
 
@@ -124,7 +126,7 @@ def reference(date, timezone, var=None, method='DWD_PUB'):
         raise ValueError('Invalid irradiation reference method "{}"'.method)
 
 
-def check_update(authKey, date, timezone, longitude, latitude, method='COSMO_DE'):
+def check_update(authKey, date, timezone, longitude, latitude, method='COSMO_DE', altitude=0, name='Default'):
     #date = pd.Timestamp(date).tz_localize('UTC').tz_convert(timezone)
     if method.lower() == 'dwd_csv':
         return (True, None)
@@ -132,6 +134,8 @@ def check_update(authKey, date, timezone, longitude, latitude, method='COSMO_DE'
         return COSMO_DE(authKey).is_new(latitude, longitude, date)
     elif method.lower() == 'icon_eu':
         return ICON_EU(authKey).is_new(latitude, longitude, date)
+    elif method.lower() == 'meteo_blue':
+        return METEO_BLUE(authKey, name, altitude).is_new(latitude, longitude, date)
     else:
         raise ValueError('Invalid forecast method "{}"'.method)
 
@@ -315,6 +319,10 @@ def _read_cosmo_de(authKey, date, timezone, longitude, latitude):
 def _read_icon_eu(authKey, date, timezone, longitude, latitude):
     date = pd.Timestamp(date).tz_localize('UTC').tz_convert(timezone)
     return ICON_EU(authKey).get_processed_data(latitude, longitude, date, None)#start + pd.Timedelta(days=7)
+
+def _read_meteo_blue(authKey, date, timezone, longitude, latitude, altitude, name):
+    date = pd.Timestamp(date).tz_localize('UTC').tz_convert(timezone)
+    return METEO_BLUE(authKey, altitude, name).get_processed_data(latitude, longitude, date, None)
     
 class Weather(pd.DataFrame):
     """
@@ -714,3 +722,165 @@ class ICON_EU(ForecastModel):
         url = 'http://52.30.78.76/solar/'+str(longitude)+'/'+str(latitude)
         r = json.loads(requests.get(url, headers={'Authorization': 'Basic ' + self.authKey}).text)
         return (pd.Timestamp(date) - pd.to_datetime(r['meta']['ICON_EU']['run']) < pd.Timedelta(3, unit='h'), pd.to_datetime(r['meta']['ICON_EU']['run']))
+
+
+class METEO_BLUE(ForecastModel):
+    """
+    Subclass of the ForecastModel class representing Meteoblue
+    forecast model.
+
+    Model data corresponds to 6.5km resolution forecasts.
+
+    Parameters
+    ----------
+    set_type: string, default 'best'
+        Type of model to pull data from.
+
+    Attributes
+    ----------
+    dataframe_variables: list
+        Common variables present in the final set of data.
+    model: string
+        Name of the UNIDATA forecast model.
+    model_type: string
+        UNIDATA category in which the model is located.
+    variables: dict
+        Defines the variables to obtain from the weather
+        model and how they should be renamed to common variable names.
+    units: dict
+        Dictionary containing the units of the standard variables
+        and the model specific variables.
+    """
+
+    def __init__(self, authKey, altitude, name, set_type='best'):
+        model_type = 'Forecast Model Data'
+
+        model = 'Meteoblue Forecast'
+
+        self.variables = {
+        "time": "Zeitpunkt [ISO8601]", 
+        "precipitation": "Niederschlagsmenge [mm]", 
+        "snowfraction": "Schneefall [0.0 - 1.0]", 
+        "rainspot": "Regionale Übersicht für den Niederschlag", 
+        "temperature": "Temperatur [C]", 
+        "felttemperature": "gefühlte Temperatur [C]", 
+        "pictocode": "Piktogrammcode", 
+        "windspeed": "Windgeschwindigkeit [m/s]", 
+        "winddirection": "Windrichtung [Grad]", 
+        "relativehumidity": "relative luftfeuchtigkeit [%]", 
+        "sealevelpressure": "Luftdruck auf Hoehe des Meerespiegels [hPa]", 
+        "precipitation_probability": "Niederschlagswahrscheinlichkeit [%]", 
+        "convective_precipitation": "Niederschlag als Schauer [mm]", 
+        "isdaylight": "bei Tageslicht", 
+        "sunshinetime": "Sonnenscheindauer [min]", 
+        "lowclouds": "Bedeckungsgrad mit niedrigen Wolken [%]", 
+        "midclouds": "Bedeckungsgrad mit mittleren Wolken [%]", 
+        "highclouds": "Bedeckungsgrad mit hohen Wolken [%]", 
+        "visibility": "Sichtweite [km]", 
+        "totalcloudcover": "Gesamtbedeckungsgrad mit Wolken [%]", 
+        "gni_instant": "", 
+        "gni_backwards": "", 
+        "dni_instant": "", 
+        "dni_backwards": "", 
+        "dif_instant": "", 
+        "dif_backwards": "", 
+        "ghi_instant": "", 
+        "ghi_backwards": "", 
+        "extraterrestrialradiation_instant": "", 
+        "extraterrestrialradiation_backwards": "" }
+
+        self.output_variables = [
+            'temp_air',
+            'wind_speed',
+            'ghi',
+            'dni',
+            'dhi',
+            'total_clouds',
+            'low_clouds',
+            'mid_clouds',
+            'high_clouds']
+        
+        self.authKey = authKey
+        self.altitude = altitude
+        self.name = name
+
+        super(METEO_BLUE, self).__init__(model_type, model, set_type)
+
+    def process_data(self, data, cloud_cover='total_clouds', **kwargs):
+        """
+        Defines the steps needed to convert raw forecast data
+        into processed forecast data.
+
+        Parameters
+        ----------
+        data: DataFrame
+            Raw forecast data
+        cloud_cover: str, default 'total_clouds'
+            The type of cloud cover used to infer the irradiance.
+
+        Returns
+        -------
+        data: DataFrame
+            Processed forecast data.
+        """
+        data = super(METEO_BLUE, self).process_data(data, **kwargs)
+        data['temp_air'] = data['temperature']
+        data['wind_speed'] = data['windspeed']
+        data['ghi'] = data['ghi_instant']
+        data['dni'] = data['dni_instant']
+        data['dhi'] = data['dif_instant']
+        data['total_clouds'] = data['totalcloudcover']
+        data['low_clouds'] = data['lowclouds']
+        data['mid_clouds'] = data['midclouds']
+        data['high_clouds'] = data['highclouds']
+        return data[self.output_variables]
+    
+    def get_data(self, latitude, longitude, start, end,
+                 vert_level=None, query_variables=None,
+                 close_netcdf_data=True):
+        """
+        Submits a query to the Meteoblue servers and
+        converts the csv data to a pandas DataFrame.
+
+        Parameters
+        ----------
+        latitude: float
+            The latitude value.
+        longitude: float
+            The longitude value.
+        start: datetime or timestamp
+            The start time.
+        end: datetime or timestamp
+            The end time.
+        vert_level: None, float or integer, default None
+            Vertical altitude of interest.
+        query_variables: None or list, default None
+            If None, uses self.variables.
+        close_netcdf_data: bool, default True
+            Controls if the temporary netcdf data file should be closed.
+            Set to False to access the raw data.
+
+        Returns
+        -------
+        forecast_data : DataFrame
+            column names are the weather model's variable names.
+        """
+        self.latitude = latitude
+        self.longitude = longitude
+        self.set_location(start, latitude, longitude)
+
+        self.start = start
+        self.end = end
+        
+        url = 'http://my.meteoblue.com/packages/basic-1h_clouds-1h_solar-1h?name=' + str(self.name) + '&lat=' + str(latitude) + '&lon=' + str(longitude) + '&asl=' + str(self.altitude) + '&tz=Europe%2FBerlin&apikey=' + self.authKey + '&temperature=C&windspeed=ms-1&winddirection=degree&precipitationamount=mm&timeformat=iso8601&format=csv'
+        
+        self.data = pd.read_csv(url)
+        self.data['time'] = self.data['time'].apply(convertDate)
+        self.data = self.data.set_index('time')
+        return self.data
+    
+    def is_new(self, latitude, longitude, date):
+        url = 'http://my.meteoblue.com/packages/basic-1h_clouds-1h_solar-1h?name=' + str(self.name) + '&lat=' + str(latitude) + '&lon=' + str(longitude) + '&asl=' + str(self.altitude) + '&tz=Europe%2FBerlin&apikey=' + self.authKey + '&timeformat=iso8601&format=json'
+       
+        r = json.loads(requests.get(url).text)
+        return (pd.Timestamp(date) - pd.to_datetime(r['metadata']['modelrun_updatetime_utc']) < pd.Timedelta(3, unit='h'), pd.to_datetime(r['metadata']['modelrun_updatetime_utc']))

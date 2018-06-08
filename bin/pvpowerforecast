@@ -56,21 +56,18 @@ def main(args=None):
                 latitude = float(configs.get(sys,'latitude'))
                 altitude = float(configs.get(sys,'altitude'))
                 date = datetime.datetime.now()
-                
                 authKey = settings.get('Auth', 'key')
+                
                 #check for update
-                is_new, run = pv.weather.check_update(authKey, date, tz, longitude, latitude, method=model)
-                if(is_new or runFlag):
+                is_new, run = pv.weather.check_update(authKey, date, tz, longitude, latitude, model, 'sys', altitude)
+                if(is_new or runFlag or True):
                     runFlag = True
-                    forecast = pv.weather.forecast(date, tz, longitude, latitude, method=model, authKey=authKey)
+                    forecast = pv.weather.forecast(date, tz, longitude, latitude, method=model, authKey=authKey, name='sys', altitude=altitude)
                     
                     if not forecast.empty:
                         system = pv.system.configure(sys, sys_config[sys])
                         
-                        # use a ModelChain object to calculate modeling intermediates
                         mc = ModelChain(system, Location(latitude, longitude, tz, altitude, sys))
-                        
-                        # extract relevant data for model chain
                         mc.run_model(forecast.index, weather=forecast);
             
                         yieldprediction = mc.ac
@@ -78,7 +75,7 @@ def main(args=None):
                         if yieldprediction.empty:
                             logger.error('PV forecast returned empty')
                         else:
-                            filename = './results/'+sys+'_cosmo_de_'+ str(int((run - datetime.datetime(1970,1,1)).total_seconds())) + '_yield.csv';
+                            filename = './results/'+sys+'_' + model.lower() + '_'+ str(int((run - datetime.datetime(1970,1,1)).total_seconds())) + '_yield.csv';
                             yieldprediction = yieldprediction.to_frame()
                             yieldprediction = yieldprediction.rename(columns= {0: 'power'})
                             yieldprediction.index.name = 'time'

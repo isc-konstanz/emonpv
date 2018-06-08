@@ -215,6 +215,15 @@ def configure(name, system):
     sandia_modules = retrieve_sam(path='../conf/cec_module.csv')
     cec_inverters = retrieve_sam(path='../conf/cec_inverter.csv')
     module = sandia_modules[module_name]
+    
+    #add missing parameters for pvwatts model
+    module['gamma_pdc'] = module['gamma_r'] / 100.0#gamma_Pmax
+    module['pdc0'] = 1.0#0.97
+    
+    #add missing parameters for singlediode model
+    module['EgRef'] = 1.121
+    module['dEgdT'] = -0.0002677
+    
     inverter = cec_inverters[inverter_name]
     system = PVSystem(tilt, azimuth, albedo, None, None, module, modules_per_string, strings_per_inverter, None, inverter, name=name)
     location = Location(latitude, longitude, tz, altitude, name)

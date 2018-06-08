@@ -103,71 +103,8 @@ class ModelChain(modelchain.ModelChain):
         else:
             return self.no_spectral_loss
     
-    @property
-    def dc_model(self):
-        return self._dc_model
 
-    @dc_model.setter
-    def dc_model(self, model):
-        if model is None:
-            self._dc_model = self.infer_dc_model()
-        elif isinstance(model, str):
-            model = model.lower()
-            if model == 'sapm':
-                self._dc_model = self.sapm
-            elif model == 'singlediode':
-                self._dc_model = self.singlediode
-            elif model == 'pvwatts':
-                self._dc_model = self.pvwatts_dc
-            elif model == 'basic':
-                self._dc_model = self.basic
-            else:
-                raise ValueError(model + ' is not a valid DC power model')
-        else:
-            self._dc_model = partial(model, self)
-
-    def infer_dc_model(self):
-        params = set(self.system.module_parameters.keys())
-        if set(['A0', 'A1', 'C7']) <= params:
-            return self.sapm
-        elif set(['a_ref', 'I_L_ref', 'I_o_ref', 'R_sh_ref', 'R_s']) <= params:
-            return self.singlediode
-        elif set(['pdc0', 'gamma_pdc']) <= params:
-            return self.pvwatts_dc
-        else:
-            return self.basic
-
-    def basic(self):
-        module = self.system.module_parameters
-        effective_irradiance = self.effective_irradiance/1000.
-        T0 = 25
-        eta = 0.825
-
-        v_mp = module['V_mp_ref']
-        i_mp = module['I_mp_ref']
-        out = OrderedDict()
-        out['v_mp'] = np.maximum(0, (v_mp + np.log(effective_irradiance)))#*module['N_s'])???
-        out['p_mp'] = v_mp * i_mp*effective_irradiance*(1 + module['gamma_r']/100*(self.temps['temp_cell'] - T0))*module['N_s']*eta
-        if isinstance(out['p_mp'], pd.Series):
-            out = pd.DataFrame(out)
-        self.dc = out
-        return self
-
-    def singlediode(self):
-        self.system.module_parameters['EgRef'] = 1.121
-        self.system.module_parameters['dEgdT'] = -0.0002677
-        
-        (photocurrent, saturation_current, resistance_series,
-         resistance_shunt, nNsVth) = (
-            self.system.calcparams_desoto(self.effective_irradiance,
-                                          self.temps['temp_cell']))
-
-        self.desoto = (photocurrent, saturation_current, resistance_series,
-                       resistance_shunt, nNsVth)
-
-        self.dc = self.system.singlediode(
-            photocurrent, saturation_current, resistance_series,
-            resistance_shunt, nNsVth)
-        self.dc = self.system.scale_voltage_current_power(self.dc).fillna(0)
-
+    def pvwatts_inverter(self):
+        self.ac = self.system.pvwatts_ac(self.dc).fillna(0)
+        self.ac *= self.system.modules_per_string * self.system.strings_per_inverter * 230#read from model parameters
         return self
