@@ -105,17 +105,20 @@ class ModelChain(modelchain.ModelChain):
         else:
             #return self.no_aoi_loss
             return self.physical_aoi_loss
-    
+
+
     def infer_spectral_model(self):
         params = set(self.system.module_parameters.keys())
         if set(['A4', 'A3', 'A2', 'A1', 'A0']) <= params:
             return self.sapm_spectral_loss
         else:
             return self.no_spectral_loss
-    
+
+
     @property
     def dc_model(self):
         return self._dc_model
+
 
     @dc_model.setter
     def dc_model(self, model):
@@ -136,6 +139,7 @@ class ModelChain(modelchain.ModelChain):
         else:
             self._dc_model = partial(model, self)
 
+
     def infer_dc_model(self):
         params = set(self.system.module_parameters.keys())
         if set(['A0', 'A1', 'C7']) <= params:
@@ -146,6 +150,7 @@ class ModelChain(modelchain.ModelChain):
             return self.pvwatts_dc
         else:
             return self.basic
+
 
     def basic(self):
         module = self.system.module_parameters
@@ -162,6 +167,7 @@ class ModelChain(modelchain.ModelChain):
             out = pd.DataFrame(out)
         self.dc = out
         return self
+
 
     def singlediode(self):
         self.system.module_parameters['EgRef'] = 1.121
@@ -181,3 +187,4 @@ class ModelChain(modelchain.ModelChain):
         self.dc = self.system.scale_voltage_current_power(self.dc).fillna(0)
 
         return self
+

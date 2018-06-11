@@ -101,3 +101,5 @@ build/
 bin/db
 bin/results
 data
+lib/weather/*
+lib/yield/*

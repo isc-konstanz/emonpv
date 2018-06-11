@@ -7,100 +7,135 @@
     
 
 """
-import logging
-logger = logging.getLogger('pvforecast')
+import logging.config
 
-from argparse import ArgumentParser
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(sys.argv[0])))
+
+import inspect
+import textwrap
+import pytz as tz
+import datetime as dt
+
+
+from pvforecast import DatabaseList, SystemList, Weather
+
+
+from argparse import ArgumentParser, RawTextHelpFormatter
 from configparser import ConfigParser
 
-import os
-import datetime
-import pvforecast as pv
 
-from pvforecast import ModelChain
-from pvlib.location import Location
+def forecast(settings, date):
+    database = DatabaseList(settings)
+    systems = SystemList(settings, database)
+    weather = Weather(settings, database, model=settings.get('Weather', 'model'))
+    
+    systems.forecast(weather, date)
 
 
-def main():
+def schedule_forecast(scheduler, interval, date, settings):
+    forecast(settings, date)
+    
+    date, delay = schedule_time(interval)
+    scheduler.enter(delay, 1, forecast, 
+                    (scheduler, interval, date, settings))
+
+
+def schedule_time(interval):
+    now = dt.datetime.now(tz.utc)
+    date = now.replace(minute=0, second=0, microsecond=0) + dt.timedelta(minutes=interval)
+    if now.hour % (interval/60) != 0:
+        date = date + dt.timedelta(minutes=interval) - dt.timedelta(hours=now.hour % (interval/60))
+    
+    return date, (date - now).total_seconds()
+
+
+def run(settings):
+    interval = int(settings.get('General', 'interval'))
+    
+    now = dt.datetime.now(tz.utc)
+    date = now.replace(minute=0, second=0, microsecond=0) + dt.timedelta(minutes=interval)
+    if now.hour % (interval/60) != 0:
+        date = date + dt.timedelta(hours=now.hour % (interval/60))
+    
+    forecast(settings, date)
+
+
+def start(settings):
+    import sched, time
+    
     logger.info('Starting pvforecast')
-    args = _get_parser().parse_args()
     
-    configdir = args.configdir
-    logger.debug('Configurations will be read in from "%s"', configdir)
+    interval = int(settings.get('General', 'interval'))
     
-    model = args.model
-    logger.debug('Weather model to be used: "%s"', model)
-    
-    configfile = os.path.join(configdir, 'systems.cfg')
-    settingsfile = os.path.join(configdir, 'settings.cfg')
-    configs = ConfigParser()
-    settings = ConfigParser()
-    configs.read(configfile)
-    settings.read(settingsfile)
-    sys_config = pv.system.read(configdir)
-    
-    runFlag = False
-    try:
-        for sys in configs:
-            if sys != 'DEFAULT':
-                tz = configs.get(sys,'timezone')
-                longitude = float(configs.get(sys,'longitude'))
-                latitude = float(configs.get(sys,'latitude'))
-                altitude = float(configs.get(sys,'altitude'))
-                date = datetime.datetime.now()
-                
-                authKey = settings.get('Auth', 'key')
-                #check for update
-                is_new, run = pv.weather.check_update(authKey, date, tz, longitude, latitude, method=model)
-                if(is_new or runFlag):
-                    runFlag = True
-                    forecast = pv.weather.forecast(date, tz, longitude, latitude, method=model, authKey=authKey)
-                    
-                    if not forecast.empty:
-                        system = pv.system.configure(sys, sys_config[sys])
-                        
-                        # use a ModelChain object to calculate modeling intermediates
-                        mc = ModelChain(system, Location(latitude, longitude, tz, altitude, sys))
-                        
-                        # extract relevant data for model chain
-                        mc.run_model(forecast.index, weather=forecast);
-                        
-                        yieldprediction = mc.ac
-                        
-                        if yieldprediction.empty:
-                            logger.error('PV forecast returned empty')
-                        else:
-                            filename = './results/'+sys+'_cosmo_de_'+ str(int((run - datetime.datetime(1970,1,1)).total_seconds())) + '_yield.csv';
-                            yieldprediction = yieldprediction.to_frame()
-                            yieldprediction = yieldprediction.rename(columns= {0: 'power'})
-                            yieldprediction.index.name = 'time'
-                            yieldprediction.to_csv(filename, sep=',', encoding='utf-8')
-                            
-                            logger.info('PV forecast successfully saved as "%s"', filename)
-                    else:
-                        logger.error('Parsed weather forecast "%s" was empty', forecast.key)
-                        
-    except IOError as e:
-        logger.error('Error while running pvforecast: %s', e.message)
+    scheduler = sched.scheduler(time.time, time.sleep)
+    schedule_date, _ = schedule_time(interval)
+    schedule_forecast(scheduler, interval, schedule_date, settings)
+    scheduler.run()
 
 
-def _get_parser():
-    parser = ArgumentParser(description=__doc__)
-    here = os.path.abspath(os.path.dirname(__file__))
+def main(settings, configdir, args=None):
+    settings.set('General', 'datadir', args.datadir)
+    settings.set('General', 'configdir', args.configdir)
+    
+    if args.action == 'run':
+        run(settings)
+    
+    elif args.action == 'start':
+        start(settings)
+
+
+def _get_parser(settings, configdir):
+    from pvforecast import __version__
+    parser = ArgumentParser(description=__doc__, formatter_class=RawTextHelpFormatter)
+    
+    parser.add_argument('action',
+                        help=textwrap.dedent("""\
+                            run:   Retrieve the latest weather forecast and provide consequently photovoltaic yield
+                            start: Starts the ongoing calculation of photovoltaic yield in a regular interval
+                            learn: Process passed measurement values to train the learning algorithm
+                            build: Build the current photovoltaic module library
+                            """),
+                        choices=('run', 'start', 'learn', 'build'))
     
     parser.add_argument('-c','--config',
                         dest='configdir',
-                        help="Directory of system configuration files",
-                        defaut=os.path.join(os.path.dirname(here), 'conf'),
+                        help="directory of configuration files",
+                        default=configdir,
                         metavar='DIR')
-    parser.add_argument('-m','--model',
-                        dest='model',
-                        help="The weather model which will be used",
-                        choices=['COSMO_DE', 'ICON_EU'],
-                        default='COSMO_DE')
+    
+    parser.add_argument('-d','--data',
+                        dest='datadir',
+                        help="writable directory where certain configuration files may be found or results will be stored in",
+                        default=settings.get('General', 'datadir'),
+                        metavar='DIR')
+    
+    parser.add_argument('-v', '--version',
+                        action='version',
+                        version='%(prog)s {version}'.format(version=__version__))
     
     return parser
 
 
 if __name__ == "__main__":
-    main()
+    rundir = os.path.dirname(os.path.abspath(inspect.getsourcefile(main)))
+    if os.path.basename(rundir) == 'bin':
+        rundir = os.path.dirname(rundir)
+    
+    # Load the logging configuration
+    loggingfile = os.path.join(rundir, 'conf', 'logging.cfg')
+    logging.config.fileConfig(os.path.join(rundir, 'conf', 'logging.cfg'))
+    logger = logging.getLogger('pvforecast')
+    
+    configdir = os.path.join(rundir, 'conf')
+    settingsfile = os.path.join(configdir, 'settings.cfg')
+    if not os.path.isfile(settingsfile):
+        logger.error('Unable to read settings at %s', settingsfile)
+        sys.exit(1)
+    
+    settings = ConfigParser()
+    settings.read(settingsfile)
+    
+    main(settings, configdir, args=_get_parser(settings, configdir).parse_args())
+
