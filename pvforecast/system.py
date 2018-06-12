@@ -12,11 +12,11 @@ import logging
 logger = logging.getLogger('pvforecast.systems')
 
 import os
+import json
 import pandas as pd
+import pvlib as pv
 
 from configparser import ConfigParser
-from pvlib.pvsystem import PVSystem
-from pvlib.location import Location
 from .model import ModelChain
 
 
@@ -30,10 +30,19 @@ class SystemList(list):
 
 
     def forecast(self, weather, time):
+        locations = {}
         for system in self:
-            forecast = system.forecast(weather.forecast(system, time))
+            loc = system.grid_location(weather)
+            if not loc in locations:
+                locations[loc] = []
             
-            self.database.post(system, forecast)
+            locations[loc].append(system)
+        
+        # TODO: Implement multi threading
+        for systems in locations.values():
+            for system in systems:
+                forecast = system.forecast(weather.forecast(system, time))
+                self.database.post(system, forecast, datatype='system')
 
 
     def read_config(self, configs):
@@ -74,7 +83,7 @@ class SystemList(list):
                         system = s
                         break
                 else:
-                    system = System(system_name, config)
+                    system = System(system_name, config, datadir)
                     
                     self.append(system)
                 
@@ -83,20 +92,27 @@ class SystemList(list):
 
 class System(list):
 
-    def __init__(self, name, system, **kwargs):
+    def __init__(self, name, location, datadir, **kwargs):
         super(System, self).__init__(**kwargs)
         
         self.name = name
         self.apikey = None
         
-        latitude = float(system['latitude'])
-        longitude = float(system['longitude'])
-        altitude = float(system['altitude'])
+        latitude = float(location['latitude'])
+        longitude = float(location['longitude'])
+        altitude = float(location['altitude'])
         
-        self.location_key = str(latitude) + '_' + str(longitude)
+        self.location_grid = False
+        self.location_key = '{0:.5f}'.format(latitude) + '_' + '{0:.5f}'.format(longitude)
         self.location = Location(latitude, longitude, altitude=altitude, 
-                                 tz=system['timezone'], 
+                                 tz=location['timezone'], 
                                  name=name)
+        
+        self.location_dir = os.path.join(datadir, 'systems', self.location_key)
+        if not os.path.exists(self.location_dir):
+            os.makedirs(self.location_dir)
+        
+        self._load_location()
 
 
     def append(self, name, config, module, inverter):
@@ -118,13 +134,14 @@ class System(list):
             if 'pdc0' not in module:
                 module['pdc0'] = 1
         
-        super(System, self).append(PVSystem(surface_tilt = float(config['tilt']), 
-                                            surface_azimuth = float(config['azimuth']), 
-                                            albedo = float(config['albedo']), 
-                                            modules_per_string = int(config['modules']), 
-                                            strings_per_inverter = int(config['strings']), 
-                                            module_parameters = module, inverter_parameters = inverter, 
-                                            name = name))
+        super(System, self).append(pv.pvsystem.PVSystem(surface_tilt = float(config['tilt']), 
+                                                        surface_azimuth = float(config['azimuth']), 
+                                                        albedo = float(config['albedo']), 
+                                                        modules_per_string = int(config['modules']), 
+                                                        strings_per_inverter = int(config['strings']), 
+                                                        module_parameters = module, 
+                                                        inverter_parameters = inverter, 
+                                                        name = name))
 
 
     def forecast(self, weather):
@@ -142,4 +159,53 @@ class System(list):
             forecast[self.name] = forecast.sum(axis=1)
         
         return forecast.reindex_axis(sorted(forecast.columns), axis=1)
+
+
+    def grid_location(self, weather):
+        if not self.location_grid:
+            meta = weather.server.get_meta(self.location)
+            
+            self.location = self._write_location({
+                    'latitude': float(meta['latitude']),
+                    'longitude': float(meta['longitude']),
+                    'altitude': float(meta['height']),
+                })
+        
+        return self.location
+
+
+    def _load_location(self):
+        file = os.path.join(self.location_dir, 'location.json')
+        if not os.path.exists(file):
+            return
+        
+        with open(file, encoding='utf-8') as f:
+            self.location = self._parse_location(json.load(f))
+            self.location_grid = True
+
+
+    def _write_location(self, location):
+        file = os.path.join(self.location_dir, 'location.json')
+        with open(file, 'w', encoding='utf-8') as f:
+            json.dump(location, f)
+            
+            return self._parse_location(location)
+
+
+    def _parse_location(self, location):
+        return Location(location['latitude'], location['longitude'], altitude=location['altitude'], 
+                        tz=self.location.tz, 
+                        name=self.name)
+
+
+class Location(pv.location.Location):
+
+    def __attrs(self):
+        return (self.latitude, self.longitude, self.altitude)
+
+    def __eq__(self, other):
+        return isinstance(other, Location) and self.__attrs() == other.__attrs()
+
+    def __hash__(self):
+        return hash(self.__attrs())
 

@@ -58,7 +58,7 @@ class Database(ABC):
 
 
     @abstractmethod
-    def get(self, system, location, time, **kwargs):
+    def get(self, system, time, **kwargs):
         """ 
         Retrieve data for a specified time interval of a set of data feeds
         
@@ -66,11 +66,6 @@ class Database(ABC):
             the system for which the values will be looked up for.
         :type keys: 
             :class:`pvforecast.system.System`
-        
-        :param location: 
-            the location for which the values will be looked up for.
-        :type keys: 
-            :class:`pvlib.location.Location`
         
         :param time: 
             the time for which the values will be looked up for.
@@ -87,7 +82,7 @@ class Database(ABC):
 
 
     @abstractmethod
-    def post(self, system, location, data, **kwargs):
+    def post(self, system, data, **kwargs):
         """ 
         Post a set of data values, to persistently store them on the server
         
@@ -95,11 +90,6 @@ class Database(ABC):
             the system for which the values will be looked up for.
         :type keys: 
             :class:`pvforecast.system.System`
-        
-        :param location: 
-            the location for which the values will be looked up for.
-        :type keys: 
-            :class:`pvlib.location.Location`
         
         :param data: 
             the data set to be posted
@@ -126,11 +116,11 @@ class EmoncmsDatabase(Database):
         self.connection = Emoncms(emoncms.get('Emoncms','address'), emoncms.get('Emoncms','authentication'))
 
 
-    def get(self, system, location, start, end, interval, **kwargs):
+    def get(self, system, start, end, interval, **kwargs):
         pass
 
 
-    def post(self, system, location, data):
+    def post(self, system, data):
         if 'apikey' in system:
             bulk = EmoncmsData(timezone=self.timezone)
             for time, row in data.iterrows():
@@ -156,12 +146,12 @@ class CsvDatabase(Database):
         self.separator = settings.get('CSV', 'separator')
 
 
-    def exists(self, system, location, time, datatype='weather'):
-        return os.path.exists(self._build_file(system, location, time, datatype))
+    def exists(self, system, time, datatype='weather'):
+        return os.path.exists(self._build_file(system, time, datatype))
 
 
-    def get(self, system, location, start, end=None, interval=None, datatype='weather'):
-        data = self._read_file(self._build_file(system, location, start, datatype))
+    def get(self, system, start, end=None, interval=None, datatype='weather'):
+        data = self._read_file(self._build_file(system, start, datatype))
         
         if interval is not None and interval > 900:
             offset = (start - start.replace(hour=0, minute=0, second=0, microsecond=0)).total_seconds() % interval
@@ -176,9 +166,9 @@ class CsvDatabase(Database):
         return data
 
 
-    def post(self, system, location, data, datatype='weather', **kwargs):
+    def post(self, system, data, datatype='weather', **kwargs):
         if data is not None:
-            path = self._get_dir(system, location, datatype)
+            path = self._build_dir(system, datatype)
             if not os.path.exists(path):
                 os.makedirs(path)
             
@@ -239,17 +229,17 @@ class CsvDatabase(Database):
         return csv
 
 
-    def _build_file(self, system, location, time, datatype):
-        return os.path.join(self._build_dir(system, location, datatype), self._build_file_name(time))
+    def _build_file(self, system, time, datatype):
+        return os.path.join(self._build_dir(system, datatype), self._build_file_name(time))
 
 
     def _build_file_name(self, time):
         return time.astimezone(tz.utc).strftime('%Y%m%d_%H%M%S') + '.csv';
 
 
-    def _build_dir(self, system, location, datatype):
+    def _build_dir(self, system, datatype):
         if datatype == 'weather':
-            location_key = str(location.latitude) + '_' + str(location.longitude)
+            location_key = str(system.location.latitude) + '_' + str(system.location.longitude)
         else:
             location_key = system.location_key
         

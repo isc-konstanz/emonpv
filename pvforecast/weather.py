@@ -49,12 +49,12 @@ class Weather():
 
     def forecast(self, system, time):
         if self.database.exists(system, time):
-            forecast = self.database.get(system, system.location, time)
+            forecast = self.database.get(system, time)
         else:
             forecast = self.server.get_processed_data(system.location)
             
-            # Store the downloaded forecast
-            self.database.post(system, system.location, forecast, time=time)
+            # Store the retrieved forecast
+            self.database.post(system, forecast, time=time)
         
         return forecast
 
