@@ -41,14 +41,14 @@ class DatabaseList(OrderedDict):
                 self[key] = CsvDatabase(configs, timezone=timezone)
 
 
-    def post(self, system, data, **kwargs):
+    def post(self, system, location, data, **kwargs):
         for database in reversed(self.values()):
-            database.post(system, data, **kwargs)
+            database.post(system, location, data, datatype='system', **kwargs)
 
 
-    def get(self, system, start, end, interval, **kwargs):
+    def get(self, system, location, start, end, interval, **kwargs):
         database = next(iter(self.values()))
-        database.get(system, start, end, interval, **kwargs)
+        database.get(system, location, start, end=end, interval=interval, datatype='system', **kwargs)
 
 
 class Database(ABC):
@@ -58,7 +58,7 @@ class Database(ABC):
 
 
     @abstractmethod
-    def get(self, system, start, end, interval, **kwargs):
+    def get(self, system, location, time, **kwargs):
         """ 
         Retrieve data for a specified time interval of a set of data feeds
         
@@ -67,22 +67,16 @@ class Database(ABC):
         :type keys: 
             :class:`pvforecast.system.System`
         
-        :param start: 
-            the start time for which the values will be looked up for.
+        :param location: 
+            the location for which the values will be looked up for.
+        :type keys: 
+            :class:`pvlib.location.Location`
+        
+        :param time: 
+            the time for which the values will be looked up for.
             For many applications, passing datetime.datetime.now() will suffice.
-        :type start: 
+        :type time: 
             :class:`pandas.tslib.Timestamp` or datetime
-        
-        :param end: 
-            the end time for which the data will be looked up for.
-        :type end: 
-            :class:`pandas.tslib.Timestamp` or datetime
-        
-        :param interval: 
-            the time interval in seconds, retrieved values shout be returned in.
-        :type interval: 
-            int
-        
         
         :returns: 
             the retrieved values, indexed in a specific time interval.
@@ -93,25 +87,7 @@ class Database(ABC):
 
 
     @abstractmethod
-    def last(self, system, interval, **kwargs):
-        """
-        Retrieve the last recorded values for a specified set of data feeds
-        
-        :param system: 
-            the system for which the values will be looked up for.
-        :type keys: 
-            :class:`pvforecast.system.System`
-        
-        :param interval: 
-            the time interval in seconds, retrieved values shout be returned in.
-        :type interval: 
-            int
-        """
-        pass
-
-
-    @abstractmethod
-    def post(self, system, data, **kwargs):
+    def post(self, system, location, data, **kwargs):
         """ 
         Post a set of data values, to persistently store them on the server
         
@@ -119,6 +95,11 @@ class Database(ABC):
             the system for which the values will be looked up for.
         :type keys: 
             :class:`pvforecast.system.System`
+        
+        :param location: 
+            the location for which the values will be looked up for.
+        :type keys: 
+            :class:`pvlib.location.Location`
         
         :param data: 
             the data set to be posted
@@ -145,26 +126,11 @@ class EmoncmsDatabase(Database):
         self.connection = Emoncms(emoncms.get('Emoncms','address'), emoncms.get('Emoncms','authentication'))
 
 
-    def get(self, keys, start, end, interval, _):
-        data = pd.DataFrame()
-        for key in keys:
-            result = self.feeds[key].data(start, end, interval, self.timezone)
-            result.name = key
-            
-            data = pd.concat([data, result], axis=1)
-        
-        return data
+    def get(self, system, location, start, end, interval, **kwargs):
+        pass
 
 
-    def last(self, keys, _):
-        feeds = OrderedDict()
-        for key in keys:
-            feeds[key] = self.feeds[key]
-        
-        return self.connection.fetch(feeds)
-
-
-    def post(self, system, data, _):
+    def post(self, system, location, data):
         if 'apikey' in system:
             bulk = EmoncmsData(timezone=self.timezone)
             for time, row in data.iterrows():
@@ -190,44 +156,43 @@ class CsvDatabase(Database):
         self.separator = settings.get('CSV', 'separator')
 
 
-    def get(self, keys, start, end, interval, _):
-        if interval > 900:
+    def exists(self, system, location, time, datatype='weather'):
+        return os.path.exists(self._build_file(system, location, time, datatype))
+
+
+    def get(self, system, location, start, end=None, interval=None, datatype='weather'):
+        data = self._read_file(self._build_file(system, location, start, datatype))
+        
+        if interval is not None and interval > 900:
             offset = (start - start.replace(hour=0, minute=0, second=0, microsecond=0)).total_seconds() % interval
-            data = self.data[keys].resample(str(int(interval))+'s', base=offset).sum()
-        else:
-            data = self.data[keys]
+            data = data.resample(str(int(interval))+'s', base=offset).sum()
         
-        if start < end:
+        if end is not None:
+            if start > end:
+                return data.truncate(before=start).head(1)
+            
             return data.loc[start:end+dt.timedelta(seconds=interval)]
-        else:
-            return data.truncate(before=start).head(1)
-
-
-    def last(self, keys, interval, _):
-        date = dt.datetime.now(tz.utc).replace(second=0, microsecond=0)
-        if date.minute % (interval/60) != 0:
-            date = date - dt.timedelta(minutes=date.minute % (interval/60))
         
-        return self.get(keys, date, date, interval)
+        return data
 
 
-    def post(self, system, data, datatype='yield'):
+    def post(self, system, location, data, datatype='weather', **kwargs):
         if data is not None:
-            latitude = system.location.latitude
-            longitude = system.location.longitude
-            
-            if datatype == 'weather':
-                latitude = round(latitude, 3)
-                longitude = round(longitude, 3)
-            
-            path = os.path.join(self.datadir, datatype, str(latitude) + '_' + str(longitude))
+            path = self._get_dir(system, location, datatype)
             if not os.path.exists(path):
                 os.makedirs(path)
             
-            self.write_file(path, data)
+            self._write_file(data, path, **kwargs)
 
 
-    def read_file(self, path, index_column='unixtimestamp', unix=True):
+    def _write_file(self, data, path, time):
+        file = os.path.join(path, self._build_file_name(time))
+        
+        data.index.name = 'time'
+        data.tz_convert(tz.utc).astype(float).to_csv(file, sep=self.separator, decimal=self.decimal, encoding='utf-8')
+
+
+    def _read_file(self, path, index_column='time', unix=True):
         """
         Reads the content of a specified CSV file.
         
@@ -267,94 +232,26 @@ class CsvDatabase(Database):
             if unix:
                 csv.index = pd.to_datetime(csv.index, unit='ms')
                 
-            csv.index = csv.index.tz_localize(tz.timezone('UTC')).tz_convert(self.timezone)
+            csv.index = csv.index.tz_localize(tz.utc)
         
         csv.index.name = 'time'
         
         return csv
 
 
-    def read_nearest_file(self, date, path, index_column='time'):
-        """
-        Reads the daily content from a CSV file, closest to the passed date, 
-        following the file naming scheme "YYYYMMDD*.filename"
-        
-        
-        :param date: 
-            the date for which a filename file will be looked up for.
-        :type date: 
-            :class:`pandas.tslib.Timestamp` or datetime
-        
-        :param path: 
-            the directory, containing the filename files that should be looked for.
-        :type path:
-            str or unicode
-        
-        :param index_column: 
-            the name of the column, that will be used as index. The index will be assumed 
-            to be a time format, that will be parsed and localized.
-        :type index_column:
-            str or unicode
-        
-        :param timezone: 
-            the timezone, in which the data is logged and available in the filename file.
-            See http://en.wikipedia.org/wiki/List_of_tz_database_time_zones for a list of 
-            valid time zones.
-        :type timezone:
-            str or unicode
-        
-        
-        :returns: 
-            the retrieved columns, indexed by their date
-        :rtype: 
-            :class:`pandas.DataFrame`
-        """
-        csv = None
-        
-        ref = int(date.strftime('%Y%m%d'))
-        diff = 1970010100
-        filename = None
-        try:
-            for f in os.listdir(path):
-                if f.endswith('.csv'):
-                    d = abs(ref - int(f[0:8]))
-                    if (d < diff):
-                        diff = d
-                        filename = f
-        except IOError:
-            logger.error('Unable to find data files in "%s"', path)
+    def _build_file(self, system, location, time, datatype):
+        return os.path.join(self._build_dir(system, location, datatype), self._build_file_name(time))
+
+
+    def _build_file_name(self, time):
+        return time.astimezone(tz.utc).strftime('%Y%m%d_%H%M%S') + '.csv';
+
+
+    def _build_dir(self, system, location, datatype):
+        if datatype == 'weather':
+            location_key = str(location.latitude) + '_' + str(location.longitude)
         else:
-            if(filename == None):
-                logger.error('Unable to find data files in "%s"', path)
-            else:
-                csvpath = os.path.join(path, filename)
-                csv = self.read_file(csvpath, index_column=index_column, unix=False)
+            location_key = system.location_key
         
-        return csv
-
-
-    def write_file(self, path, data):
-        filename = data.index[0].astimezone(self.timezone).strftime('%Y%m%d_%H%M%S') + '.csv';
-        filepath = os.path.join(path, filename)
-        
-        data.index.name = 'time'
-        data.tz_convert(self.timezone).astype(float).round(3).to_csv(filepath, sep=self.separator, decimal=self.decimal, encoding='utf-8')
-
-
-    def concat_file(self, path, data):
-        filename = data.index[0].astimezone(self.timezone).strftime('%Y') + '_opt.csv';
-        filepath = os.path.join(path, filename)
-        
-        data.index.name = 'time'
-        
-        if os.path.isfile(filepath):
-            csv = pd.read_csv(filepath, sep=self.separator, decimal=self.decimal, index_col='time', parse_dates=['time'])
-            csv.index = csv.index.tz_localize(tz.utc).tz_convert(self.timezone)
-        else:
-            csv = pd.DataFrame()
-        
-        # Concatenate data to existing file
-        # Preserve column order, as pandas concatenation may sort them as result of a bug (https://github.com/pandas-dev/pandas/issues/4588)
-        csv = pd.concat([csv, data.tz_convert(self.timezone)])
-        csv[data.columns].astype(float).round(3).to_csv(filepath, sep=self.separator, decimal=self.decimal, encoding='utf-8')
+        return os.path.join(self.datadir, datatype, location_key)
 

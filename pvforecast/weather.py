@@ -20,6 +20,8 @@ import json
 import pandas as pd
 import pytz as tz
 
+from io import StringIO
+
 with warnings.catch_warnings():
     warnings.simplefilter("ignore")
     from pvlib.forecast import ForecastModel
@@ -27,11 +29,15 @@ with warnings.catch_warnings():
 
 class Weather():
     
-    def __init__(self, configs, database, model='COSMO_DE'):
+    def __init__(self, configs, database, model='NMM'):
         self.model = model
-        if model == 'COSMO_DE':
+        if model == 'NMM':
+            self.server = NMM(configs.get('Meteoblue', 'name'), 
+                              configs.get('Meteoblue', 'address'), 
+                              configs.get('Meteoblue', 'apikey'))
+        elif model == 'COSMO_DE':
             self.server = COSMO_DE(configs.get('W3Data', 'address'), 
-                                   configs.get('W3Data', 'api_key'))
+                                   configs.get('W3Data', 'apikey'))
         else:
             raise ValueError('Invalid forecast model argument')
         
@@ -42,10 +48,209 @@ class Weather():
 
 
     def forecast(self, system, time):
-        forecast = self.server.get_processed_data(system.location)
+        if self.database.exists(system, time):
+            forecast = self.database.get(system, system.location, time)
+        else:
+            forecast = self.server.get_processed_data(system.location)
+            
+            # Store the downloaded forecast
+            self.database.post(system, system.location, forecast, time=time)
         
-        self.database.post(system, forecast, datatype='weather')
         return forecast
+
+
+class NMM(ForecastModel):
+    """
+    Subclass of the ForecastModel class representing the Meteoblue
+    NMM (Nonhydrostatic Meso-Scale Modelling) forecast model.
+
+    Model data corresponds to 4km resolution forecasts.
+
+    Parameters
+    ----------
+    set_type: string, default 'best'
+        Type of model to pull data from.
+
+    Attributes
+    ----------
+    dataframe_variables: list
+        Common variables present in the final set of data.
+    model_name: string
+        Name of the UNIDATA forecast model.
+    model_type: string
+        UNIDATA category in which the model is located.
+    variables: dict
+        Defines the variables to obtain from the weather
+        model and how they should be renamed to common variable names.
+    units: dict
+        Dictionary containing the units of the standard variables
+        and the model specific variables.
+    """
+
+    def __init__(self, name, address, apikey, set_type='best'):
+        model_type = 'Forecast Model Data'
+        model_name = 'NMM Forecast'
+
+        self.variables = {
+            "time": "Zeitpunkt [ISO8601]", 
+            "precipitation": "Niederschlagsmenge [mm]", 
+            "snowfraction": "Schneefall [0.0 - 1.0]", 
+            "rainspot": "Regionale Übersicht für den Niederschlag", 
+            "temperature": "Temperatur [C]", 
+            "felttemperature": "gefühlte Temperatur [C]", 
+            "pictocode": "Piktogrammcode", 
+            "windspeed": "Windgeschwindigkeit [m/s]", 
+            "winddirection": "Windrichtung [Grad]", 
+            "relativehumidity": "relative luftfeuchtigkeit [%]", 
+            "sealevelpressure": "Luftdruck auf Hoehe des Meerespiegels [hPa]", 
+            "precipitation_probability": "Niederschlagswahrscheinlichkeit [%]", 
+            "convective_precipitation": "Niederschlag als Schauer [mm]", 
+            "isdaylight": "bei Tageslicht", 
+            "sunshinetime": "Sonnenscheindauer [min]", 
+            "lowclouds": "Bedeckungsgrad mit niedrigen Wolken [%]", 
+            "midclouds": "Bedeckungsgrad mit mittleren Wolken [%]", 
+            "highclouds": "Bedeckungsgrad mit hohen Wolken [%]", 
+            "visibility": "Sichtweite [km]", 
+            "totalcloudcover": "Gesamtbedeckungsgrad mit Wolken [%]", 
+            "gni_instant": "", 
+            "gni_backwards": "", 
+            "dni_instant": "", 
+            "dni_backwards": "", 
+            "dif_instant": "", 
+            "dif_backwards": "", 
+            "ghi_instant": "", 
+            "ghi_backwards": "", 
+            "extraterrestrialradiation_instant": "", 
+            "extraterrestrialradiation_backwards": ""
+        }
+
+        self.output_variables = [
+            'temp_air',
+            'wind_speed',
+            'wind_direction',
+            'humidity_rel',
+            'pressure_sea',
+            'ghi',
+            'dni',
+            'dhi',
+            'total_clouds',
+            'low_clouds',
+            'mid_clouds',
+            'high_clouds',
+            'rain',
+            'rain_shower',
+            'rain_prob',
+            'snow']
+        
+        self.name = name
+        self.address = address
+        self.apikey = apikey
+        
+        super(NMM, self).__init__(model_type, model_name, set_type)
+
+
+    def process_data(self, data, **kwargs):
+        """
+        Defines the steps needed to convert raw forecast data
+        into processed forecast data.
+
+        Parameters
+        ----------
+        data: DataFrame
+            Raw forecast data
+
+        Returns
+        -------
+        data: DataFrame
+            Processed forecast data.
+        """
+        data = super(NMM, self).process_data(data, **kwargs)
+        
+        data['temp_air'] = data['temperature']
+        data['wind_speed'] = data['windspeed']
+        data['wind_direction'] = data['winddirection']
+        data['humidity_rel'] = data['relativehumidity']
+        data['pressure_sea'] = data['sealevelpressure']
+        data['ghi'] = data['ghi_instant']
+        data['dni'] = data['dni_instant']
+        data['dhi'] = data['dif_instant']
+        data['total_clouds'] = data['totalcloudcover']
+        data['low_clouds'] = data['lowclouds']
+        data['mid_clouds'] = data['midclouds']
+        data['high_clouds'] = data['highclouds']
+        data['rain'] = data['precipitation']
+        data['rain_shower'] = data['convective_precipitation']
+        data['rain_prob'] = data['precipitation_probability']
+        data['snow'] = data['snowfraction']
+        
+        return data[self.output_variables]
+
+
+    def get_data(self, location):
+        """
+        Submits a query to the meteoblue servers and
+        converts the CSV response to a pandas DataFrame.
+
+        Parameters
+        ----------
+        location: Location
+            The geographic location of the requested forecast data.
+
+        Returns
+        -------
+        data : DataFrame
+            column names are the weather model's variable names.
+        """
+        self.latitude = location.latitude
+        self.longitude = location.longitude
+        self.altitude = location.altitude
+        self.location = location
+        
+        parameters = {
+            'name': self.name,
+            'tz': location.tz,
+            'lat': location.latitude,
+            'lon': location.longitude,
+            'asl': location.altitude,
+            'temperature': 'C',
+            'windspeed': 'ms-1',
+            'winddirection': 'degree',
+            'precipitationamount': 'mm',
+            'timeformat': 'iso8601',
+            'format': 'csv',
+            'apikey': self.apikey
+        }
+        response = requests.get(self.address + 'packages/basic-1h_clouds-1h_solar-1h', params=parameters)
+        
+        if response.status_code != 200:
+            raise requests.HTTPError("Response returned with error " + response.status_code + ": " + response.reason)
+        
+        self.data = pd.read_csv(StringIO(response.text), sep=',')
+        self.data['time'] = pd.to_datetime(self.data['time'])
+        self.data = self.data.set_index('time')
+        self.data = self.data.tz_localize(tz.utc).tz_convert(location.tz)
+        
+        return self.data
+
+
+    def get_meta(self, location):
+        parameters = {
+            'name': self.name,
+            'tz': location.tz,
+            'lat': location.latitude,
+            'lon': location.longitude,
+            'asl': location.altitude,
+            'timeformat': 'iso8601',
+            'format': 'json',
+            'apikey': self.apikey
+        }
+        response = requests.get(self.address + 'packages/basic-1h_clouds-1h_solar-1h', params=parameters)
+        
+        if response.status_code != 200:
+            raise requests.HTTPError("Response returned with error " + response.status_code + ": " + response.reason)
+        
+        data = json.loads(response.text)
+        return data.get('metadata')
 
 
 class COSMO_DE(ForecastModel):
@@ -111,7 +316,7 @@ class COSMO_DE(ForecastModel):
             'high_clouds']
         
         self.address = address
-        self.api_key = api_key
+        self.apikey = api_key
         
         super(COSMO_DE, self).__init__(model_type, model_name, set_type)
 
@@ -162,8 +367,8 @@ class COSMO_DE(ForecastModel):
         self.altitude = location.altitude
         self.location = location
         
-        url = self.address+str(self.longitude)+'/'+str(self.latitude)
-        r = json.loads(requests.get(url, headers={'Authorization': 'Basic ' + self.api_key}).text)
+        url = self.address+'solar/'+str(self.longitude)+'/'+str(self.latitude)
+        r = json.loads(requests.get(url, headers={'Authorization': 'Basic ' + self.apikey}).text)
         
         cols = list(dict(r['timesteps'][0]['models']['COSMO_DE']).keys())
         vals = [[y[w] for w in cols] for y in [x["models"]['COSMO_DE'] for x in r['timesteps']]]

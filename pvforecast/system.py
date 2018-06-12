@@ -29,9 +29,9 @@ class SystemList(list):
         self.read_config(configs)
 
 
-    def forecast(self, weather, date):
+    def forecast(self, weather, time):
         for system in self:
-            forecast = system.forecast(weather.forecast(system, date))
+            forecast = system.forecast(weather.forecast(system, time))
             
             self.database.post(system, forecast)
 
@@ -101,10 +101,22 @@ class System(list):
 
     def append(self, name, config, module, inverter):
         
+        # Add missing parameters for pvwatts model
+#         module['gamma_pdc'] = module['gamma_r'] / 100.0
+#         module['pdc0'] = 1.0
+        
+        # TODO: check parameter origin
+        # Add missing parameters for singlediode model
+        if 'EgRef' not in module:
+            module['EgRef'] = 1.121
+            
+        if 'dEgdT' not in module:
+            module['dEgdT'] = -0.0002677
+        
         if inverter is None:
             inverter = {}
-#             if 'pdc0' not in module:
-#                 module['pdc0'] = 1
+            if 'pdc0' not in module:
+                module['pdc0'] = 1
         
         super(System, self).append(PVSystem(surface_tilt = float(config['tilt']), 
                                             surface_azimuth = float(config['azimuth']), 
@@ -129,5 +141,5 @@ class System(list):
         if len(forecast.columns) > 1:
             forecast[self.name] = forecast.sum(axis=1)
         
-        return forecast
+        return forecast.reindex_axis(sorted(forecast.columns), axis=1)
 

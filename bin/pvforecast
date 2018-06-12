@@ -26,29 +26,29 @@ from argparse import ArgumentParser, RawTextHelpFormatter
 from configparser import ConfigParser
 
 
-def forecast(settings, date):
+def forecast(settings, time):
     database = DatabaseList(settings)
     systems = SystemList(settings, database)
     weather = Weather(settings, database, model=settings.get('Weather', 'model'))
     
-    systems.forecast(weather, date)
+    systems.forecast(weather, time)
 
 
-def schedule_forecast(scheduler, interval, date, settings):
-    forecast(settings, date)
+def schedule_forecast(scheduler, interval, time, settings):
+    forecast(settings, time)
     
-    date, delay = schedule_time(interval)
+    time, delay = schedule_time(interval)
     scheduler.enter(delay, 1, forecast, 
-                    (scheduler, interval, date, settings))
+                    (scheduler, interval, time, settings))
 
 
 def schedule_time(interval):
     now = dt.datetime.now(tz.utc)
-    date = now.replace(minute=0, second=0, microsecond=0) + dt.timedelta(minutes=interval)
+    time = now.replace(minute=0, second=0, microsecond=0)
     if now.hour % (interval/60) != 0:
-        date = date + dt.timedelta(minutes=interval) - dt.timedelta(hours=now.hour % (interval/60))
+        time = time + dt.timedelta(minutes=interval) - dt.timedelta(hours=now.hour % (interval/60))
     
-    return date, (date - now).total_seconds()
+    return time, (time - now + dt.timedelta(minutes=interval)).total_seconds()
 
 
 def run(settings):
