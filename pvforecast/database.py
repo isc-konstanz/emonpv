@@ -9,12 +9,14 @@ import logging
 logger = logging.getLogger(__name__)
 
 import os
-from abc import ABC, abstractmethod
-import datetime as dt
+import io
+import json
 import pytz as tz
+import datetime as dt
 import pandas as pd
 import numpy as np
 
+from abc import ABC, abstractmethod
 from collections import OrderedDict
 from configparser import ConfigParser
 from emonpy import Emoncms, EmoncmsData
@@ -41,14 +43,14 @@ class DatabaseList(OrderedDict):
                 self[key] = CsvDatabase(configs, timezone=timezone)
 
 
-    def post(self, system, location, data, **kwargs):
+    def post(self, system, data, **kwargs):
         for database in reversed(self.values()):
-            database.post(system, location, data, datatype='system', **kwargs)
+            database.post(system, data, datatype='systems', **kwargs)
 
 
-    def get(self, system, location, start, end, interval, **kwargs):
+    def get(self, system, start, end, interval, **kwargs):
         database = next(iter(self.values()))
-        database.get(system, location, start, end=end, interval=interval, datatype='system', **kwargs)
+        database.get(system, start, end=end, interval=interval, datatype='systems', **kwargs)
 
 
 class Database(ABC):
@@ -120,7 +122,7 @@ class EmoncmsDatabase(Database):
         pass
 
 
-    def post(self, system, data):
+    def post(self, system, data, **kwargs):
         if 'apikey' in system:
             bulk = EmoncmsData(timezone=self.timezone)
             for time, row in data.iterrows():
@@ -175,8 +177,8 @@ class CsvDatabase(Database):
             self._write_file(data, path, **kwargs)
 
 
-    def _write_file(self, data, path, time):
-        file = os.path.join(path, self._build_file_name(time))
+    def _write_file(self, data, path, date):
+        file = os.path.join(path, self._build_file_name(date))
         
         data.index.name = 'time'
         data.tz_convert(tz.utc).astype(float).to_csv(file, sep=self.separator, decimal=self.decimal, encoding='utf-8')
@@ -244,4 +246,165 @@ class CsvDatabase(Database):
             location_key = system.location_key
         
         return os.path.join(self.datadir, datatype, location_key)
+
+
+class JsonDatabase(object):
+
+    def __init__(self, configs, key):
+        self.datadir = configs.get('General', 'datadir')
+        
+        self.key = key
+        
+        self.sam_url = 'https://raw.githubusercontent.com/pvlib/pvlib-python/master/pvlib/data'
+        self.sam_db = None
+
+
+    def get(self, path):
+        path = path.split('/')
+        filename = os.path.join(self.datadir, self.key, path[0], path[1], path[2]+'.json')
+        
+        with open(filename, encoding='utf-8') as file:
+            return json.load(file)
+
+
+    def _write_json(self, path, data):
+        filedir = os.path.join(self.datadir, self.key, path[0], path[1])
+        if not os.path.exists(filedir):
+            os.makedirs(filedir)
+        
+        filename = os.path.join(filedir, path[2]+'.json')
+        with open(filename, 'w', encoding='utf-8') as file:
+            json.dump(data, file, indent=4)
+
+
+    def _load_cec(self):
+        csv = os.path.join(self.datadir, self.key, 'cec.csv')
+        return pd.read_csv(csv, skiprows=[1, 2], encoding = "ISO-8859-1", low_memory=False)
+
+
+    def _load_cec_custom(self):
+        csv = os.path.join(self.datadir, self.key, 'cec_custom.csv')
+        return pd.read_csv(csv, skiprows=[1, 2], encoding = "ISO-8859-1", low_memory=False)
+
+
+    def _load_cec_sam(self, download=False):
+        try:
+            from urllib2 import urlopen
+        except ImportError:
+            from urllib.request import urlopen
+        
+        if download:
+            response = urlopen(self.sam_url + '/' + self.sam_db + '.csv')
+            csv = io.StringIO(response.read().decode(errors='ignore'))
+        else:
+            csv = os.path.join(self.datadir, self.key, 'cec_sam.csv')
+        
+        return pd.read_csv(csv, skiprows=[1, 2], encoding = "ISO-8859-1", low_memory=False)
+
+
+class ModuleDatabase(JsonDatabase):
+
+    def __init__(self, configs):
+        super(ModuleDatabase, self).__init__(configs, 'modules')
+        
+        self.sam_db = 'sam-library-cec-modules-2017-6-5'
+
+
+    def build(self):
+        db_cec = self._load_cec()
+        db_sam = self._load_cec_sam()
+        db_custom = self._load_cec_custom()
+        
+        db_meta = {}
+        
+        for _, module in pd.concat([db_cec, db_custom], sort=True).iterrows():
+            module_sam = db_sam.loc[db_sam['Name'] == module['Manufacturer'] + ' ' + module['Model Number']]
+            if len(module_sam) > 0:
+                db_sam = db_sam.drop(module_sam.iloc[0].name)
+                
+                path, meta = self._parse_module_meta(module, 'singlediode')
+                self._write_module_singlediode(path, module_sam.iloc[0].combine_first(module))
+                
+            elif not module.loc[['a_ref', 'I_L_ref', 'I_o_ref', 'R_sh_ref', 'R_s']].isnull().any():
+                path, meta = self._parse_module_meta(module, 'singlediode')
+                self._write_module_singlediode(path, module)
+                
+            else:
+                path, meta = self._parse_module_meta(module, 'pvwatts')
+                self._write_module_pvwatts(path, module)
+            
+            db_meta['/'.join(path)] = meta
+            
+            logger.debug("Successfully built Module: %s %s", meta['Manufacturer'], meta['Name'])
+        
+        # Sort the meta data by module manufacturer and name
+        db_meta = OrderedDict(sorted(db_meta.items(), key=lambda m: (m[1]['Manufacturer'], m[1]['Name'])))
+        
+        file_meta = os.path.join(self.datadir, self.key, 'meta.json')
+        with open(file_meta, 'w', encoding='utf-8') as file:
+            json.dump(db_meta, file, indent=4)
+        
+        file_remain = os.path.join(self.datadir, self.key, 'cec_sam_remain.csv')
+        db_sam.to_csv(file_remain, encoding = "ISO-8859-1")
+        
+        logger.info("Complete module library built for %i entries", len(db_meta.keys()))
+        logger.debug("Unable to build %i SAM modules", len(db_sam))
+
+
+    def _parse_module_meta(self, module, model):
+        path = [model, 
+                module['Manufacturer'].lower().replace(' ', '_').replace('/', '-').replace('(', '').replace(')', '').replace('&', 'n'),
+                module['Model Number'].lower().replace(' ', '_').replace('/', '-').replace('(', '').replace(')', '').replace('&', 'n')]
+        
+        meta = OrderedDict()
+        meta['Name']         = module['Model Number']
+        meta['Manufacturer'] = module['Manufacturer']
+        meta['Description']  = module['Description']
+        meta['BIPV']         = module['BIPV']
+        
+        return path, meta
+
+
+    def _write_module_singlediode(self, path, cec):
+        module = OrderedDict()
+        module['Date']          = cec['Date']
+        module['Version']       = cec['Version']
+        module['Technology']    = cec['Technology']
+        module['BIPV']          = cec['BIPV']
+        module['A_c']           = float(cec['A_c'])
+        module['N_s']           = float(cec['N_s'])
+        module['T_NOCT']        = float(cec['T_NOCT'])
+        module['I_sc_ref']      = float(cec['I_sc_ref'])
+        module['V_oc_ref']      = float(cec['V_oc_ref'])
+        module['I_mp_ref']      = float(cec['I_mp_ref'])
+        module['V_mp_ref']      = float(cec['V_mp_ref'])
+        module['alpha_sc']      = float(cec['alpha_sc'])
+        module['beta_oc']       = float(cec['beta_oc'])
+        module['a_ref']         = float(cec['a_ref'])
+        module['I_L_ref']       = float(cec['I_L_ref'])
+        module['I_o_ref']       = float(cec['I_o_ref'])
+        module['R_s']           = float(cec['R_s'])
+        module['R_sh_ref']      = float(cec['R_sh_ref'])
+        module['Adjust']        = float(cec['Adjust'])
+        module['PTC']           = float(cec['PTC'])
+        module['pdc0']          = float(cec['pdc0']) if 'pdc0' in cec else float(cec['Nameplate Pmax'])
+        module['gamma_pdc']     = float(cec['gamma_pdc']) if 'gamma_pdc' in cec else float(cec['gamma_r'])/100.0
+        module['gamma_r']       = float(cec['gamma_r'])
+        
+        self._write_json(path, module)
+
+
+    def _write_module_pvwatts(self, path, cec):
+        module = OrderedDict()
+        module['Technology']    = cec['Technology']
+        module['BIPV']          = cec['BIPV']
+        module['A_c']           = float(cec['A_c'])
+        module['N_s']           = float(cec['N_s'])
+        module['T_NOCT']        = float(cec['Average NOCT'])
+        module['PTC']           = float(cec['PTC'])
+        module['pdc0']          = float(cec['Nameplate Pmax'])
+        module['gamma_pdc']     = float(cec['?Pmax'])/100.0
+        module['gamma_r']       = float(cec['?Pmax'])
+        
+        self._write_json(path, module)
 

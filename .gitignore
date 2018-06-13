@@ -103,3 +103,4 @@ bin/results
 data
 lib/weather/*
 lib/systems/*
+lib/modules/*_remain.csv

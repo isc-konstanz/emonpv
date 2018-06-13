@@ -42,19 +42,20 @@ class SystemList(list):
         for systems in locations.values():
             for system in systems:
                 forecast = system.forecast(weather.forecast(system, time))
-                self.database.post(system, forecast, datatype='system')
+                self.database.post(system, forecast, date=time)
 
 
     def read_config(self, configs):
         from pvlib.pvsystem import retrieve_sam
+        from pvforecast.database import ModuleDatabase
         
         datadir = configs.get('General', 'datadir')
         systemsfile = os.path.join(configs.get('General', 'configdir'), 'systems.cfg')
         systems = ConfigParser()
         systems.read(systemsfile)
         
-        modules = retrieve_sam(path=os.path.join(datadir, 'modules', 'cec_sandia.csv'))
-        inverters = retrieve_sam(path=os.path.join(datadir, 'inverters', 'cec.csv'))
+        modules = ModuleDatabase(configs)
+        inverters = retrieve_sam(path=os.path.join(datadir, 'inverters', 'cec_sam.csv'))
         
         for name in systems:
             if name != 'DEFAULT':
@@ -65,9 +66,9 @@ class SystemList(list):
                 for key in systems.options(name):
                     value = systems.get(name, key)
                     
-                    if key == 'module_name' and value != '':
-                        module = modules[value]
-                    elif key == 'inverter_name' and value != '':
+                    if key == 'module' and value != '':
+                        module = modules.get(value)
+                    elif key == 'inverter' and value != '':
                         inverter = inverters[value]
                     else:
                         config[key] = systems.get(name, key)
@@ -116,23 +117,8 @@ class System(list):
 
 
     def append(self, name, config, module, inverter):
-        
-        # Add missing parameters for pvwatts model
-#         module['gamma_pdc'] = module['gamma_r'] / 100.0
-#         module['pdc0'] = 1.0
-        
-        # TODO: check parameter origin
-        # Add missing parameters for singlediode model
-        if 'EgRef' not in module:
-            module['EgRef'] = 1.121
-            
-        if 'dEgdT' not in module:
-            module['dEgdT'] = -0.0002677
-        
         if inverter is None:
             inverter = {}
-            if 'pdc0' not in module:
-                module['pdc0'] = 1
         
         super(System, self).append(pv.pvsystem.PVSystem(surface_tilt = float(config['tilt']), 
                                                         surface_azimuth = float(config['azimuth']), 
@@ -158,7 +144,7 @@ class System(list):
         if len(forecast.columns) > 1:
             forecast[self.name] = forecast.sum(axis=1)
         
-        return forecast.reindex_axis(sorted(forecast.columns), axis=1)
+        return forecast.reindex(sorted(forecast.columns), axis=1)
 
 
     def grid_location(self, weather):

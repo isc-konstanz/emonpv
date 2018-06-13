@@ -1,0 +1,18 @@
+Manufacturer,Model Number,Description,Version,Date,Technology,BIPV,A_c,N_s,T_NOCT,I_sc_ref,V_oc_ref,I_mp_ref,V_mp_ref,alpha_sc,beta_oc,a_ref,I_L_ref,I_o_ref,R_s,R_sh_ref,Adjust,PTC,pdc0,gamma_pdc,gamma_r
+Units,,,,,,,m2,,C,A,V,A,V,A/K,V/K,V,A,A,Ohm,Ohm,%,Wp,Wp,1/K,%/K
+[0],,,,,cec_material,,cec_area,cec_n_s,cec_t_noct,cec_i_sc_ref,cec_v_oc_ref,cec_i_mp_ref,cec_v_mp_ref,cec_alpha_sc,cec_beta_oc,cec_a_ref,cec_i_l_ref,cec_i_o_ref,cec_r_s,cec_r_sh_ref,cec_adjust,,,,cec_gamma_r
+Aleo Solar,S18U235 ulr,253 W Polycrystalline Module,,10/26/2011,Multi-c-Si,N,1.628,60,47,8.54,37.4,7.95,29.7,0.003672,-0.11931,,,,,,,210.2,235,-0.00453,-0.453
+Day4 Energy,48MC 190Wp,190 W Polycrystalline Module,,06.01.2011,Multi-c-Si,N,1.6295,48,46,8.3,29.7,7.92,24,0.0078,-0.11,1.32989,8.47312,1.68E-09,0.236621,318.385,11.6121,,190,-0.0048,-0.48
+Kyocera Solar,KC120,120 W Monocrystalline Module,,01.01.2002,Mono-c-Si,N,0.93,36,45,7.45,21.5,7.1,16.9,0.0014,-0.0824,0.880766,7.52492,1.88E-10,0.29035,5183.06,-8.04896,,120,-0.0048,-0.48
+Kyocera Solar,KC167G-2,158 W Polycrystalline Module,,12/17/2003,Multi-c-Si,N,1.27,54,45,7.58,28.9,6.82,23.2,0.055,-0.34,1.26024,7.61662,7.85E-10,0.296139,61.3052,15.9794,,158,-0.0047,-0.47
+MHH,MHH plus 180 (175Wp),175 W Polycrystalline Module,,01.01.2003,Multi-c-Si,N,1.36,48,45,7.98,29.6,7.2,24.5,0.06,-0.032,1.32486,8.00089,1.49E-09,0.162554,62.1048,29.3066,,175,-0.0048,-0.48
+MHH,MHH plus 220 (220Wp),220 W Polycrystalline Module,,01.01.2003,Multi-c-Si,N,1.66,60,45,7.98,37,7.19,30.6,0.06,-0.032,1.65677,8.00184,1.50E-09,0.206859,75.5723,29.3932,,220,-0.0048,-0.48
+Mitsubishi,MF130EA2LF,130 W Polycrystalline Module,,11.01.2005,Multi-c-Si,N,1,40,45,7.39,24.2,6.79,19.2,0.065,-0.0358,1.06701,7.41123,1.01E-09,0.286424,99.7134,12.4457,,130,-0.00491,-0.491
+Schott Solar,ASE-100-GT-FT/K,100 W Polycrystalline Module,,01.01.2005,Multi-c-Si,N,0.82,72,45,3.2,42.5,2.9,34.5,0.1,-0.38,1.94811,3.21001,1.02E-09,0.813088,260.059,13.1157,,100,-0.0047,-0.47
+Shell Solar,Shell PowerMax Ultra 85-P,85 W Monocrystalline Module,,04.01.2005,Mono-c-Si,N,0.6324,40,45.5,5.45,22.2,4.95,17.2,0.0014,-0.0645,0.874308,5.48469,4.88E-11,0.49548,77.8457,11.8556,,85,-0.0043,-0.43
+Solarwatt,Orange 60p 255Wp,255 W Polycrystalline Module,,10.01.2012,Multi-c-Si,N,1.66,60,45,8.57,37.9,8.24,31,0.05,-0.32,1.48556,8.74872,7.20E-11,0.293892,397.26,0.441808,,255,-0.0039,-0.39
+SolarWorld,SW 155 Compact mono black laminate,155 W Monocrystalline Module,,08.08.2011,Mono-c-Si,N,1.13,40,47,8.27,24.7,7.77,20,0.042,-0.33,1.02019,8.2764,2.50E-10,0.217793,281.567,8.22152,,155,-0.0045,-0.45
+Suntech,STP210-18/Ub-1,210 W Polycrystalline Module,,01.01.2008,Multi-c-Si,N,1.47,54,45,8.33,33.6,7.95,26.4,0.055,-0.34,1.41119,8.50625,3.84E-10,0.396818,382.273,8.33509,,210,-0.0047,-0.47
+Sunways,SM170UA12,170 W Polycrystalline Module,,03.01.2006,Multi-c-Si,N,1.36,48,45,8.28,29.3,7.45,22.8,0.06,-0.32,1.09954,8.34919,2.08E-11,0.433399,51.8677,-8.75114,,170,-0.0034,-0.34
+Sunways,SM210UA13,220 W Polycrystalline Module,,03.01.2006,Multi-c-Si,N,1.66,60,45,8.38,37.2,7.75,28.4,0.06,-0.32,1.36064,8.41575,1.09E-11,0.621925,145.772,-13.5801,,220,-0.0034,-0.34
+Sunways,SM230UD1A,230 W Polycrystalline Module,,06.01.2011,Multi-c-Si,N,1.63,60,45,8.34,36.8,7.68,29.9,0.06,-0.31,1.51478,8.36184,2.27E-10,0.311222,118.845,14.1169,,230,-0.0042,-0.42

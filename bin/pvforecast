@@ -2,9 +2,9 @@
 # -*- coding: utf-8 -*-
 """
     pvforecast
-    ~~~~~
+    ~~~~~~~~~~
     
-    
+    To learn how to configure the photovoltaic forecast, see "pvforecast --help"
 
 """
 import logging.config
@@ -18,15 +18,13 @@ import textwrap
 import pytz as tz
 import datetime as dt
 
-
-from pvforecast import DatabaseList, SystemList, Weather
-
-
 from argparse import ArgumentParser, RawTextHelpFormatter
 from configparser import ConfigParser
 
 
 def forecast(settings, time):
+    from pvforecast import DatabaseList, SystemList, Weather
+    
     database = DatabaseList(settings)
     systems = SystemList(settings, database)
     weather = Weather(settings, database, model=settings.get('Weather', 'model'))
@@ -48,18 +46,14 @@ def schedule_time(interval):
     if now.hour % (interval/60) != 0:
         time = time + dt.timedelta(minutes=interval) - dt.timedelta(hours=now.hour % (interval/60))
     
-    return time, (time - now + dt.timedelta(minutes=interval)).total_seconds()
+    return time, (time + dt.timedelta(minutes=interval) - now).total_seconds()
 
 
 def run(settings):
     interval = int(settings.get('General', 'interval'))
     
-    now = dt.datetime.now(tz.utc)
-    date = now.replace(minute=0, second=0, microsecond=0) + dt.timedelta(minutes=interval)
-    if now.hour % (interval/60) != 0:
-        date = date + dt.timedelta(hours=now.hour % (interval/60))
-    
-    forecast(settings, date)
+    time,_ = schedule_time(interval)
+    forecast(settings, time)
 
 
 def start(settings):
@@ -75,7 +69,16 @@ def start(settings):
     scheduler.run()
 
 
-def main(settings, configdir, args=None):
+def build(settings):
+    from pvforecast.database import ModuleDatabase
+    
+    logger.info('Starting pvforecast module library build')
+    
+    db = ModuleDatabase(settings)
+    db.build()
+
+
+def main(settings, args=None):
     settings.set('General', 'datadir', args.datadir)
     settings.set('General', 'configdir', args.configdir)
     
@@ -84,6 +87,9 @@ def main(settings, configdir, args=None):
     
     elif args.action == 'start':
         start(settings)
+    
+    elif args.action == 'build':
+        build(settings)
 
 
 def _get_parser(settings, configdir):
@@ -123,12 +129,13 @@ if __name__ == "__main__":
     if os.path.basename(rundir) == 'bin':
         rundir = os.path.dirname(rundir)
     
+    configdir = os.path.join(rundir, 'conf')
+    
     # Load the logging configuration
-    loggingfile = os.path.join(rundir, 'conf', 'logging.cfg')
-    logging.config.fileConfig(os.path.join(rundir, 'conf', 'logging.cfg'))
+    loggingfile = os.path.join(configdir, 'logging.cfg')
+    logging.config.fileConfig(loggingfile)
     logger = logging.getLogger('pvforecast')
     
-    configdir = os.path.join(rundir, 'conf')
     settingsfile = os.path.join(configdir, 'settings.cfg')
     if not os.path.isfile(settingsfile):
         logger.error('Unable to read settings at %s', settingsfile)
@@ -137,5 +144,5 @@ if __name__ == "__main__":
     settings = ConfigParser()
     settings.read(settingsfile)
     
-    main(settings, configdir, args=_get_parser(settings, configdir).parse_args())
+    main(settings, args=_get_parser(settings, configdir).parse_args())
 
