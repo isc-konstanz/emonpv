@@ -6,12 +6,7 @@
     
     
 """
-import numpy as np
 import pandas as pd
-
-from collections import OrderedDict
-from functools import partial
-
 from pvlib import modelchain
 
 
@@ -103,10 +98,9 @@ class ModelChain(modelchain.ModelChain):
         elif set(['b']) <= params:
             return self.ashrae_aoi_loss
         else:
-            #return self.no_aoi_loss
-            return self.physical_aoi_loss
-
-
+            return self.no_aoi_loss
+ 
+ 
     def infer_spectral_model(self):
         params = set(self.system.module_parameters.keys())
         if set(['A4', 'A3', 'A2', 'A1', 'A0']) <= params:
@@ -115,8 +109,24 @@ class ModelChain(modelchain.ModelChain):
             return self.no_spectral_loss
 
 
+    def pvwatts_dc(self):
+        self.dc = self.system.pvwatts_dc(self.effective_irradiance,
+                                         self.temps['temp_cell'])
+        
+        self.dc *= self.system.modules_per_string * self.system.strings_per_inverter
+        
+        return self
+
+
     def pvwatts_inverter(self):
-        self.ac = self.system.pvwatts_ac(self.dc).fillna(0)
-        self.ac *= self.system.modules_per_string * self.system.strings_per_inverter * 230#read from model parameters
+        if isinstance(self.dc, pd.Series):
+            dc = self.dc
+        elif 'p_mp' in self.dc:
+            dc = self.dc['p_mp']
+        else:
+            raise ValueError('Unknown error while calculating PVWatts AC model')
+        
+        self.ac = self.system.pvwatts_ac(dc).fillna(0)
+        
         return self
 

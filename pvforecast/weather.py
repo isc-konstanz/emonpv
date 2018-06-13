@@ -54,7 +54,7 @@ class Weather():
             forecast = self.server.get_processed_data(system.location)
             
             # Store the retrieved forecast
-            self.database.post(system, forecast, time=time)
+            self.database.post(system, forecast, date=time)
         
         return forecast
 
