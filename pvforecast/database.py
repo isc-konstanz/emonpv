@@ -273,8 +273,23 @@ class JsonDatabase(object):
             os.makedirs(filedir)
         
         filename = os.path.join(filedir, path[2]+'.json')
-        with open(filename, 'w', encoding='utf-8') as file:
-            json.dump(data, file, indent=4)
+        with open(filename, 'w', encoding='UTF-8') as file:
+            file.write(json.dumps(data, separators=(',', ':'))) #, indent=2)
+
+
+    def _write_meta(self, data):
+        count = 0
+        for model, manufacturers in data.items():
+            for manufacturer, modules in manufacturers.items():
+                count += len(modules.keys())
+                # Sort the meta data by module name before writing them as JSON
+                modules = OrderedDict(sorted(modules.items(), key=lambda m: m[1]['Name']))
+                
+                meta_file = os.path.join(self.datadir, self.key, model, manufacturer+'.json')
+                with open(meta_file, 'w', encoding='UTF-8') as file:
+                    file.write(json.dumps(modules, separators=(',', ':'))) #, indent=2)
+        
+        return count
 
 
     def _load_cec(self):
@@ -333,35 +348,45 @@ class ModuleDatabase(JsonDatabase):
                 path, meta = self._parse_module_meta(module, 'pvwatts')
                 self._write_module_pvwatts(path, module)
             
-            db_meta['/'.join(path)] = meta
+            self._build_module_meta(db_meta, meta, *path)
             
             logger.debug("Successfully built Module: %s %s", meta['Manufacturer'], meta['Name'])
         
-        # Sort the meta data by module manufacturer and name
-        db_meta = OrderedDict(sorted(db_meta.items(), key=lambda m: (m[1]['Manufacturer'], m[1]['Name'])))
-        
-        file_meta = os.path.join(self.datadir, self.key, 'meta.json')
-        with open(file_meta, 'w', encoding='utf-8') as file:
-            json.dump(db_meta, file, indent=4)
+        db_count = self._write_meta(db_meta)
         
         file_remain = os.path.join(self.datadir, self.key, 'cec_sam_remain.csv')
         db_sam.to_csv(file_remain, encoding = "ISO-8859-1")
         
-        logger.info("Complete module library built for %i entries", len(db_meta.keys()))
+        logger.info("Complete module library built for %i entries", db_count)
         logger.debug("Unable to build %i SAM modules", len(db_sam))
 
 
-    def _parse_module_meta(self, module, model):
-        path = [model, 
-                module['Manufacturer'].lower().replace(' ', '_').replace('/', '-').replace('(', '').replace(')', '').replace('&', 'n'),
-                module['Model Number'].lower().replace(' ', '_').replace('/', '-').replace('(', '').replace(')', '').replace('&', 'n')]
+    def _build_module_meta(self, database, meta, model, manufacturer, name):
+        if model not in database:
+            database[model] = {}
         
+        if manufacturer not in database[model]:
+            database[model][manufacturer] = {}
+        
+        database[model][manufacturer]['/'.join([model, manufacturer, name])] = meta
+
+
+    def _parse_module_meta(self, module, model):
         meta = OrderedDict()
         meta['Name']         = module['Model Number']
         meta['Manufacturer'] = module['Manufacturer']
         meta['Description']  = module['Description']
         meta['BIPV']         = module['BIPV']
         
+        manufacturer = meta['Manufacturer'].lower().replace(' ', '_').replace('/', '-').replace('&', 'n') \
+                                           .replace(',', '').replace('.', '').replace('!', '') \
+                                           .replace('(', '').replace(')', '')
+        
+        name = meta['Name'].lower().replace(' ', '_').replace('/', '-').replace('&', 'n') \
+                                   .replace(',', '').replace('.', '').replace('!', '') \
+                                   .replace('(', '').replace(')', '')
+        
+        path = [model, manufacturer, name]
         return path, meta
 
 
@@ -387,8 +412,8 @@ class ModuleDatabase(JsonDatabase):
         module['R_sh_ref']      = float(cec['R_sh_ref'])
         module['Adjust']        = float(cec['Adjust'])
         module['PTC']           = float(cec['PTC'])
-        module['pdc0']          = float(cec['pdc0']) if 'pdc0' in cec else float(cec['Nameplate Pmax'])
-        module['gamma_pdc']     = float(cec['gamma_pdc']) if 'gamma_pdc' in cec else float(cec['gamma_r'])/100.0
+        module['pdc0']          = float(cec['pdc0']) if not np.isnan(cec['pdc0']) else float(cec['Nameplate Pmax'])
+        module['gamma_pdc']     = float(cec['gamma_pdc']) if not np.isnan(cec['gamma_pdc']) else float(cec['gamma_r'])/100.0
         module['gamma_r']       = float(cec['gamma_r'])
         
         self._write_json(path, module)
@@ -404,7 +429,6 @@ class ModuleDatabase(JsonDatabase):
         module['PTC']           = float(cec['PTC'])
         module['pdc0']          = float(cec['Nameplate Pmax'])
         module['gamma_pdc']     = float(cec['?Pmax'])/100.0
-        module['gamma_r']       = float(cec['?Pmax'])
         
         self._write_json(path, module)
 
