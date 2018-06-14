@@ -31,6 +31,15 @@ var solar = {
 	    });
     },
 
+    'meta':function(callback) {
+    	return $.ajax({
+	        url: path+"solar/module/meta.json",
+	        dataType: 'json',
+	        async: true,
+	        success: callback
+	    });
+    },
+
     'list':function(callback) {
     	return $.ajax({
 	        url: path+"solar/list.json",

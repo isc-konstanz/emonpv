@@ -27,7 +27,7 @@
     }
 
     .modal-adjust {
-        width: 40%; left:30%; /* (100%-width)/2 */
+        width: 60%; left:20%; /* (100%-width)/2 */
         margin-left: auto; margin-right: auto;
         overflow-y: hidden;
     }
@@ -84,10 +84,11 @@
     #system-location td:nth-of-type(3) { width:107px; text-align:left; }
     #system-location td:nth-of-type(4) { width:14px; text-align:center; }
 
-    #system-modules-table td:nth-of-type(1) { width:40%; }
-    #system-modules-table th:nth-of-type(3), td:nth-of-type(3) { width:5%; text-align:right; }
-    #system-modules-table td:nth-of-type(4) { width:14px; text-align:center; }
+    #system-modules-table td:nth-of-type(1) { width:20%; }
+    #system-modules-table td:nth-of-type(2) { width:40%; }
+    #system-modules-table th:nth-of-type(4), td:nth-of-type(4) { width:5%; text-align:right; }
     #system-modules-table td:nth-of-type(5) { width:14px; text-align:center; }
+    #system-modules-table td:nth-of-type(6) { width:14px; text-align:center; }
 
     #system-init-modal table td { text-align: left; }
 
@@ -102,7 +103,7 @@
     #system-init-inputs table td:nth-of-type(4) { width:10%; }
     #system-init-inputs table td:nth-of-type(5) { width:25%; }
     
-    #module-orientation td:nth-of-type(1), #module-count td:nth-of-type(1) { width:109px; text-align:left; }
+    #module-orientation td:nth-of-type(1), #module-count td:nth-of-type(1) { width:117px; text-align:left; }
     #module-orientation td:nth-of-type(2), #module-count td:nth-of-type(2) { width:107px; text-align:left; }
     #module-orientation td:nth-of-type(3), #module-count td:nth-of-type(3) { width:14px; text-align:center; }
     
@@ -262,7 +263,13 @@
                 <button class="btn" id="module-sidebar-open"><i class="icon-list"></i></button>
             </div>
             
-            <span id="module-description"></span>
+            <label><b><?php echo _('Key'); ?></b></label>
+            <input id="module-name" class="input-large" type="text" required>
+            <span id="module-name-tooltip" data-toggle="tooltip" data-placement="bottom">
+                <i class="icon-info-sign" style="vertical-align:top; margin-top:8px; margin-left:2px; cursor:pointer;"></i>
+            </span>
+            
+            <p id="module-description"></p>
             <div class="divider"></div>
             
             <label><b><?php echo _('Count'); ?></b></label>

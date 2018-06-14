@@ -12,10 +12,7 @@ function solar_controller() {
     $solar = new Solar($mysqli, $redis);
 
     if ($route->format == 'html') {
-        if ($route->action == "view" && $session['write']) {
-            $modules = $solar->get_module_meta();
-            $result = view("Modules/solar/Views/solar_view.php", array('modules'=>$modules));
-        }
+        if ($route->action == "view" && $session['write']) $result = view("Modules/solar/Views/solar_view.php", array());
         else if ($route->action == 'api') $result = view("Modules/solar/Views/solar_api.php", array());
     }
     else if ($route->format == 'json') {

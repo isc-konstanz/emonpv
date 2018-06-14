@@ -76,9 +76,11 @@ class Solar {
         return array('success'=>false, 'message'=>'System with that name already exists');
     }
 
-    private function create_module($userid, $systemid, $module) {
-        $stmt = $this->mysqli->prepare("INSERT INTO solar_modules (systemid,inverter,type,tilt,azimuth,albedo,strings,modules) VALUES (?,?,?,?,?,?,?,?)");
-        $stmt->bind_param("issdddii",$systemid,$module['inverter'],$module['type'],$module['tilt'],$module['azimuth'],$module['albedo'],$module['strings'],$module['modules']);
+    private function create_module($userid, $systemid, &$module) {
+        $module['name'] = preg_replace('/[^\p{L}_\p{N}\s-:]/u', '',  $module['name']);
+        
+        $stmt = $this->mysqli->prepare("INSERT INTO solar_modules (systemid,name,type,inverter,tilt,azimuth,albedo,modules_per_string,strings_per_inverter) VALUES (?,?,?,?,?,?,?,?,?)");
+        $stmt->bind_param("isssdddii",$systemid,$module['name'],$module['type'],$module['inverter'],$module['tilt'],$module['azimuth'],$module['albedo'],$module['modules_per_string'],$module['strings_per_inverter']);
         
         $result = $stmt->execute();
         $stmt->close();
@@ -258,10 +260,12 @@ class Solar {
         $feeds = array();
         $feeds[] = $this->prepare_feed($userid, $name.'_forecast');
         
-        $length = count($modules);
-        if ($length > 1) {
-            for ($i = 1; $i <= $length; $i++) {
-                $feeds[] = $this->prepare_feed($userid, $name.$i.'_forecast');
+        if (count($modules) > 1) {
+            foreach ($modules as $module) {
+                $key = strtolower($module['name']);
+                $key = str_replace(' ', '_', $key);
+                
+                $feeds[] = $this->prepare_feed($userid, $name.'_'.$key.'_forecast');
             }
         }
         return $feeds;
@@ -410,15 +414,42 @@ class Solar {
     }
 
     private function get_list_mysql($userid) {
+        global $feed_settings;
+        
+        require_once "Modules/feed/feed_model.php";
+        $feed = new Feed($this->mysqli, $this->redis, $feed_settings);
+        
         $userid = intval($userid);
         
         $systems = array();
         $sysresult = $this->mysqli->query("SELECT `id`,`userid`,`name`,`description`,`longitude`,`latitude`,`altitude` FROM solar_system WHERE userid='$userid' ORDER BY name asc");
         while ($system = (array) $sysresult->fetch_object()) {
             $systemid = intval($system['id']);
+            
+            $feedid = $feed->get_id($userid, $system['name'].'_forecast');
+            if (!$feedid) {
+                $feedid = -1;
+            }
+            $system = array('id'=>$system['id'], 'userid'=>$system['userid'], 'feedid'=>strval($feedid)) + 
+                    array_splice($system, 2, count($system), true);
+            
             $modules = array();
-            $modresult = $this->mysqli->query("SELECT `id`,`inverter`,`type`,`tilt`,`azimuth`,`albedo`,`strings`,`modules` FROM solar_modules WHERE systemid='$systemid'");
-            while ($module = (array) $modresult->fetch_object()) $modules[] = $module;
+            $modresult = $this->mysqli->query("SELECT `id`,`name`,`type`,`inverter`,`tilt`,`azimuth`,`albedo`,`modules_per_string`,`strings_per_inverter` FROM solar_modules WHERE systemid='$systemid'");
+            while ($module = (array) $modresult->fetch_object()) {
+                $key = strtolower($module['name']);
+                $key = str_replace(' ', '_', $key);
+                $feedid = $feed->get_id($userid, $system['name'].'_'.$key.'_forecast');
+                if (!$feedid) {
+                    $feedid = -1;
+                }
+                $module = array('id'=>$module['id'], 'feedid'=>strval($feedid)) + 
+                        array_splice($module, 1, count($module), true);
+                
+                $modules[] = $module;
+            }
+            if (count($modules) == 1) {
+                $modules[0]['feedid'] = $system['feedid'];
+            }
             
             $system['modules'] = $modules;
             $systems[] = $system;
@@ -435,14 +466,11 @@ class Solar {
             $apikey = $user->get_apikey_read($system['userid']);
             
             $systemid = intval($system['id']);
+            unset($system['id'], $system['userid']);
+            
             $modules = array();
-            $modresult = $this->mysqli->query("SELECT `inverter`,`type`,`tilt`,`azimuth`,`albedo`,`strings`,`modules` FROM solar_modules WHERE systemid='$systemid'");
-            while ($module = (array) $modresult->fetch_object()) {$type = $module['type'];
-                list($model, $manufacturer, $modelnumber) = explode('/', $type);
-                unset($module['type']);
-                
-                $modules[] = array_merge(array('model'=>$model), $module, $this->get_module($type));
-            }
+            $modresult = $this->mysqli->query("SELECT `name`,`type` AS `module`,`inverter`,`tilt`,`azimuth`,`albedo`,`modules_per_string`,`strings_per_inverter` FROM solar_modules WHERE systemid='$systemid'");
+            while ($module = (array) $modresult->fetch_object())  $modules[] = $module;
             
             $system['apikey'] = $apikey;
             $system['modules'] = $modules;
@@ -452,6 +480,11 @@ class Solar {
     }
 
     public function get($id) {
+        global $feed_settings;
+        
+        require_once "Modules/feed/feed_model.php";
+        $feed = new Feed($this->mysqli, $this->redis, $feed_settings);
+        
         $id = intval($id);
         
 //         if ($this->redis) {
@@ -463,15 +496,35 @@ class Solar {
             $result = $this->mysqli->query("SELECT `id`,`userid`,`name`,`description`,`longitude`,`latitude`,`altitude` FROM solar_system WHERE id = '$id'");
             $system = (array) $result->fetch_object();
             
-            $modules = array();
-            $result = $this->mysqli->query("SELECT `id`,`inverter`,`type`,`tilt`,`azimuth`,`albedo`,`strings`,`modules` FROM solar_modules WHERE systemid='$id'");
-            while ($module = (array) $result->fetch_object()) {
-                $type = $module['type'];
-                list($method, $manufacturer, $model) = explode('/', $type);
-                unset($module['id'], $module['userid'], $module['systemid'], $module['type']);
-                
-                $modules[] = array_merge(array('method'=>$method), $module, $this->get_module($type));
+            $feedid = $feed->get_id($system['userid'], $system['name'].'_forecast');
+            if (!$feedid) {
+                $feedid = -1;
             }
+            $system = array('id'=>$system['id'], 'userid'=>$system['userid'], 'feedid'=>strval($feedid)) +
+            array_splice($system, 2, count($system), true);
+            
+            $modules = array();
+            $result = $this->mysqli->query("SELECT `id`,`name`,`type`,`inverter`,`tilt`,`azimuth`,`albedo`,`modules_per_string`,`strings_per_inverter` FROM solar_modules WHERE systemid='$id'");
+            while ($module = (array) $result->fetch_object()) {
+                $key = strtolower($module['name']);
+                $key = str_replace(' ', '_', $key);
+                $feedid = $feed->get_id($system['userid'], $system['name'].'_'.$key.'_forecast');
+                if (!$feedid) {
+                    $feedid = -1;
+                }
+                $module = array('id'=>$module['id'], 'feedid'=>strval($feedid)) +
+                array_splice($module, 1, count($module), true);
+                
+//                 $type = $module['type'];
+//                 unset($module['id'], $module['type']);
+//                 
+//                 $modules[] = array_merge($module, $this->get_module($type));
+                $modules[] = $module;
+            }
+            if (count($modules) == 1) {
+                $modules[0]['feedid'] = $system['feedid'];
+            }
+            
             $system['modules'] = $modules;
             //         }
         return $system;
@@ -481,13 +534,15 @@ class Solar {
         $meta = array();
         
         $dir = $this->get_module_dir();
-        $it = new DirectoryIterator($dir);
-        foreach ($it as $file) {
-            if (file_exists($file->getPathname()) && $file->getExtension() == "json") {
-                $method = strtolower(basename($file->getBasename('.json')));
-                $meta[$method] = (array) json_decode(file_get_contents($file->getPathname()));;
+        foreach (new DirectoryIterator($dir) as $models) {
+            if ($models->isDir() && !$models->isDot()) {
+                foreach (glob($dir.$models.'/*.json') as $file) {
+                    $meta[basename($file, ".json")] = (array) json_decode(file_get_contents($file), true);
+                }
             }
         }
+        ksort($meta);
+        
         return $meta;
     }
 
@@ -501,7 +556,7 @@ class Solar {
                 foreach (new RecursiveIteratorIterator($it) as $file) {
                     if (file_exists($file) && $file->getExtension() == "json") {
                         $type = substr(pathinfo($file, PATHINFO_DIRNAME), strlen($dir)).'/'.pathinfo($file, PATHINFO_FILENAME);
-                        $list[$type] = (array) json_decode(file_get_contents($file->getPathname()));
+                        $list[$type] = (array) json_decode(file_get_contents($file->getPathname()), true);
                     }
                 }
             }
@@ -514,7 +569,7 @@ class Solar {
         $file = $dir.$type.'.json';
         
         if (file_exists($file)) {
-            return (array) json_decode(file_get_contents($file));
+            return (array) json_decode(file_get_contents($file), true);
         }
         return array("success"=>false, "message"=>"Module for type ".$type." does not exist");
     }

@@ -1,5 +1,7 @@
 var dialog =
 {
+	moduleNavStart: 0,
+	moduleNavEnd: 100,
 	moduleMeta: null,
     moduleType: null,
     module: null,
@@ -21,6 +23,9 @@ var dialog =
         this.template = null;
         this.module = null;
         this.moduleType = null;
+        
+        this.moduleNavStart = 0;
+        this.moduleNavEnd = 100;
         
         this.drawSystemConfig();
     },
@@ -60,8 +65,7 @@ var dialog =
             $("#system-init").hide();
         }
         this.drawSystemModules();
-        
-        this.loadModuleSidebar();
+        this.drawModuleSidebar();
     },
 
     'drawSystemModules':function() {
@@ -71,6 +75,7 @@ var dialog =
             table.html("<tr id='system-modules-header'></tr>");
             
             var row = $("#system-modules-header");
+            row.append("<th>Name</th>");
             row.append("<th>Manufacturer</th>");
             row.append("<th>Model</th>");
             row.append("<th>Count</th>");
@@ -79,13 +84,15 @@ var dialog =
             
             for (var i = 0; i < dialog.modules.length; i++) {
             	var type = dialog.modules[i].type;
-            	var module = dialog.getModule(type);
+            	var group = type.split('/')[1]
+            	var module = dialog.moduleMeta[group][type];
             	
                 table.append("<tr id='system-modules-row-"+i+"' row='"+i+"'></tr>");
                 row = $("#system-modules-row-"+i);
+            	row.append("<td>" + dialog.modules[i].name + "</td>");
             	row.append("<td>" + module.Manufacturer + "</td>");
-                row.append("<td>" + module.Model_Number + "</td>");
-                row.append("<td>" + dialog.modules[i].strings*dialog.modules[i].modules + "</td>");
+                row.append("<td>" + module.Name + "</td>");
+                row.append("<td>" + dialog.modules[i].modules_per_string*dialog.modules[i].strings_per_inverter + "</td>");
                 row.append("<td><a class='module-edit' title='Edit'><i class='icon-wrench' style='cursor:pointer'></i></a></td>");
                 row.append("<td><a class='module-remove' title='Remove'><i class='icon-trash' style='cursor:pointer'></i></a></td>");
             }
@@ -409,17 +416,6 @@ var dialog =
         });
     },
 
-    'getModule':function(type) {
-        var t = type.split('/');
-        if (dialog.moduleMeta.hasOwnProperty(t[0]) &&
-        		dialog.moduleMeta[t[0]].hasOwnProperty(t[1]) &&
-        		dialog.moduleMeta[t[0]][t[1]].hasOwnProperty(t[2])) {
-        	
-        	return dialog.moduleMeta[t[0]][t[1]][t[2]];
-        }
-        return null;
-    },
-
     'loadModuleConfig':function(module) {
     	if (module != null) {
     		dialog.module = module;
@@ -432,52 +428,13 @@ var dialog =
     	dialog.drawModuleConfig();
     },
 
-    'loadModuleSidebar':function(module) {
-        var table = "";
-        var modules = dialog.moduleMeta;
-        for (var method in modules) {
-            if (modules.hasOwnProperty(method)) {
-            	
-                for (var manufacturer in modules[method]) {
-                    if (modules[method].hasOwnProperty(manufacturer)) {
-                    	var header = false;
-                    	
-                        for (var number in modules[method][manufacturer]) {
-                            if (modules[method][manufacturer].hasOwnProperty(number)) {
-                            	var module = modules[method][manufacturer][number];
-                                var id = [method, manufacturer, number].join('/');
-                            	
-                            	if (!header) {
-                                    header = true;
-                                    
-                                    table += "<tbody>"
-                                    table += "<tr class='module-header' manufacturer='"+manufacturer+"' style='background-color:#ccc; cursor:pointer'>";
-                                    table += "<td style='font-size:12px; padding:4px; padding-left:8px; font-weight:bold'>"+module.Manufacturer+"</td>";
-                                    table += "</tr>";
-                                    table += "</tbody>";
-                                    
-                                    table += "<tbody class='module-body' manufacturer='"+manufacturer+"' style='display:none'>";
-                            	}
-                                
-                                table += "<tr class='module-row' type='"+id+"'>";
-                                table += "<td style='padding-left:12px; cursor:pointer'>"+module.Model_Number+"</td>";
-                                table += "</tr>";
-                            }
-                        }
-                        table += "</tbody>";  
-                    }
-                }
-            }
-        }
-        $("#module-table").html(table);
-
-        // Initialize callbacks
-        dialog.registerModuleEvents();
-    },
-
     'drawModuleConfig':function() {
         $("#module-modal").modal('show');
         dialog.adjustModuleModal();
+        
+        $('#module-name-tooltip').attr("title", 
+        		"The key that will be used to clearly distinguish different module groups from each other.<br>" +
+        		'This may be e.g. "east", "west" or inverter inventory numbers').tooltip({html: true});
         
         $('#module-count-tooltip').attr("title", 
 		        "The <b>number of strings</b> and the <b>number of solar modules in each string</b>, " +
@@ -492,8 +449,9 @@ var dialog =
         		"The modules ground reflectance, depending on the ground the system is installed upon.").tooltip({html: true});
         
         if (dialog.module != null) {
-            $('#module-strings').val(dialog.module.strings);
-            $('#module-number').val(dialog.module.modules);
+            $('#module-name').val(dialog.module.name);
+            $('#module-strings').val(dialog.module.strings_per_inverter);
+            $('#module-number').val(dialog.module.modules_per_string);
             $('#module-tilt').val(dialog.module.tilt);
             $('#module-azimuth').val(dialog.module.azimuth);
             $('#module-albedo').val(dialog.module.albedo);
@@ -503,6 +461,7 @@ var dialog =
             $("#module-modal-label").html("Configure Solar Module");
         }
         else {
+            $('#module-name').val('');
             $('#module-strings').val(1);
             $('#module-number').val(1);
             $('#module-tilt').val('');
@@ -514,13 +473,20 @@ var dialog =
             $("#module-modal-label").html("Add Solar Module");
         }
         if (dialog.moduleType != null && dialog.moduleType != '') {
-            var type = dialog.moduleType.split('/');
-            var module = modules[type[0]][type[1]][type[2]];
+            var group = dialog.moduleType.split('/')[1];
+            var module = dialog.moduleMeta[group][dialog.moduleType];
+
+            $('#module-description').html(module.Name+'<br><em style="color:#888">'+module.Description+'</em>');
             
-            $(".module-body[manufacturer='"+type[1]+"']").show();
+            var groups = Object.keys(dialog.moduleMeta);
+        	var index = groups.indexOf(group);
+        	dialog.moduleNavStart = Math.floor(index/10)*10;
+        	dialog.moduleNavEnd = dialog.moduleNavStart + 100;
+        	dialog.drawModuleSidebar();
+            
+            $(".module-body[group='"+group+"']").show();
             $(".module-row[type='"+dialog.moduleType+"']").addClass("module-selected");
-            
-            $('#module-description').html('<em style="color:#888">'+module.Description+'</em>');
+            $("#module-sidebar").scrollTop();
         }
         else {
             $(".module-body").hide();
@@ -528,6 +494,49 @@ var dialog =
             
             $('#module-description').text('');
         }
+    },
+
+    'drawModuleSidebar':function() {
+        var table = "";
+        var groups = Object.keys(dialog.moduleMeta);
+        
+        for (var i = dialog.moduleNavStart; i < dialog.moduleNavEnd; i++) {
+        	var group = groups[i];
+        	
+	        if (dialog.moduleMeta.hasOwnProperty(group)) {
+	        	var modules = dialog.moduleMeta[group];
+	        	
+	        	var header = false
+	        	for (id in modules) {
+	    	        if (modules.hasOwnProperty(id)) {
+	    	        	var module = modules[id];
+	    	        	
+	    	        	if (!header) {
+	    	        		header = true;
+	    	        		
+	    	                table += "<tbody>"
+	    	                table += "<tr class='module-header' group='"+group+"' style='background-color:#ccc; cursor:pointer'>";
+	    	                table += "<td style='font-size:12px; padding:4px; padding-left:8px; font-weight:bold'>"+module.Manufacturer+"</td>";
+	    	                table += "</tr>";
+	    	                table += "</tbody>";
+	    	                
+	    	                table += "<tbody class='module-body' group='"+group+"' style='display:none'>";
+	    	        	}
+	    	        	
+			            table += "<tr class='module-row' type='"+id+"' group='"+group+"' >";
+			            table += "<td style='padding-left:12px; cursor:pointer style='display:none'>"+module.Name+"</td>";
+			            table += "</tr>";
+			        }
+    	        }
+		        table += "</tbody>";
+	        }
+        }
+        table += "</tbody>";
+        
+        $("#module-table").html(table);
+        
+        // Initialize callbacks
+        dialog.registerModuleEvents();
     },
 
     'adjustModuleModal':function() {
@@ -560,9 +569,9 @@ var dialog =
     'registerModuleEvents':function() {
 
         $('#module-table .module-header').off('click').on('click', function() {
-            var manufacturer = $(this).attr("manufacturer");
+            var group = $(this).attr("group");
             
-            var e = $(".module-body[manufacturer='"+manufacturer+"']");
+            var e = $(".module-body[group='"+group+"']");
             if (e.is(":visible")) {
                 e.hide();
             }
@@ -571,8 +580,7 @@ var dialog =
                 
                 // If a module is selected and in the group to uncollapse, show and select it
                 if (dialog.moduleType != null && dialog.moduleType != '') {
-                    var type = dialog.moduleType.split('/');
-                    var module = dialog.moduleMeta[type[0]][type[1]][type[2]];
+                    var module = dialog.moduleMeta[group][dialog.moduleType];
                     if (module && type[1] == module.Manufacturer) {
                         $(".module-row[type='"+dialog.moduleType+"']").addClass("module-selected");
                     }
@@ -587,16 +595,53 @@ var dialog =
             if (dialog.moduleType !== type) {
                 $(this).addClass("module-selected");
                 dialog.moduleType = type;
-                
-                var module = dialog.getModule(type);
-                $('#module-description').html('<em style="color:#888">'+module.Description+'</em>');
+
+                var group = $(this).attr("group");
+                var module = dialog.moduleMeta[group][type];
+                $('#module-description').html(module.Name+'<br><em style="color:#888">'+module.Description+'</em>');
                 $("#module-save").prop('disabled', false);
             }
             else {
                 dialog.moduleType = null;
+                $('#module-type').text('');
                 $('#module-description').text('');
                 $("#module-save").prop('disabled', true);
             }
+        });
+
+        $("#module-sidebar").off('scroll').on('scroll', function (e) {
+            e.stopPropagation();
+            e.preventDefault();
+            
+        	var navigation = $(this);
+        	var height = (navigation.scrollTop() + navigation.innerHeight())/navigation.prop('scrollHeight')*100;
+        	if ((height < 5 && dialog.moduleNavStart > 0) || height > 95) {
+                if (!navigation.data('redraw')) {
+                    navigation.data('redraw', true);
+                    
+                    var alreadyRedrawnTimeout = setTimeout(function() {
+                        var length = Object.keys(dialog.moduleMeta).length;
+                        if (height < 5) {
+                        	dialog.moduleNavStart = Math.max(0, dialog.moduleNavStart-10);
+                        	if (dialog.moduleNavEnd - dialog.moduleNavStart > 250) {
+                        		dialog.moduleNavEnd = dialog.moduleNavStart + 250;
+                        	}
+                    	}
+                        else if (height > 95) {
+                        	dialog.moduleNavEnd = Math.min(dialog.moduleNavEnd+10, length);
+                        	if (dialog.moduleNavEnd - dialog.moduleNavStart > 250) {
+                        		dialog.moduleNavStart = dialog.moduleNavEnd - 250;
+                        	}
+                    	}
+                    	dialog.drawModuleSidebar();
+                    	
+//                    	navigation.animate({ scrollTop: navigation.scrollTop()+offset }, 250);
+                        navigation.data('redraw', false); // reset when it happens
+                    	
+                    }, 250); // tolerance
+                    navigation.data('alreadyRedrawnTimeout', alreadyRedrawnTimeout); // store this id to clear if necessary
+                }
+        	}
         });
 
         $("#module-sidebar-open").off('click').on('click', function() {
@@ -610,37 +655,40 @@ var dialog =
         });
 
         $("#module-save").off('click').on('click', function() {
+            var name = $('#module-name').val();
             var tilt = $('#module-tilt').val();
             var azimuth = $('#module-azimuth').val();
             var albedo = $('#module-albedo').val();
             var strings = $('#module-strings').val();
             var modules = $('#module-number').val();
             
-            if (dialog.moduleType && tilt && azimuth && albedo && strings && modules) {
+            if (name && dialog.moduleType && tilt && azimuth && albedo && strings && modules) {
             	var module;
             	if (dialog.module != null) {
             		module = dialog.module;
             	}
             	else {
                     module = {
-                    		'inverter': '',
+                            'name': name,
                             'type': dialog.moduleType,
+                    		'inverter': '',
                             'tilt': tilt,
                             'azimuth': azimuth,
                             'albedo': albedo,
-                            'strings': strings,
-                            'modules': modules
+                            'modules_per_string': modules,
+                            'strings_per_inverter': strings
                     };
             	}
                 
                 var index = -1;
                 for (var i = 0; i < dialog.modules.length; i++) {
-                	if (module.type === dialog.modules[i].type &&
+                	if (module.name === dialog.modules[i].name &&
+                			module.type === dialog.modules[i].type &&
                 			module.tilt === dialog.modules[i].tilt &&
                 			module.azimuth === dialog.modules[i].azimuth &&
                 			module.albedo === dialog.modules[i].albedo &&
-                			module.strings === dialog.modules[i].strings &&
-                			module.modules === dialog.modules[i].modules) {
+                			module.modules_per_string === dialog.modules[i].modules_per_string &&
+                			module.strings_per_inverter === dialog.modules[i].strings_per_inverter) {
                 		
                 		index = i;
                 		break;
@@ -648,12 +696,13 @@ var dialog =
                 }
                 if (index >= 0) {
                 	if (dialog.module != null) {
+                        module['name'] = name;
                         module['type'] = dialog.moduleType;
                     	module['tilt'] = tilt;
                 		module['azimuth'] = azimuth;
             			module['albedo'] = albedo;
-                        module['strings'] = strings;
-                        module['modules'] = modules;
+                        module['modules_per_string'] = strings;
+                        module['strings_per_inverter'] = modules;
             			
                     	dialog.modules[index] = module;
                 	}
@@ -678,6 +727,7 @@ var dialog =
         
         $("#module-cancel").off('click').on('click', function() {
             $('#system-modal').modal('show');
+            dialog.adjustSystemModal();
             dialog.drawSystemModules();
         });
         

@@ -40,11 +40,13 @@
 <script>
     const INTERVAL = 10000;
     var path = "<?php echo $path; ?>";
-    var modules = <?php echo json_encode($modules); ?>;
-    dialog.moduleMeta = modules;
-	
+    
+    solar.meta(function(result) {
+        dialog.moduleMeta = result;
+    });
+    
     var systems = {};
-	
+    
     // Extend table library field types
     for (z in customtablefields) table.fieldtypes[z] = customtablefields[z];
     table.element = "#system-list";
@@ -60,7 +62,7 @@
     function update() {
         var requestTime = (new Date()).getTime();
         solar.list(function(result, textStatus, xhr) {
-        	// Offset in ms from local to server time
+            // Offset in ms from local to server time
             table.timeServerLocalOffset = requestTime-(new Date(xhr.getResponseHeader('Date'))).getTime();
             table.data = result;
             

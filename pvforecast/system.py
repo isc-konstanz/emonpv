@@ -123,8 +123,8 @@ class System(list):
         super(System, self).append(pv.pvsystem.PVSystem(surface_tilt = float(config['tilt']), 
                                                         surface_azimuth = float(config['azimuth']), 
                                                         albedo = float(config['albedo']), 
-                                                        modules_per_string = int(config['modules']), 
-                                                        strings_per_inverter = int(config['strings']), 
+                                                        modules_per_string = int(config['modules_per_string']), 
+                                                        strings_per_inverter = int(config['strings_per_inverter']), 
                                                         module_parameters = module, 
                                                         inverter_parameters = inverter, 
                                                         name = name))
