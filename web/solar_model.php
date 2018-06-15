@@ -17,13 +17,18 @@ class Solar {
     const DEFAULT_NODE = "pvforecast";
     const DEFAULT_TAG = "forecast";
 
+    const DEFAULT_INTERVAL = 60;
+    const DEFAULT_HORIZON = 72;
+
     public $mysqli;
     public $redis;
+    public $feed;
     private $log;
 
-    public function __construct($mysqli, $redis) {
+    public function __construct($mysqli, $redis, $feed) {
         $this->mysqli = $mysqli;
         $this->redis = $redis;
+        $this->feed = $feed;
         $this->log = new EmonLogger(__FILE__);
     }
 
@@ -129,11 +134,6 @@ class Solar {
     }
 
     private function create_feeds($userid, &$feeds) {
-        global $feed_settings;
-        
-        require_once "Modules/feed/feed_model.php";
-        $feed = new Feed($this->mysqli, $this->redis, $feed_settings);
-        
         for ($i = 0; $i < count($feeds); $i++) {
             if (!is_array($feeds[$i])) {
                 $feeds[$i] = (array) $feeds[$i];
@@ -145,7 +145,7 @@ class Solar {
                     $options['interval'] = $feeds[$i]['interval'];
                 }
                 
-                $result = $feed->create($userid, $feeds[$i]['tag'], $feeds[$i]['name'], intval($feeds[$i]['type']), intval($feeds[$i]['engine']), $options);
+                $result = $this->feed->create($userid, $feeds[$i]['tag'], $feeds[$i]['name'], intval($feeds[$i]['type']), intval($feeds[$i]['engine']), $options);
                 if($result["success"] === true) {
                     // Assign the created input id to the inputs array
                     $feeds[$i]['id'] = $result["feedid"];
@@ -272,12 +272,7 @@ class Solar {
     }
 
     private function prepare_feed($userid, $name) {
-        global $feed_settings;
-        
-        require_once "Modules/feed/feed_model.php";
-        $feed = new Feed($this->mysqli, $this->redis, $feed_settings);
-        
-        $feedid = $feed->exists_tag_name($userid, self::DEFAULT_TAG, $name);
+        $feedid = $this->feed->exists_tag_name($userid, self::DEFAULT_TAG, $name);
         if ($feedid == false) {
             $feedid = -1;
             $action = 'create';
@@ -405,6 +400,29 @@ class Solar {
         if ($result && $id > 0) return $id; else return false;
     }
 
+    public function get_data($userid, $name) {
+        global $pvforecast_interval, $pvforecast_horizon;
+        if (isset($pvforecast_interval)) {
+            $interval = $pvforecast_interval;
+        }
+        else {
+            $interval = self::DEFAULT_INTERVAL;
+        }
+        if (isset($pvforecast_horizon)) {
+            $horizon = $pvforecast_horizon;
+        }
+        else {
+            $horizon = self::DEFAULT_HORIZON;
+        }
+        $system = $this->get_system($userid, $name);
+        
+        $start = time();
+        $start -= ($start/60 % $interval)*60;
+        $end = $start + $horizon*3600;
+        
+        return $this->feed->get_data($system['feedid'], $start, $end, $interval, 1, 1);
+    }
+
     public function get_list($userid) {
 //         if ($this->redis) {
 //             return $this->get_list_redis($userid);
@@ -414,55 +432,23 @@ class Solar {
     }
 
     private function get_list_mysql($userid) {
-        global $feed_settings;
-        
-        require_once "Modules/feed/feed_model.php";
-        $feed = new Feed($this->mysqli, $this->redis, $feed_settings);
-        
         $userid = intval($userid);
         
         $systems = array();
         $sysresult = $this->mysqli->query("SELECT `id`,`userid`,`name`,`description`,`longitude`,`latitude`,`altitude` FROM solar_system WHERE userid='$userid' ORDER BY name asc");
         while ($system = (array) $sysresult->fetch_object()) {
-            $systemid = intval($system['id']);
-            
-            $feedid = $feed->get_id($userid, $system['name'].'_forecast');
-            if (!$feedid) {
-                $feedid = -1;
-            }
-            $system = array('id'=>$system['id'], 'userid'=>$system['userid'], 'feedid'=>strval($feedid)) + 
-                    array_splice($system, 2, count($system), true);
-            
-            $modules = array();
-            $modresult = $this->mysqli->query("SELECT `id`,`name`,`type`,`inverter`,`tilt`,`azimuth`,`albedo`,`modules_per_string`,`strings_per_inverter` FROM solar_modules WHERE systemid='$systemid'");
-            while ($module = (array) $modresult->fetch_object()) {
-                $key = strtolower($module['name']);
-                $key = str_replace(' ', '_', $key);
-                $feedid = $feed->get_id($userid, $system['name'].'_'.$key.'_forecast');
-                if (!$feedid) {
-                    $feedid = -1;
-                }
-                $module = array('id'=>$module['id'], 'feedid'=>strval($feedid)) + 
-                        array_splice($module, 1, count($module), true);
-                
-                $modules[] = $module;
-            }
-            if (count($modules) == 1) {
-                $modules[0]['feedid'] = $system['feedid'];
-            }
-            
-            $system['modules'] = $modules;
-            $systems[] = $system;
+            $systems[] = $this->parse_system($system);
         }
         return $systems;
     }
 
     public function get_config() {
+        global $user;
+        
         $systems = array();
         $sysresult = $this->mysqli->query("SELECT `id`,`userid`,`name`,`description`,`longitude`,`latitude`,`altitude` FROM solar_system ORDER BY name asc");
         while ($system = (array) $sysresult->fetch_object()) {
             // TODO: Return devicekeys instead of the potent writekey
-            global $user;
             $apikey = $user->get_apikey_read($system['userid']);
             
             $systemid = intval($system['id']);
@@ -470,7 +456,9 @@ class Solar {
             
             $modules = array();
             $modresult = $this->mysqli->query("SELECT `name`,`type` AS `module`,`inverter`,`tilt`,`azimuth`,`albedo`,`modules_per_string`,`strings_per_inverter` FROM solar_modules WHERE systemid='$systemid'");
-            while ($module = (array) $modresult->fetch_object())  $modules[] = $module;
+            while ($module = (array) $modresult->fetch_object()) {
+                $modules[] = $module;
+            }
             
             $system['apikey'] = $apikey;
             $system['modules'] = $modules;
@@ -480,11 +468,6 @@ class Solar {
     }
 
     public function get($id) {
-        global $feed_settings;
-        
-        require_once "Modules/feed/feed_model.php";
-        $feed = new Feed($this->mysqli, $this->redis, $feed_settings);
-        
         $id = intval($id);
         
 //         if ($this->redis) {
@@ -496,38 +479,61 @@ class Solar {
             $result = $this->mysqli->query("SELECT `id`,`userid`,`name`,`description`,`longitude`,`latitude`,`altitude` FROM solar_system WHERE id = '$id'");
             $system = (array) $result->fetch_object();
             
-            $feedid = $feed->get_id($system['userid'], $system['name'].'_forecast');
-            if (!$feedid) {
-                $feedid = -1;
-            }
-            $system = array('id'=>$system['id'], 'userid'=>$system['userid'], 'feedid'=>strval($feedid)) +
-            array_splice($system, 2, count($system), true);
-            
-            $modules = array();
-            $result = $this->mysqli->query("SELECT `id`,`name`,`type`,`inverter`,`tilt`,`azimuth`,`albedo`,`modules_per_string`,`strings_per_inverter` FROM solar_modules WHERE systemid='$id'");
-            while ($module = (array) $result->fetch_object()) {
-                $key = strtolower($module['name']);
-                $key = str_replace(' ', '_', $key);
-                $feedid = $feed->get_id($system['userid'], $system['name'].'_'.$key.'_forecast');
-                if (!$feedid) {
-                    $feedid = -1;
-                }
-                $module = array('id'=>$module['id'], 'feedid'=>strval($feedid)) +
-                array_splice($module, 1, count($module), true);
-                
-//                 $type = $module['type'];
-//                 unset($module['id'], $module['type']);
-//                 
-//                 $modules[] = array_merge($module, $this->get_module($type));
-                $modules[] = $module;
-            }
-            if (count($modules) == 1) {
-                $modules[0]['feedid'] = $system['feedid'];
-            }
-            
-            $system['modules'] = $modules;
             //         }
-        return $system;
+            return $this->parse_system($system);
+    }
+
+    public function get_system($userid, $name) {
+        $userid = intval($userid);
+        $name = preg_replace('/[^\p{L}_\p{N}\s-:]/u', '', $name);
+        
+        $stmt = $this->mysqli->prepare("SELECT id FROM solar_system WHERE userid=? AND name=?");
+        $stmt->bind_param("is",$userid,$name);
+        $stmt->execute();
+        $stmt->bind_result($id);
+        $result = $stmt->fetch();
+        $stmt->close();
+        
+        if ($result && $id>0) {
+            return $this->get($id);
+        }
+        return array('success'=>false, 'message'=>'System does not exist');
+    }
+
+    private function parse_system($system) {
+        $userid = intval($system['userid']);
+        $id = intval($system['id']);
+        
+        $feedid = $this->feed->get_id($userid, $system['name'].'_forecast');
+        if (!$feedid) {
+            $feedid = -1;
+        }
+        
+        return array(
+            'id' => $id,
+            'userid' => $userid,
+            'feedid' => $feedid,
+            'name' => $system['name'],
+            'description' => $system['description'],
+            'longitude' => floatval($system['longitude']),
+            'latitude' => floatval($system['latitude']),
+            'altitude' => floatval($system['altitude']),
+            'modules' => $this->get_system_modules($system)
+        );
+    }
+
+    private function get_system_modules($system) {
+        $modules = array();
+        
+        $result = $this->mysqli->query("SELECT `id`,`name`,`type`,`inverter`,`tilt`,`azimuth`,`albedo`,`modules_per_string`,`strings_per_inverter` FROM solar_modules WHERE systemid='".$system['id']."'");
+        while ($module = (array) $result->fetch_object()) {
+//             $type = $module['type'];
+//             unset($module['id'], $module['type']);
+//             
+//             $modules[] = array_merge($module, $this->get_module($type));
+            $modules[] = $this->parse_module($system, $module);
+        }
+        return $modules;
     }
 
     public function get_module_meta() {
@@ -575,9 +581,9 @@ class Solar {
     }
 
     private function get_module_dir() {
-        global $module_dir;
-        if (isset($module_dir) && $module_dir !== "") {
-            $module_dir = $module_dir;
+        global $pvforecast_dir;
+        if (isset($pvforecast_dir) && $pvforecast_dir !== "") {
+            $module_dir = $pvforecast_dir;
         }
         else {
             $module_dir = self::DEFAULT_DIR;
@@ -586,6 +592,29 @@ class Solar {
             $module_dir .= "/";
         }
         return $module_dir."lib/modules/";
+    }
+
+    private function parse_module($system, $module) {
+        $id = intval($module['id']);
+        $key = str_replace(' ', '_', strtolower($module['name']));
+        
+        $feedid = $this->feed->get_id($system['userid'], $system['name'].'_'.$key.'_forecast');
+        if (!$feedid) {
+            $feedid = -1;
+        }
+        
+        return array(
+            'id' => $id,
+            'feedid' => $feedid,
+            'name' => $module['name'],
+            'type' => $module['type'],
+            'inverter' => $module['inverter'],
+            'tilt' => floatval($module['tilt']),
+            'azimuth' => floatval($module['azimuth']),
+            'albedo' => floatval($module['albedo']),
+            'modules_per_string' => intval($module['modules_per_string']),
+            'strings_per_inverter' => intval($module['strings_per_inverter'])
+        );
     }
 
     public function set_fields($id, $fields) {

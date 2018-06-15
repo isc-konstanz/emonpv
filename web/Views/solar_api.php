@@ -32,6 +32,7 @@
     <tr><td><?php echo _('Prepare system initialization'); ?></td><td><a href="<?php echo $path; ?>solar/prepare.json?id=1"><?php echo $path; ?>solar/prepare.json?id=1</a></td></tr>
     <tr><td><?php echo _('List systems'); ?></td><td><a href="<?php echo $path; ?>solar/list.json"><?php echo $path; ?>solar/list.json</a></td></tr>
     <tr><td><?php echo _('Get system details'); ?></td><td><a href="<?php echo $path; ?>solar/get.json?id=1"><?php echo $path; ?>solar/get.json?id=1</a></td></tr>
+    <tr><td><?php echo _('Get system forecast'); ?></td><td><a href="<?php echo $path; ?>solar/forecast.json?system=Roof"><?php echo $path; ?>solar/forecast.json?system=Roof</a></td></tr>
     <tr><td><?php echo _('Update system'); ?></td><td><a href="<?php echo $path; ?>solar/set.json?id=1&fields={%22name%22:%22Facade%22,%22description%22:%22East%22}"><?php echo $path; ?>solar/set.json?id=1&fields={"name":"Facade","description":"East"}</a></td></tr>
     <tr><td><?php echo _('Delete system'); ?></td><td><a href="<?php echo $path; ?>solar/delete.json?id=1"><?php echo $path; ?>solar/delete.json?id=1</a></td></tr>
 </table>

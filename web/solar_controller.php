@@ -4,12 +4,15 @@
 defined('EMONCMS_EXEC') or die('Restricted access');
 
 function solar_controller() {
-    global $session, $route, $mysqli, $redis;
+    global $mysqli, $redis, $session, $route, $feed_settings;
 
     $result = false;
 
+    require_once "Modules/feed/feed_model.php";
+    $feed = new Feed($mysqli, $redis, $feed_settings);
+
     require_once "Modules/solar/solar_model.php";
-    $solar = new Solar($mysqli, $redis);
+    $solar = new Solar($mysqli, $redis, $feed);
 
     if ($route->format == 'html') {
         if ($route->action == "view" && $session['write']) $result = view("Modules/solar/Views/solar_view.php", array());
@@ -24,6 +27,9 @@ function solar_controller() {
         }
         else if ($route->action == 'config') {
             if ($session['admin']) $result = $solar->get_config();
+        }
+        else if ($route->action == 'forecast') {
+            if ($session['userid']>0) $result = $solar->get_data($session['userid'], prop('system'));
         }
         else if (prop('id') !== null) {
             $systemid = intval(prop('id'));
