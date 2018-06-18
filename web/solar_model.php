@@ -415,12 +415,18 @@ class Solar {
             $horizon = self::DEFAULT_HORIZON;
         }
         $system = $this->get_system($userid, $name);
+        if (isset($system['success'])) {
+            return $system;
+        }
         
         $start = time();
         $start -= ($start/60 % $interval)*60;
         $end = $start + $horizon*3600;
         
-        return $this->feed->get_data($system['feedid'], $start, $end, $interval, 1, 1);
+        # Offset the start by 1 minute, as the current hour may be skipped otherwise
+        $start -= 60;
+        
+        return $this->feed->get_data($system['feedid'], $start*1000, $end*1000, $interval*60, 1, 1);
     }
 
     public function get_config() {
