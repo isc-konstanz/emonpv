@@ -48,7 +48,7 @@ class Solar {
         }
         $location = (array) json_decode(stripslashes($location));
         
-        if (!isset($location['longitude']) || !isset($location['latitude']) || !isset($location['altitude'])) {
+        if (!isset($location['latitude']) || !isset($location['longitude']) || !isset($location['altitude'])) {
             return array('success'=>false, 'message'=>"The systems location specification is incomplete");
         }
         
@@ -60,8 +60,8 @@ class Solar {
         }
         
         if (!$this->exists_name($userid, $name)) {
-            $stmt = $this->mysqli->prepare("INSERT INTO solar_system (userid,name,description,longitude,latitude,altitude) VALUES (?,?,?,?,?,?)");
-            $stmt->bind_param("issddd",$userid,$name,$description,$location['longitude'],$location['latitude'],$location['altitude']);
+            $stmt = $this->mysqli->prepare("INSERT INTO solar_system (userid,name,description,latitude,longitude,altitude) VALUES (?,?,?,?,?,?)");
+            $stmt->bind_param("issddd",$userid,$name,$description,$location['latitude'],$location['longitude'],$location['altitude']);
             $result = $stmt->execute();
             $stmt->close();
             if (!$result) return array('success'=>false, 'message'=>_("Error creating system"));
@@ -81,11 +81,11 @@ class Solar {
         return array('success'=>false, 'message'=>'System with that name already exists');
     }
 
-    private function create_module($userid, $systemid, &$module) {
-        $module['name'] = preg_replace('/[^\p{L}_\p{N}\s-:]/u', '',  $module['name']);
+    private function create_module($userid, $systemid, $module) {
+        $name = preg_replace('/[^\p{L}_\p{N}\s-:]/u', '', $module['name']);
         
         $stmt = $this->mysqli->prepare("INSERT INTO solar_modules (systemid,name,type,inverter,tilt,azimuth,albedo,modules_per_string,strings_per_inverter) VALUES (?,?,?,?,?,?,?,?,?)");
-        $stmt->bind_param("isssdddii",$systemid,$module['name'],$module['type'],$module['inverter'],$module['tilt'],$module['azimuth'],$module['albedo'],$module['modules_per_string'],$module['strings_per_inverter']);
+        $stmt->bind_param("isssdddii",$systemid,$name,$module['type'],$module['inverter'],$module['tilt'],$module['azimuth'],$module['albedo'],$module['modules_per_string'],$module['strings_per_inverter']);
         
         $result = $stmt->execute();
         $stmt->close();
@@ -423,33 +423,14 @@ class Solar {
         return $this->feed->get_data($system['feedid'], $start, $end, $interval, 1, 1);
     }
 
-    public function get_list($userid) {
-//         if ($this->redis) {
-//             return $this->get_list_redis($userid);
-//         } else {
-            return $this->get_list_mysql($userid);
-//         }
-    }
-
-    private function get_list_mysql($userid) {
-        $userid = intval($userid);
-        
-        $systems = array();
-        $sysresult = $this->mysqli->query("SELECT `id`,`userid`,`name`,`description`,`longitude`,`latitude`,`altitude` FROM solar_system WHERE userid='$userid' ORDER BY name asc");
-        while ($system = (array) $sysresult->fetch_object()) {
-            $systems[] = $this->parse_system($system);
-        }
-        return $systems;
-    }
-
     public function get_config() {
         global $user;
         
         $systems = array();
-        $sysresult = $this->mysqli->query("SELECT `id`,`userid`,`name`,`description`,`longitude`,`latitude`,`altitude` FROM solar_system ORDER BY name asc");
+        $sysresult = $this->mysqli->query("SELECT `id`,`userid`,`name`,`description`,`latitude`,`longitude`,`altitude` FROM solar_system");
         while ($system = (array) $sysresult->fetch_object()) {
             // TODO: Return devicekeys instead of the potent writekey
-            $apikey = $user->get_apikey_read($system['userid']);
+            $apikey = $user->get_apikey_write($system['userid']);
             
             $systemid = intval($system['id']);
             unset($system['id'], $system['userid']);
@@ -467,6 +448,25 @@ class Solar {
         return $systems;
     }
 
+    public function get_list($userid) {
+//         if ($this->redis) {
+//             return $this->get_list_redis($userid);
+//         } else {
+            return $this->get_list_mysql($userid);
+//         }
+    }
+
+    private function get_list_mysql($userid) {
+        $userid = intval($userid);
+        
+        $systems = array();
+        $sysresult = $this->mysqli->query("SELECT `id`,`userid`,`name`,`description`,`latitude`,`longitude`,`altitude` FROM solar_system WHERE userid='$userid' ORDER BY name asc");
+        while ($system = (array) $sysresult->fetch_object()) {
+            $systems[] = $this->parse_system($system);
+        }
+        return $systems;
+    }
+
     public function get($id) {
         $id = intval($id);
         
@@ -476,7 +476,7 @@ class Solar {
 //         }
 //         else {
             // Get from mysql db
-            $result = $this->mysqli->query("SELECT `id`,`userid`,`name`,`description`,`longitude`,`latitude`,`altitude` FROM solar_system WHERE id = '$id'");
+            $result = $this->mysqli->query("SELECT `id`,`userid`,`name`,`description`,`latitude`,`longitude`,`altitude` FROM solar_system WHERE id = '$id'");
             $system = (array) $result->fetch_object();
             
             //         }
@@ -515,8 +515,8 @@ class Solar {
             'feedid' => $feedid,
             'name' => $system['name'],
             'description' => $system['description'],
-            'longitude' => floatval($system['longitude']),
             'latitude' => floatval($system['latitude']),
+            'longitude' => floatval($system['longitude']),
             'altitude' => floatval($system['altitude']),
             'modules' => $this->get_system_modules($system)
         );
@@ -636,14 +636,14 @@ class Solar {
             }
         }
         
-        if (isset($fields->longitude)) {
-            $result = $this->set_double($id, "longitude", $fields->longitude);
+        if (isset($fields->latitude)) {
+            $result = $this->set_double($id, "latitude", $fields->latitude);
             if (!$result['success']) {
                 return $result;
             }
         }
-        if (isset($fields->latitude)) {
-            $result = $this->set_double($id, "latitude", $fields->latitude);
+        if (isset($fields->longitude)) {
+            $result = $this->set_double($id, "longitude", $fields->longitude);
             if (!$result['success']) {
                 return $result;
             }

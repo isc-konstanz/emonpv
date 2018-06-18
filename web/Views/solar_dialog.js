@@ -49,8 +49,8 @@ var dialog =
         if (this.system != null) {
             $('#system-name').val(this.system.name);
             $('#system-description').val(this.system.description);
-            $('#system-longitude').val(this.system.longitude);
             $('#system-latitude').val(this.system.latitude);
+            $('#system-longitude').val(this.system.longitude);
             $('#system-altitude').val(this.system.altitude);
             $('#system-delete').show();
             $("#system-init").show();
@@ -58,8 +58,8 @@ var dialog =
         else {
             $('#system-name').val('');
             $('#system-description').val('');
-            $('#system-longitude').val('');
             $('#system-latitude').val('');
+            $('#system-longitude').val('');
             $('#system-altitude').val('');
             $('#system-delete').hide();
             $("#system-init").hide();
@@ -135,8 +135,8 @@ var dialog =
 
         $("#system-save").off('click').on('click', function() {
             var name = $('#system-name').val();
-            var lon = $('#system-longitude').val();
             var lat = $('#system-latitude').val();
+            var lon = $('#system-longitude').val();
             var alt = $('#system-altitude').val();
             
             if (name && lon && lat && alt && dialog.modules.length > 0) {
@@ -146,8 +146,8 @@ var dialog =
                     var fields = {};
                     if (dialog.system.name != name) fields['name'] = name;
                     if (dialog.system.description != desc) fields['description'] = desc;
-                    if (dialog.system.longitude != lon) fields['longitude'] = lon;
                     if (dialog.system.latitude != lat) fields['latitude'] = lat;
+                    if (dialog.system.longitude != lon) fields['longitude'] = lon;
                     if (dialog.system.altitude != alt) fields['altitude'] = alt;
                     
                     if (JSON.stringify(dialog.system.modules) != JSON.stringify(dialog.modules)) {
@@ -167,8 +167,8 @@ var dialog =
 	                                id: result.id,
 	                                name: name,
 	                                description: desc,
-	                    			longitude: lon,
 	                    			latitude: lat,
+	                    			longitude: lon,
 	                    			altitude: alt,
 	                    			modules: dialog.modules
                             };

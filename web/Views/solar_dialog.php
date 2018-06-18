@@ -85,7 +85,6 @@
     #system-location td:nth-of-type(4) { width:14px; text-align:center; }
 
     #system-modules-table td:nth-of-type(1) { width:20%; }
-    #system-modules-table td:nth-of-type(2) { width:40%; }
     #system-modules-table th:nth-of-type(4), td:nth-of-type(4) { width:5%; text-align:right; }
     #system-modules-table td:nth-of-type(5) { width:14px; text-align:center; }
     #system-modules-table td:nth-of-type(6) { width:14px; text-align:center; }
@@ -141,14 +140,14 @@
             <label><b><?php echo _('Location'); ?></b></label>
             <table id="system-location">
                 <tr>
-                    <th><?php echo _('Longitude'); ?></th>
                     <th><?php echo _('Latitude'); ?></th>
+                    <th><?php echo _('Longitude'); ?></th>
                     <th><?php echo _('Altitude'); ?></th>
                     <th></th>
                 </tr>
 				<tr>
-					<td><input id="system-longitude" class="input-small" type="number" step="0.00001" required></td>
 					<td><input id="system-latitude" class="input-small" type="number" step="0.00001" required></td>
+					<td><input id="system-longitude" class="input-small" type="number" step="0.00001" required></td>
 					<td><input id="system-altitude" class="input-small" type="number" required></td>
 					<td>
                         <span id="system-location-tooltip" data-toggle="tooltip" data-placement="bottom">

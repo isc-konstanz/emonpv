@@ -123,13 +123,17 @@ class EmoncmsDatabase(Database):
 
 
     def post(self, system, data, **kwargs):
-        if 'apikey' in system:
+        if hasattr(system, 'apikey'):
             bulk = EmoncmsData(timezone=self.timezone)
-            for time, row in data.iterrows():
-                for key in data.columns:
-                    value = row[key]
+            for key in data.columns:
+                if len(data.columns) > 1:
+                    name = key.replace(' ', '_').lower()
+                else:
+                    name = system.name.lower()
+                
+                for time, value in data[key].items():
                     if value is not None and not np.isnan(value):
-                        bulk.add(time, self.node, key.lower(), float(value))
+                        bulk.add(time, self.node, name, float(value))
             
             self.connection.post(bulk, apikey=system.apikey)
 

@@ -26,7 +26,7 @@ function solar_controller() {
             if ($session['userid']>0 && $session['write']) $result = $solar->get_list($session['userid']);
         }
         else if ($route->action == 'config') {
-            if ($session['admin']) $result = $solar->get_config();
+            if ($session['userid']<=1 || $session['admin']) $result = $solar->get_config();
         }
         else if ($route->action == 'forecast') {
             if ($session['userid']>0) $result = $solar->get_data($session['userid'], prop('system'));

@@ -5,8 +5,8 @@ $schema['solar_system'] = array(
     'userid' => array('type' => 'int(11)'),
     'name' => array('type' => 'text'),
     'description' => array('type' => 'text','default'=>''),
-    'longitude' => array('type' => 'double(8,5)'),
     'latitude' => array('type' => 'double(8,5)'),
+    'longitude' => array('type' => 'double(8,5)'),
     'altitude' => array('type' => 'double')
 );
 
