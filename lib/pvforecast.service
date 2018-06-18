@@ -5,13 +5,10 @@ After=network-online.target syslog.target
 [Service]
 Type=simple
 WorkingDirectory=/opt/pvforecast
-ExecStart=/opt/pvforecast/bin/pvforecast start
+ExecStart=/usr/bin/python3 /opt/pvforecast/bin/pvforecast start
 StandardOutput=syslog
 StandardError=syslog
-User=seal
-Group=seal
 Restart=on-failure
-KillSignal=SIGINT
 
 [Install]
 WantedBy=multi-user.target

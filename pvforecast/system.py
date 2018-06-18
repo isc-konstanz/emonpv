@@ -166,7 +166,7 @@ class System(list):
         if len(forecast.columns) > 1:
             forecast[self.name] = forecast.sum(axis=1)
         
-        return forecast.reindex(sorted(forecast.columns), axis=1)
+        return forecast.reindex_axis(sorted(forecast.columns), axis=1)
 
 
     def grid_location(self, weather):
