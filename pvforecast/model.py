@@ -119,14 +119,17 @@ class ModelChain(modelchain.ModelChain):
 
 
     def pvwatts_inverter(self):
+        # Scale the nameplate power rating to enable compatibility with other models
+        self.system.module_parameters['pdc0'] *= self.system.modules_per_string*self.system.strings_per_inverter
+        
         if isinstance(self.dc, pd.Series):
-            dc = self.dc
+            pdc = self.dc
         elif 'p_mp' in self.dc:
-            dc = self.dc['p_mp']
+            pdc = self.dc['p_mp']
         else:
             raise ValueError('Unknown error while calculating PVWatts AC model')
         
-        self.ac = self.system.pvwatts_ac(dc).fillna(0)
+        self.ac = self.system.pvwatts_ac(pdc).fillna(0)
         
         return self
 

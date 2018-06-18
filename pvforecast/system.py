@@ -17,6 +17,7 @@ import pandas as pd
 import pvlib as pv
 
 from configparser import ConfigParser
+from .database import ModuleDatabase
 from .model import ModelChain
 
 
@@ -26,7 +27,73 @@ class SystemList(list):
         super(SystemList, self).__init__(**kwargs)
         
         self.database = database
-        self.read_config(configs)
+        self.__init_config(configs)
+
+
+    def __init_config(self, configs):
+        self.modules = ModuleDatabase(configs)
+        
+        datadir = configs.get('General', 'datadir')
+        
+        if 'emoncms' in self.database:
+            systems = self.database['emoncms'].connection._request_json('solar/config.json?')
+            for config in systems:
+                system = System(config['name'], config, datadir)
+                
+                for group in config['modules']:
+                    module = self.modules.get(group['module'])
+                    inverter = None
+                    
+                    system.append(group['name'], group, module, inverter)
+                
+                self.append(system)
+        else:
+            self.__read_ini(configs)
+
+
+    def __read_ini(self, configs):
+        from pvlib.pvsystem import retrieve_sam
+        
+        datadir = configs.get('General', 'datadir')
+        
+        systemsfile = os.path.join(configs.get('General', 'configdir'), 'systems.cfg')
+        systems = ConfigParser()
+        systems.read(systemsfile)
+        
+        inverters = retrieve_sam(path=os.path.join(datadir, 'inverters', 'cec_sam.csv'))
+        
+        for name in systems:
+            if name != 'DEFAULT':
+                config = {}
+                module = None
+                inverter = None
+                
+                for key in systems.options(name):
+                    value = systems.get(name, key)
+                    
+                    if key == 'module' and value != '':
+                        module = self.modules.get(value)
+                    elif key == 'inverter' and value != '':
+                        inverter = inverters[value]
+                    else:
+                        config[key] = systems.get(name, key)
+                
+                system_name = None
+                if name[-1].isdigit():
+                    system_name = name[:name.rfind('_')]
+                else:
+                    system_name = name
+                
+                for s in self:
+                    if system_name == s.name:
+                        system = s
+                        break
+                else:
+                    system = System(name, config, datadir)
+                    
+                    self.append(system)
+                
+                system.append(name, config, module, inverter)
 
 
     def forecast(self, weather, time):
@@ -45,69 +112,24 @@ class SystemList(list):
                 self.database.post(system, forecast, date=time)
 
 
-    def read_config(self, configs):
-        from pvlib.pvsystem import retrieve_sam
-        from pvforecast.database import ModuleDatabase
-        
-        datadir = configs.get('General', 'datadir')
-        systemsfile = os.path.join(configs.get('General', 'configdir'), 'systems.cfg')
-        systems = ConfigParser()
-        systems.read(systemsfile)
-        
-        modules = ModuleDatabase(configs)
-        inverters = retrieve_sam(path=os.path.join(datadir, 'inverters', 'cec_sam.csv'))
-        
-        for name in systems:
-            if name != 'DEFAULT':
-                config = {}
-                module = None
-                inverter = None
-                
-                for key in systems.options(name):
-                    value = systems.get(name, key)
-                    
-                    if key == 'module' and value != '':
-                        module = modules.get(value)
-                    elif key == 'inverter' and value != '':
-                        inverter = inverters[value]
-                    else:
-                        config[key] = systems.get(name, key)
-                
-                system_name = None
-                if name[-1].isdigit():
-                    system_name = name[:name.rfind('_')]
-                else:
-                    system_name = name
-                
-                for s in self:
-                    if system_name == s.name:
-                        system = s
-                        break
-                else:
-                    system = System(system_name, config, datadir)
-                    
-                    self.append(system)
-                
-                system.append(name, config, module, inverter)
-
-
 class System(list):
 
-    def __init__(self, name, location, datadir, **kwargs):
+    def __init__(self, name, config, datadir, **kwargs):
         super(System, self).__init__(**kwargs)
         
         self.name = name
-        self.apikey = None
+        self.apikey = config['apikey'] if 'apikey' in config else None
         
-        latitude = float(location['latitude'])
-        longitude = float(location['longitude'])
-        altitude = float(location['altitude'])
+        latitude = float(config['latitude'])
+        longitude = float(config['longitude'])
+        altitude = float(config['altitude'])
+        timezone = config['timezone'] if 'timezone' in config else 'UTC'
         
         self.location_grid = False
         self.location_key = '{0:.5f}'.format(latitude) + '_' + '{0:.5f}'.format(longitude)
         self.location = Location(latitude, longitude, altitude=altitude, 
-                                 tz=location['timezone'], 
-                                 name=name)
+                                 tz=timezone, 
+                                 name=self.name)
         
         self.location_dir = os.path.join(datadir, 'systems', self.location_key)
         if not os.path.exists(self.location_dir):
