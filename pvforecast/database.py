@@ -126,10 +126,10 @@ class EmoncmsDatabase(Database):
         if hasattr(system, 'apikey'):
             bulk = EmoncmsData(timezone=self.timezone)
             for key in data.columns:
-                if len(data.columns) > 1:
-                    name = key.replace(' ', '_').lower()
-                else:
-                    name = system.name.lower()
+                name = system.name.lower()
+                
+                if len(data.columns) > 1 and name != key.lower():
+                    name += '_' + key.replace(' ', '_').lower()
                 
                 for time, value in data[key].items():
                     if value is not None and not np.isnan(value):
