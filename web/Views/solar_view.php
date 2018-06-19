@@ -1,18 +1,28 @@
 <?php
-    global $path;
+    global $path, $feedviewpath;
+    if (!isset($feedviewpath)) $feedviewpath = "graph/";
 ?>
 
-<script type="text/javascript" src="<?php echo $path; ?>Modules/solar/Views/solar.js"></script>
-<script type="text/javascript" src="<?php echo $path; ?>Lib/tablejs/table.js?v=<?php echo $version; ?>"></script>
+<script type="text/javascript" src="<?php echo $path; ?>Modules/solar/Views/solar.js?v=<?php echo $version; ?>"></script>
+<script type="text/javascript" src="<?php echo $path; ?>Modules/solar/Views/solar_table_fields.js?v=<?php echo $version; ?>"></script>
 <script type="text/javascript" src="<?php echo $path; ?>Lib/tablejs/custom-table-fields.js?v=<?php echo $version; ?>"></script>
+<script type="text/javascript" src="<?php echo $path; ?>Lib/tablejs/table.js?v=<?php echo $version; ?>"></script>
 
 <style>
+    .label-comment[href],
+    .badge-comment[href] {
+      background-color: #808080;
+    }
+    
     #system-list input[type="text"] {
       width: 88%;
     }
-    #system-list td:nth-of-type(1) { width:20%;}
-    #system-list td:nth-of-type(3) { width:14px; text-align: center; }
+    #system-list td:nth-of-type(1) { width:10%; }
+    #system-list td:nth-of-type(2) { width:20%; }
+    #system-list th:nth-of-type(3) { font-weight:normal; text-align: left; }
     #system-list td:nth-of-type(4) { width:14px; text-align: center; }
+    #system-list td:nth-of-type(5) { width:14px; text-align: center; }
+    #system-list td:nth-of-type(6) { width:14px; text-align: center; }
 </style>
 
 <div>
@@ -40,6 +50,7 @@
 <script>
     const INTERVAL = 10000;
     var path = "<?php echo $path; ?>";
+    var feedviewpath = "<?php echo $feedviewpath; ?>";
     
     solar.meta(function(result) {
         dialog.moduleMeta = result;
@@ -49,13 +60,16 @@
     
     // Extend table library field types
     for (z in customtablefields) table.fieldtypes[z] = customtablefields[z];
+    for (z in solartablefields) table.fieldtypes[z] = solartablefields[z];
     table.element = "#system-list";
     table.deletedata = false;
     table.fields = {
         'name':{'title':'<?php echo _("Name"); ?>','type':"fixed"},
         'description':{'title':'<?php echo _('Description'); ?>','type':"fixed"},
+        'modules':{'title':'<?php echo _('Modules'); ?>','type':"modulelist"},
         // Actions
         'delete-action':{'title':'', 'type':"delete"},
+        'view-action':{'title':'', 'type':"iconview", 'link':path+feedviewpath},
         'config-action':{'title':'', 'type':"iconconfig", 'icon':'icon-wrench'}
     }
     
