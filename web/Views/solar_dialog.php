@@ -161,7 +161,7 @@
             <table id="system-modules-table" class="table table-hover"></table>
             <div id="system-modules-none" class="alert" style="display:none"><?php echo _('You have no modules configured'); ?></div>
             
-            <button id="system-modules-add" class="btn btn-small" >&nbsp;<i class="icon-plus-sign" ></i>&nbsp;<?php echo _('Add modules'); ?></button>
+            <button id="system-modules-add" class="btn btn-small" style="margin-bottom: 30px">&nbsp;<i class="icon-plus-sign" ></i>&nbsp;<?php echo _('Add modules'); ?></button>
         </div>
     </div>
     <div class="modal-footer">
