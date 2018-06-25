@@ -1,1 +1,0 @@
-{"Date":"01.05.2012","Version":"NRELv1","Technology":"Mono-c-Si","BIPV":"N","A_c":1.63,"N_s":60.0,"T_NOCT":49.0,"I_sc_ref":8.9,"V_oc_ref":37.6,"I_mp_ref":8.26,"V_mp_ref":30.3,"alpha_sc":0.00801,"beta_oc":-0.13535999999999998,"a_ref":1.6525,"I_L_ref":8.914,"I_o_ref":1.15e-09,"R_s":0.305,"R_sh_ref":191.37,"Adjust":11.08,"PTC":221.2,"pdc0":250.0,"gamma_pdc":-0.0046,"gamma_r":-0.46}

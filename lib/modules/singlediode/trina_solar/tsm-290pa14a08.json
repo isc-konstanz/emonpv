@@ -1,1 +1,0 @@
-{"Date":"5/22/2012","Version":"NRELv1","Technology":"Multi-c-Si","BIPV":"N","A_c":1.921,"N_s":72.0,"T_NOCT":43.3,"I_sc_ref":8.7,"V_oc_ref":45.0,"I_mp_ref":8.13,"V_mp_ref":35.7,"alpha_sc":0.00435,"beta_oc":-0.1485,"a_ref":1.8197,"I_L_ref":8.713,"I_o_ref":1.56e-10,"R_s":0.49,"R_sh_ref":324.33,"Adjust":3.824,"PTC":266.0,"pdc0":290.0,"gamma_pdc":-0.0043,"gamma_r":-0.43}

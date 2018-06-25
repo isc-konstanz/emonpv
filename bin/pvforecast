@@ -14,7 +14,6 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(sys.argv[0])))
 
 import inspect
-import textwrap
 import pytz as tz
 import datetime as dt
 
@@ -69,12 +68,15 @@ def start(settings):
     scheduler.run()
 
 
-def build(settings):
+def build(settings, rmlib):
     from pvforecast.database import ModuleDatabase
     
     logger.info('Starting pvforecast module library build')
-    
     db = ModuleDatabase(settings)
+    
+    if rmlib:
+        db.clean()
+        
     db.build()
 
 
@@ -89,21 +91,37 @@ def main(settings, args=None):
         start(settings)
     
     elif args.action == 'build':
-        build(settings)
+        settings.set('General', 'dbdir', args.dbdir)
+        
+        build(settings, args.rmlib)
 
 
 def _get_parser(settings, configdir):
     from pvforecast import __version__
     parser = ArgumentParser(description=__doc__, formatter_class=RawTextHelpFormatter)
+    parser.add_argument('-v', '--version',
+                        action='version',
+                        version='%(prog)s {version}'.format(version=__version__))
     
-    parser.add_argument('action',
-                        help=textwrap.dedent("""\
-                            run:   Retrieve the latest weather forecast and provide consequently photovoltaic yield
-                            start: Starts the ongoing calculation of photovoltaic yield in a regular interval
-                            learn: Process passed measurement values to train the learning algorithm
-                            build: Build the current photovoltaic module library
-                            """),
-                        choices=('run', 'start', 'learn', 'build'))
+    subparsers = parser.add_subparsers(dest='action')
+    subparsers.required = True
+    
+    subparsers.add_parser('run', help='retrieve the latest weather forecast and provide consequently photovoltaic yield')
+    
+    subparsers.add_parser('start', help='Starts the ongoing calculation of photovoltaic yield in a regular interval')
+    
+    subparsers.add_parser('learn', help='Process passed measurement values to train the learning algorithm')
+    
+    parser_build = subparsers.add_parser('build', help='Build the current photovoltaic module and inverter library')
+    parser_build.add_argument('-r','--remove', action='store_true',
+                        dest='rmlib',
+                        help="remove the current library before rebuilding it")
+    parser_build.add_argument('-db','--database',
+                        dest='dbdir',
+                        help="input directory containing the latest module and inverter databases",
+                        required=True,
+                        metavar='DIR')
+    
     
     parser.add_argument('-c','--config',
                         dest='configdir',
@@ -116,10 +134,6 @@ def _get_parser(settings, configdir):
                         help="writable directory where certain configuration files may be found or results will be stored in",
                         default=settings.get('General', 'datadir'),
                         metavar='DIR')
-    
-    parser.add_argument('-v', '--version',
-                        action='version',
-                        version='%(prog)s {version}'.format(version=__version__))
     
     return parser
 

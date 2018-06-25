@@ -1,1 +1,0 @@
-{"Date":"6/14/2010","Version":"MM107","Technology":"Mono-c-Si","BIPV":"N","A_c":1.64,"N_s":60.0,"T_NOCT":45.4,"I_sc_ref":8.17,"V_oc_ref":37.0,"I_mp_ref":7.5,"V_mp_ref":30.0,"alpha_sc":0.003143,"beta_oc":-0.12447000000000001,"a_ref":1.6101,"I_L_ref":8.191,"I_o_ref":8.25e-10,"R_s":0.305,"R_sh_ref":120.32,"Adjust":17.1,"PTC":200.9,"pdc0":225.0,"gamma_pdc":-0.0049,"gamma_r":-0.49}
