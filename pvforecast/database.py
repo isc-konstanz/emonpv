@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 import os
 import io
 import json
+import shutil
 import pytz as tz
 import datetime as dt
 import pandas as pd
@@ -257,6 +258,9 @@ class JsonDatabase(object):
     def __init__(self, configs, key):
         self.datadir = configs.get('General', 'datadir')
         
+        if configs.has_option('General', 'dbdir'):
+            self.dbdir = configs.get('General', 'dbdir')
+        
         self.key = key
         
         self.sam_url = 'https://raw.githubusercontent.com/pvlib/pvlib-python/master/pvlib/data'
@@ -265,44 +269,52 @@ class JsonDatabase(object):
 
     def get(self, path):
         path = path.split('/')
-        filename = os.path.join(self.datadir, self.key, path[0], path[1], path[2]+'.json')
+        filename = os.path.join(self.datadir, self.key, path[0], path[1]+'.json')
         
         with open(filename, encoding='utf-8') as file:
             return json.load(file)
 
 
-    def _write_json(self, path, data):
-        filedir = os.path.join(self.datadir, self.key, path[0], path[1])
+    def clean(self):
+        moduledir = os.path.join(self.datadir, self.key)
+        
+        if os.path.exists(moduledir):
+            shutil.rmtree(moduledir)
+        
+        os.makedirs(moduledir)
+
+
+    def _write_json(self, manufacturer, module, data):
+        filedir = os.path.join(self.datadir, self.key, manufacturer)
         if not os.path.exists(filedir):
             os.makedirs(filedir)
         
-        filename = os.path.join(filedir, path[2]+'.json')
+        filename = os.path.join(filedir, module+'.json')
         with open(filename, 'w', encoding='UTF-8') as file:
             file.write(json.dumps(data, separators=(',', ':'))) #, indent=2)
 
 
     def _write_meta(self, data):
         count = 0
-        for model, manufacturers in data.items():
-            for manufacturer, modules in manufacturers.items():
-                count += len(modules.keys())
-                # Sort the meta data by module name before writing them as JSON
-                modules = OrderedDict(sorted(modules.items(), key=lambda m: m[1]['Name']))
-                
-                meta_file = os.path.join(self.datadir, self.key, model, manufacturer+'.json')
-                with open(meta_file, 'w', encoding='UTF-8') as file:
-                    file.write(json.dumps(modules, separators=(',', ':'))) #, indent=2)
+        for manufacturer, modules in data.items():
+            count += len(modules.keys())
+            # Sort the meta data by module name before writing them as JSON
+            modules = OrderedDict(sorted(modules.items(), key=lambda m: m[1]['Name']))
+            
+            meta_file = os.path.join(self.datadir, self.key, manufacturer+'.json')
+            with open(meta_file, 'w', encoding='UTF-8') as file:
+                file.write(json.dumps(modules, separators=(',', ':'))) #, indent=2)
         
         return count
 
 
     def _load_cec(self, sep=','):
-        csv = os.path.join(self.datadir, self.key, 'cec.csv')
+        csv = os.path.join(self.dbdir, self.key + '_cec.csv')
         return pd.read_csv(csv, sep=sep, skiprows=[1, 2], encoding = "ISO-8859-1", low_memory=False)
 
 
     def _load_cec_custom(self):
-        csv = os.path.join(self.datadir, self.key, 'cec_custom.csv')
+        csv = os.path.join(self.dbdir, self.key + '_cec_custom.csv')
         return pd.read_csv(csv, skiprows=[1, 2], encoding = "ISO-8859-1", low_memory=False)
 
 
@@ -316,8 +328,8 @@ class JsonDatabase(object):
             response = urlopen(self.sam_url + '/' + self.sam_db + '.csv')
             csv = io.StringIO(response.read().decode(errors='ignore'))
         else:
-            csv = os.path.join(self.datadir, self.key, 'cec_sam.csv')
-
+            csv = os.path.join(self.dbdir, self.key + '_cec_sam.csv')
+        
         return pd.read_csv(csv, skiprows=[1, 2], encoding = "ISO-8859-1", low_memory=False)
 
 
@@ -337,19 +349,17 @@ class ModuleDatabase(JsonDatabase):
         db_meta = {}
         
         for _, module in pd.concat([db_cec, db_custom], sort=True).iterrows():
+            path, meta = self._parse_module_meta(module)
+            
             module_sam = db_sam.loc[db_sam['Name'] == module['Manufacturer'] + ' ' + module['Model Number']]
             if len(module_sam) > 0:
                 db_sam = db_sam.drop(module_sam.iloc[0].name)
-                
-                path, meta = self._parse_module_meta(module, 'singlediode')
                 self._write_module_singlediode(path, module_sam.iloc[0].combine_first(module))
                 
             elif not module.loc[['a_ref', 'I_L_ref', 'I_o_ref', 'R_sh_ref', 'R_s']].isnull().any():
-                path, meta = self._parse_module_meta(module, 'singlediode')
                 self._write_module_singlediode(path, module)
                 
             else:
-                path, meta = self._parse_module_meta(module, 'pvwatts')
                 self._write_module_pvwatts(path, module)
             
             self._build_module_meta(db_meta, meta, *path)
@@ -358,24 +368,21 @@ class ModuleDatabase(JsonDatabase):
         
         db_count = self._write_meta(db_meta)
         
-        file_remain = os.path.join(self.datadir, self.key, 'cec_sam_remain.csv')
+        file_remain = os.path.join(self.dbdir, self.key + '_cec_sam_remain.csv')
         db_sam.to_csv(file_remain, encoding = "ISO-8859-1")
         
         logger.info("Complete module library built for %i entries", db_count)
         logger.debug("Unable to build %i SAM modules", len(db_sam))
 
 
-    def _build_module_meta(self, database, meta, model, manufacturer, name):
-        if model not in database:
-            database[model] = {}
+    def _build_module_meta(self, database, meta, manufacturer, module):
+        if manufacturer not in database:
+            database[manufacturer] = {}
         
-        if manufacturer not in database[model]:
-            database[model][manufacturer] = {}
-        
-        database[model][manufacturer]['/'.join([model, manufacturer, name])] = meta
+        database[manufacturer]['/'.join([manufacturer, module])] = meta
 
 
-    def _parse_module_meta(self, module, model):
+    def _parse_module_meta(self, module):
         meta = OrderedDict()
         meta['Name']         = module['Model Number']
         meta['Manufacturer'] = module['Manufacturer']
@@ -390,7 +397,7 @@ class ModuleDatabase(JsonDatabase):
                                    .replace(',', '').replace('.', '').replace('!', '') \
                                    .replace('(', '').replace(')', '')
         
-        path = [model, manufacturer, name]
+        path = [manufacturer, name]
         return path, meta
 
 
@@ -420,7 +427,7 @@ class ModuleDatabase(JsonDatabase):
         module['gamma_pdc']     = float(cec['gamma_pdc']) if not np.isnan(cec['gamma_pdc']) else float(cec['gamma_r'])/100.0
         module['gamma_r']       = float(cec['gamma_r'])
         
-        self._write_json(path, module)
+        self._write_json(*path, module)
 
 
     def _write_module_pvwatts(self, path, cec):
@@ -434,7 +441,7 @@ class ModuleDatabase(JsonDatabase):
         module['pdc0']          = float(cec['Nameplate Pmax'])
         module['gamma_pdc']     = float(cec['?Pmax'])/100.0
         
-        self._write_json(path, module)
+        self._write_json(*path, module)
 
 
 class InverterDatabase(JsonDatabase):
@@ -450,15 +457,14 @@ class InverterDatabase(JsonDatabase):
         db_meta = {}
         
         for _, inverter in db_cec.iterrows():
+            path, meta = self._parse_inverter_meta(inverter)
+            
             inverter_sam = db_sam.loc[db_sam['Name'].str.startswith(inverter['Manufacturer'] + ': ' + inverter['Model Number'])]
             if len(inverter_sam) > 0:
                 db_sam = db_sam.drop(inverter_sam.iloc[0].name)
-                
-                path, meta = self._parse_inverter_meta(inverter, 'sandia')
                 self._write_inverter_sandia(path, inverter_sam.iloc[0].combine_first(inverter))
                 
             else:
-                path, meta = self._parse_inverter_meta(inverter, 'pvwatts')
                 self._write_inverter_pvwatts(path, inverter)
                
             self._build_inverter_meta(db_meta, meta, *path)
@@ -467,24 +473,21 @@ class InverterDatabase(JsonDatabase):
         
         db_count = self._write_meta(db_meta)
         
-        file_remain = os.path.join(self.datadir, self.key, 'cec_sam_remain.csv')
+        file_remain = os.path.join(self.dbdir, self.key + '_cec_sam_remain.csv')
         db_sam.to_csv(file_remain, encoding = "ISO-8859-1")
         
         logger.info("Complete inverter library built for %i entries", db_count)
         logger.debug("Unable to build %i SAM inverters", len(db_sam))
 
 
-    def _build_inverter_meta(self, database, meta, model, manufacturer, name):
-        if model not in database:
-            database[model] = {}
+    def _build_inverter_meta(self, database, meta, manufacturer, inverter):
+        if manufacturer not in database:
+            database[manufacturer] = {}
         
-        if manufacturer not in database[model]:
-            database[model][manufacturer] = {}
-        
-        database[model][manufacturer]['/'.join([model, manufacturer, name])] = meta
+        database[manufacturer]['/'.join([manufacturer, inverter])] = meta
 
 
-    def _parse_inverter_meta(self, inverter, model):
+    def _parse_inverter_meta(self, inverter):
         meta = OrderedDict()
         meta['Name']           = inverter['Model Number']
         meta['Manufacturer']   = inverter['Manufacturer']
@@ -500,7 +503,7 @@ class InverterDatabase(JsonDatabase):
                                    .replace(',', '').replace('.', '').replace('!', '') \
                                    .replace('(', '').replace(')', '')
         
-        path = [model, manufacturer, name]
+        path = [manufacturer, name]
         return path, meta
 
 
@@ -520,11 +523,11 @@ class InverterDatabase(JsonDatabase):
         inverter['Mppt_low']  = float(cec['Mppt_low'])
         inverter['Mppt_high'] = float(cec['Mppt_high'])
         
-        self._write_json(path, inverter)
+        self._write_json(*path, inverter)
         
         
     def _write_inverter_pvwatts(self, path, cec):
         inverter = OrderedDict()
         inverter['pdc0'] = float(cec['Maximum Continuous Output Power at Unity Power Factor']) * 1000.0
         
-        self._write_json(path, inverter)
+        self._write_json(*path, inverter)

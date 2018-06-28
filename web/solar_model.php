@@ -546,12 +546,8 @@ class Solar {
         $meta = array();
         
         $dir = $this->get_module_dir();
-        foreach (new DirectoryIterator($dir) as $models) {
-            if ($models->isDir() && !$models->isDot()) {
-                foreach (glob($dir.$models.'/*.json') as $file) {
-                    $meta[basename($file, ".json")] = (array) json_decode(file_get_contents($file), true);
-                }
-            }
+        foreach (glob($dir.'/*.json') as $file) {
+            $meta[basename($file, ".json")] = (array) json_decode(file_get_contents($file), true);
         }
         ksort($meta);
         

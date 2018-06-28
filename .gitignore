@@ -101,6 +101,7 @@ build/
 bin/db
 bin/results
 data
+lib/modules/*.csv
+lib/inverters/*.csv
 lib/weather/*
 lib/systems/*
-lib/modules/*_remain.csv

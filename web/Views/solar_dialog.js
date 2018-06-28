@@ -84,7 +84,7 @@ var dialog =
             
             for (var i = 0; i < dialog.modules.length; i++) {
             	var type = dialog.modules[i].type;
-            	var group = type.split('/')[1]
+            	var group = type.split('/')[0];
             	var module = dialog.moduleMeta[group][type];
             	
                 table.append("<tr id='system-modules-row-"+i+"' row='"+i+"'></tr>");
@@ -472,26 +472,35 @@ var dialog =
             $("#module-save").prop('disabled', true);
             $("#module-modal-label").html("Add Solar Module");
         }
+        
         if (dialog.moduleType != null && dialog.moduleType != '') {
-            var group = dialog.moduleType.split('/')[1];
-            var module = dialog.moduleMeta[group][dialog.moduleType];
-
-            $('#module-description').html(module.Name+'<br><em style="color:#888">'+module.Description+'</em>');
-            
             var groups = Object.keys(dialog.moduleMeta);
+            var group = dialog.moduleType.split('/')[0];
         	var index = groups.indexOf(group);
-        	dialog.moduleNavStart = Math.floor(index/10)*10;
-        	dialog.moduleNavEnd = dialog.moduleNavStart + 100;
-        	dialog.drawModuleSidebar();
-            
-            $(".module-body[group='"+group+"']").show();
-            $(".module-row[type='"+dialog.moduleType+"']").addClass("module-selected");
-            $("#module-sidebar").scrollTop();
+        	if (index >= 0) {
+                var module = dialog.moduleMeta[group][dialog.moduleType];
+
+                $('#module-description').html(module.Name+'<br><em style="color:#888">'+module.Description+'</em>');
+                
+            	dialog.moduleNavStart = Math.floor(index/10)*10;
+            	dialog.moduleNavEnd = dialog.moduleNavStart + 100;
+            	dialog.drawModuleSidebar();
+                
+                $(".module-body[group='"+group+"']").show();
+                $(".module-row[type='"+dialog.moduleType+"']").addClass("module-selected");
+                $("#module-sidebar").scrollTop();
+                
+                return;
+        	}
+        	else {
+                $(".module-body").hide();
+                $(".module-row").removeClass("module-selected");
+                $('#module-description').text('');
+        	}
         }
         else {
             $(".module-body").hide();
             $(".module-row").removeClass("module-selected");
-            
             $('#module-description').text('');
         }
     },
@@ -615,19 +624,19 @@ var dialog =
             
         	var navigation = $(this);
         	var height = (navigation.scrollTop() + navigation.innerHeight())/navigation.prop('scrollHeight')*100;
-        	if ((height < 5 && dialog.moduleNavStart > 0) || height > 95) {
+        	if ((height == 0 && dialog.moduleNavStart > 0) || height == 100) {
                 if (!navigation.data('redraw')) {
                     navigation.data('redraw', true);
                     
                     var alreadyRedrawnTimeout = setTimeout(function() {
                         var length = Object.keys(dialog.moduleMeta).length;
-                        if (height < 5) {
+                        if (height == 0) {
                         	dialog.moduleNavStart = Math.max(0, dialog.moduleNavStart-10);
                         	if (dialog.moduleNavEnd - dialog.moduleNavStart > 250) {
                         		dialog.moduleNavEnd = dialog.moduleNavStart + 250;
                         	}
                     	}
-                        else if (height > 95) {
+                        else if (height== 100) {
                         	dialog.moduleNavEnd = Math.min(dialog.moduleNavEnd+10, length);
                         	if (dialog.moduleNavEnd - dialog.moduleNavStart > 250) {
                         		dialog.moduleNavStart = dialog.moduleNavEnd - 250;
