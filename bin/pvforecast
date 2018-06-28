@@ -70,12 +70,17 @@ def start(settings):
 
 
 def build(settings):
-    from pvforecast.database import ModuleDatabase
+    from pvforecast.database import ModuleDatabase, InverterDatabase
     
     logger.info('Starting pvforecast module library build')
     
-    db = ModuleDatabase(settings)
-    db.build()
+    module_db = ModuleDatabase(settings)
+    module_db.build()
+    
+    logger.info('Starting pvforecast inverter library build')
+    
+    inverter_db = InverterDatabase(settings)
+    inverter_db.build()
 
 
 def main(settings, args=None):
