@@ -145,16 +145,16 @@
                     <th><?php echo _('Altitude'); ?></th>
                     <th></th>
                 </tr>
-				<tr>
-					<td><input id="system-latitude" class="input-small" type="number" step="0.00001" required></td>
-					<td><input id="system-longitude" class="input-small" type="number" step="0.00001" required></td>
-					<td><input id="system-altitude" class="input-small" type="number" required></td>
-					<td>
+                <tr>
+                    <td><input id="system-latitude" class="input-small" type="number" step="0.00001" required></td>
+                    <td><input id="system-longitude" class="input-small" type="number" step="0.00001" required></td>
+                    <td><input id="system-altitude" class="input-small" type="number" required></td>
+                    <td>
                         <span id="system-location-tooltip" data-toggle="tooltip" data-placement="bottom">
                             <i class="icon-info-sign" style="margin-bottom:12px; cursor:pointer;"></i>
                         </span>
                     </td>
-				</tr>
+                </tr>
             </table>
             
             <label><b><?php echo _('Modules'); ?></b></label>
@@ -278,15 +278,15 @@
                     <th><?php echo _('Modules'); ?></th>
                     <th></th>
                 </tr>
-				<tr>
-					<td><input id="module-strings" class="input-small" type="number" step="1" min="1" placeholder="1" required></td>
-					<td><input id="module-number" class="input-small" type="number" step="1" min="1" placeholder="1" required></td>
-					<td>
+                <tr>
+                    <td><input id="module-strings" class="input-small" type="number" step="1" min="1" placeholder="1" required></td>
+                    <td><input id="module-number" class="input-small" type="number" step="1" min="1" placeholder="1" required></td>
+                    <td>
                         <span id="module-count-tooltip" data-toggle="tooltip" data-placement="bottom">
                             <i class="icon-info-sign" style="margin-bottom:12px; cursor:pointer;"></i>
                         </span>
                     </td>
-				</tr>
+                </tr>
             </table>
             
             <label><b><?php echo _('Orientation'); ?></b></label>
@@ -296,15 +296,15 @@
                     <th><?php echo _('Azimuth'); ?></th>
                     <th></th>
                 </tr>
-				<tr>
-					<td><input id="module-tilt" class="input-small" type="number" step="0.1" min="0" max="90" placeholder="30" required></td>
-					<td><input id="module-azimuth" class="input-small" type="number" step="0.1" min="0" max="359.9" placeholder="180" required></td>
-					<td>
+                <tr>
+                    <td><input id="module-tilt" class="input-small" type="number" step="0.1" min="0" max="90" placeholder="30" required></td>
+                    <td><input id="module-azimuth" class="input-small" type="number" step="0.1" min="0" max="359.9" placeholder="180" required></td>
+                    <td>
                         <span id="module-orientation-tooltip" data-toggle="tooltip" data-placement="bottom">
                             <i class="icon-info-sign" style="margin-bottom:12px; cursor:pointer;"></i>
                         </span>
                     </td>
-				</tr>
+                </tr>
             </table>
             
             <label><b><?php echo _('Albedo'); ?></b></label>

@@ -1,8 +1,8 @@
 var dialog =
 {
-	moduleNavStart: 0,
-	moduleNavEnd: 100,
-	moduleMeta: null,
+    moduleNavStart: 0,
+    moduleNavEnd: 100,
+    moduleMeta: null,
     moduleType: null,
     module: null,
     modules: [],
@@ -35,16 +35,16 @@ var dialog =
         this.adjustSystemModal();
         
         $('#system-name-tooltip').attr("title", 
-        		"The name should work as a unique identifier for the system, " +
-				"to be able to distinguish e.g. the systems <i>roof</i> and <i>garage</i>.").tooltip({html: true});
+                "The name should work as a unique identifier for the system, " +
+                "to be able to distinguish e.g. the systems <i>roof</i> and <i>garage</i>.").tooltip({html: true});
         
         $('#system-description-tooltip').attr("title", 
-        		"The description provides space for small descriptive comments " +
-        		"regarding the specific system and may be left empty").tooltip({html: true});
+                "The description provides space for small descriptive comments " +
+                "regarding the specific system and may be left empty").tooltip({html: true});
         
         $('#system-location-tooltip').attr("title", 
-        		"The geographic coordinates longitude, latitude and altitude of the solar system.<br>" +
-        		"Those may be extracted e.g. by using <a href='https://www.google.de/maps'>Google Maps<a>").tooltip({html: true});
+                "The geographic coordinates longitude, latitude and altitude of the solar system.<br>" +
+                "Those may be extracted e.g. by using <a href='https://www.google.de/maps'>Google Maps<a>").tooltip({html: true});
         
         if (this.system != null) {
             $('#system-name').val(this.system.name);
@@ -83,14 +83,14 @@ var dialog =
             row.append("<th></th>");
             
             for (var i = 0; i < dialog.modules.length; i++) {
-            	var type = dialog.modules[i].type;
-            	var group = type.split('/')[0];
-            	var module = dialog.moduleMeta[group][type];
-            	
+                var type = dialog.modules[i].type;
+                var group = type.split('/')[0];
+                var module = dialog.moduleMeta[group][type];
+                
                 table.append("<tr id='system-modules-row-"+i+"' row='"+i+"'></tr>");
                 row = $("#system-modules-row-"+i);
-            	row.append("<td>" + dialog.modules[i].name + "</td>");
-            	row.append("<td>" + module.Manufacturer + "</td>");
+                row.append("<td>" + dialog.modules[i].name + "</td>");
+                row.append("<td>" + module.Manufacturer + "</td>");
                 row.append("<td>" + module.Name + "</td>");
                 row.append("<td>" + dialog.modules[i].modules_per_string*dialog.modules[i].strings_per_inverter + "</td>");
                 row.append("<td><a class='module-edit' title='Edit'><i class='icon-wrench' style='cursor:pointer'></i></a></td>");
@@ -110,7 +110,7 @@ var dialog =
     },
 
     'closeSystemConfig':function(result) {
-    	if (typeof result.success !== 'undefined' && !result.success) {
+        if (typeof result.success !== 'undefined' && !result.success) {
             alert(result.message);
             return false;
         }
@@ -151,29 +151,29 @@ var dialog =
                     if (dialog.system.altitude != alt) fields['altitude'] = alt;
                     
                     if (JSON.stringify(dialog.system.modules) != JSON.stringify(dialog.modules)) {
-                    	fields['modules'] = dialog.modules;
+                        fields['modules'] = dialog.modules;
                     }
                     solar.set(dialog.system.id, fields, dialog.closeSystemConfig);
                 }
                 else {
-                	var location = {
-                			longitude: lon,
-                			latitude: lat,
-                			altitude: alt
-                	};
+                    var location = {
+                            longitude: lon,
+                            latitude: lat,
+                            altitude: alt
+                    };
                     solar.create(name, desc, location, dialog.modules, function(result) {
-                    	if (dialog.closeSystemConfig(result)) {
+                        if (dialog.closeSystemConfig(result)) {
                             dialog.system = {
-	                                id: result.id,
-	                                name: name,
-	                                description: desc,
-	                    			latitude: lat,
-	                    			longitude: lon,
-	                    			altitude: alt,
-	                    			modules: dialog.modules
+                                    id: result.id,
+                                    name: name,
+                                    description: desc,
+                                    latitude: lat,
+                                    longitude: lon,
+                                    altitude: alt,
+                                    modules: dialog.modules
                             };
                             dialog.loadInitConfig();
-                    	}
+                        }
                     });
                 }
             }
@@ -214,7 +214,7 @@ var dialog =
     },
 
     'loadInitConfig': function() {
-    	dialog.template = [];
+        dialog.template = [];
         solar.prepare(dialog.system.id, function(result) {
             if (typeof result.success !== 'undefined' && !result.success) {
                 alert('Unable to initialize system:\n'+result.message);
@@ -417,15 +417,15 @@ var dialog =
     },
 
     'loadModuleConfig':function(module) {
-    	if (module != null) {
-    		dialog.module = module;
-    		dialog.moduleType = module.type;
-    	}
-    	else {
-    		dialog.module = null;
-    		dialog.moduleType = null;
-    	}
-    	dialog.drawModuleConfig();
+        if (module != null) {
+            dialog.module = module;
+            dialog.moduleType = module.type;
+        }
+        else {
+            dialog.module = null;
+            dialog.moduleType = null;
+        }
+        dialog.drawModuleConfig();
     },
 
     'drawModuleConfig':function() {
@@ -433,20 +433,20 @@ var dialog =
         dialog.adjustModuleModal();
         
         $('#module-name-tooltip').attr("title", 
-        		"The key that will be used to clearly distinguish different module groups from each other.<br>" +
-        		'This may be e.g. "east", "west" or inverter inventory numbers').tooltip({html: true});
+                "The key that will be used to clearly distinguish different module groups from each other.<br>" +
+                'This may be e.g. "east", "west" or inverter inventory numbers').tooltip({html: true});
         
         $('#module-count-tooltip').attr("title", 
-		        "The <b>number of strings</b> and the <b>number of solar modules in each string</b>, " +
-		        "for their specified orientation in the system. " +
-		        "In larger systems, individual modules are connected in both series and parallel. " +
-				"A series-connected set of solar cells or modules is called a string.").tooltip({html: true});
+                "The <b>number of strings</b> and the <b>number of solar modules in each string</b>, " +
+                "for their specified orientation in the system. " +
+                "In larger systems, individual modules are connected in both series and parallel. " +
+                "A series-connected set of solar cells or modules is called a string.").tooltip({html: true});
         
         $('#module-orientation-tooltip').attr("title", 
-        		"The modules tilt from horizontal and the azimuth, the horizontal angle measured clockwise from north.").tooltip({html: true});
+                "The modules tilt from horizontal and the azimuth, the horizontal angle measured clockwise from north.").tooltip({html: true});
         
         $('#module-albedo-tooltip').attr("title", 
-        		"The modules ground reflectance, depending on the ground the system is installed upon.").tooltip({html: true});
+                "The modules ground reflectance, depending on the ground the system is installed upon.").tooltip({html: true});
         
         if (dialog.module != null) {
             $('#module-name').val(dialog.module.name);
@@ -476,27 +476,27 @@ var dialog =
         if (dialog.moduleType != null && dialog.moduleType != '') {
             var groups = Object.keys(dialog.moduleMeta);
             var group = dialog.moduleType.split('/')[0];
-        	var index = groups.indexOf(group);
-        	if (index >= 0) {
+            var index = groups.indexOf(group);
+            if (index >= 0) {
                 var module = dialog.moduleMeta[group][dialog.moduleType];
 
                 $('#module-description').html(module.Name+'<br><em style="color:#888">'+module.Description+'</em>');
                 
-            	dialog.moduleNavStart = Math.floor(index/10)*10;
-            	dialog.moduleNavEnd = dialog.moduleNavStart + 100;
-            	dialog.drawModuleSidebar();
+                dialog.moduleNavStart = Math.floor(index/10)*10;
+                dialog.moduleNavEnd = dialog.moduleNavStart + 100;
+                dialog.drawModuleSidebar();
                 
                 $(".module-body[group='"+group+"']").show();
                 $(".module-row[type='"+dialog.moduleType+"']").addClass("module-selected");
                 $("#module-sidebar").scrollTop();
                 
                 return;
-        	}
-        	else {
+            }
+            else {
                 $(".module-body").hide();
                 $(".module-row").removeClass("module-selected");
                 $('#module-description').text('');
-        	}
+            }
         }
         else {
             $(".module-body").hide();
@@ -510,35 +510,35 @@ var dialog =
         var groups = Object.keys(dialog.moduleMeta);
         
         for (var i = dialog.moduleNavStart; i < dialog.moduleNavEnd; i++) {
-        	var group = groups[i];
-        	
-	        if (dialog.moduleMeta.hasOwnProperty(group)) {
-	        	var modules = dialog.moduleMeta[group];
-	        	
-	        	var header = false
-	        	for (id in modules) {
-	    	        if (modules.hasOwnProperty(id)) {
-	    	        	var module = modules[id];
-	    	        	
-	    	        	if (!header) {
-	    	        		header = true;
-	    	        		
-	    	                table += "<tbody>"
-	    	                table += "<tr class='module-header' group='"+group+"' style='background-color:#ccc; cursor:pointer'>";
-	    	                table += "<td style='font-size:12px; padding:4px; padding-left:8px; font-weight:bold'>"+module.Manufacturer+"</td>";
-	    	                table += "</tr>";
-	    	                table += "</tbody>";
-	    	                
-	    	                table += "<tbody class='module-body' group='"+group+"' style='display:none'>";
-	    	        	}
-	    	        	
-			            table += "<tr class='module-row' type='"+id+"' group='"+group+"' >";
-			            table += "<td style='padding-left:12px; cursor:pointer style='display:none'>"+module.Name+"</td>";
-			            table += "</tr>";
-			        }
-    	        }
-		        table += "</tbody>";
-	        }
+            var group = groups[i];
+            
+            if (dialog.moduleMeta.hasOwnProperty(group)) {
+                var modules = dialog.moduleMeta[group];
+                
+                var header = false
+                for (id in modules) {
+                    if (modules.hasOwnProperty(id)) {
+                        var module = modules[id];
+                        
+                        if (!header) {
+                            header = true;
+                            
+                            table += "<tbody>"
+                            table += "<tr class='module-header' group='"+group+"' style='background-color:#ccc; cursor:pointer'>";
+                            table += "<td style='font-size:12px; padding:4px; padding-left:8px; font-weight:bold'>"+module.Manufacturer+"</td>";
+                            table += "</tr>";
+                            table += "</tbody>";
+                            
+                            table += "<tbody class='module-body' group='"+group+"' style='display:none'>";
+                        }
+                        
+                        table += "<tr class='module-row' type='"+id+"' group='"+group+"' >";
+                        table += "<td style='padding-left:12px; cursor:pointer style='display:none'>"+module.Name+"</td>";
+                        table += "</tr>";
+                    }
+                }
+                table += "</tbody>";
+            }
         }
         table += "</tbody>";
         
@@ -622,35 +622,35 @@ var dialog =
             e.stopPropagation();
             e.preventDefault();
             
-        	var navigation = $(this);
-        	var height = (navigation.scrollTop() + navigation.innerHeight())/navigation.prop('scrollHeight')*100;
-        	if ((height == 0 && dialog.moduleNavStart > 0) || height == 100) {
+            var navigation = $(this);
+            var height = (navigation.scrollTop() + navigation.innerHeight())/navigation.prop('scrollHeight')*100;
+            if ((height == 0 && dialog.moduleNavStart > 0) || height == 100) {
                 if (!navigation.data('redraw')) {
                     navigation.data('redraw', true);
                     
                     var alreadyRedrawnTimeout = setTimeout(function() {
                         var length = Object.keys(dialog.moduleMeta).length;
                         if (height == 0) {
-                        	dialog.moduleNavStart = Math.max(0, dialog.moduleNavStart-10);
-                        	if (dialog.moduleNavEnd - dialog.moduleNavStart > 250) {
-                        		dialog.moduleNavEnd = dialog.moduleNavStart + 250;
-                        	}
-                    	}
+                            dialog.moduleNavStart = Math.max(0, dialog.moduleNavStart-10);
+                            if (dialog.moduleNavEnd - dialog.moduleNavStart > 250) {
+                                dialog.moduleNavEnd = dialog.moduleNavStart + 250;
+                            }
+                        }
                         else if (height== 100) {
-                        	dialog.moduleNavEnd = Math.min(dialog.moduleNavEnd+10, length);
-                        	if (dialog.moduleNavEnd - dialog.moduleNavStart > 250) {
-                        		dialog.moduleNavStart = dialog.moduleNavEnd - 250;
-                        	}
-                    	}
-                    	dialog.drawModuleSidebar();
-                    	
-//                    	navigation.animate({ scrollTop: navigation.scrollTop()+offset }, 250);
+                            dialog.moduleNavEnd = Math.min(dialog.moduleNavEnd+10, length);
+                            if (dialog.moduleNavEnd - dialog.moduleNavStart > 250) {
+                                dialog.moduleNavStart = dialog.moduleNavEnd - 250;
+                            }
+                        }
+                        dialog.drawModuleSidebar();
+                        
+//                        navigation.animate({ scrollTop: navigation.scrollTop()+offset }, 250);
                         navigation.data('redraw', false); // reset when it happens
-                    	
+                        
                     }, 250); // tolerance
                     navigation.data('alreadyRedrawnTimeout', alreadyRedrawnTimeout); // store this id to clear if necessary
                 }
-        	}
+            }
         });
 
         $("#module-sidebar-open").off('click').on('click', function() {
@@ -672,56 +672,56 @@ var dialog =
             var modules = $('#module-number').val();
             
             if (name && dialog.moduleType && tilt && azimuth && albedo && strings && modules) {
-            	var module;
-            	if (dialog.module != null) {
-            		module = dialog.module;
-            	}
-            	else {
+                var module;
+                if (dialog.module != null) {
+                    module = dialog.module;
+                }
+                else {
                     module = {
                             'name': name,
                             'type': dialog.moduleType,
-                    		'inverter': '',
+                            'inverter': '',
                             'tilt': tilt,
                             'azimuth': azimuth,
                             'albedo': albedo,
                             'modules_per_string': modules,
                             'strings_per_inverter': strings
                     };
-            	}
+                }
                 
                 var index = -1;
                 for (var i = 0; i < dialog.modules.length; i++) {
-                	if (module.name === dialog.modules[i].name &&
-                			module.type === dialog.modules[i].type &&
-                			module.tilt === dialog.modules[i].tilt &&
-                			module.azimuth === dialog.modules[i].azimuth &&
-                			module.albedo === dialog.modules[i].albedo &&
-                			module.modules_per_string === dialog.modules[i].modules_per_string &&
-                			module.strings_per_inverter === dialog.modules[i].strings_per_inverter) {
-                		
-                		index = i;
-                		break;
-                	}
+                    if (module.name === dialog.modules[i].name &&
+                            module.type === dialog.modules[i].type &&
+                            module.tilt === dialog.modules[i].tilt &&
+                            module.azimuth === dialog.modules[i].azimuth &&
+                            module.albedo === dialog.modules[i].albedo &&
+                            module.modules_per_string === dialog.modules[i].modules_per_string &&
+                            module.strings_per_inverter === dialog.modules[i].strings_per_inverter) {
+                        
+                        index = i;
+                        break;
+                    }
                 }
                 if (index >= 0) {
-                	if (dialog.module != null) {
+                    if (dialog.module != null) {
                         module['name'] = name;
                         module['type'] = dialog.moduleType;
-                    	module['tilt'] = tilt;
-                		module['azimuth'] = azimuth;
-            			module['albedo'] = albedo;
+                        module['tilt'] = tilt;
+                        module['azimuth'] = azimuth;
+                        module['albedo'] = albedo;
                         module['modules_per_string'] = strings;
                         module['strings_per_inverter'] = modules;
-            			
-                    	dialog.modules[index] = module;
-                	}
-                	else {
+                        
+                        dialog.modules[index] = module;
+                    }
+                    else {
                         alert('Modules for this configuration already exist.');
                         return false;
-                	}
+                    }
                 }
                 else {
-                	dialog.modules.push(module);
+                    dialog.modules.push(module);
                 }
                 
                 $('#module-modal').modal('hide');
@@ -741,10 +741,10 @@ var dialog =
         });
         
         $("#module-delete").off('click').on('click', function() {
-        	var index = dialog.modules.indexOf(dialog.module);
-        	if (index >= 0) {
+            var index = dialog.modules.indexOf(dialog.module);
+            if (index >= 0) {
                 dialog.modules.splice(index, 1);
-    		}
+            }
             $('#module-modal').modal('hide');
             $('#system-modal').modal('show');
             dialog.drawSystemModules();
@@ -752,8 +752,8 @@ var dialog =
     },
 
     'adjustModal':function() {
-    	dialog.adjustSystemModal();
-    	dialog.adjustInitModal();
-    	dialog.adjustModuleModal();
+        dialog.adjustSystemModal();
+        dialog.adjustInitModal();
+        dialog.adjustModuleModal();
     }
 }
