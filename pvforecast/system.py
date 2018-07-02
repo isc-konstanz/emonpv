@@ -163,7 +163,10 @@ class System(list):
             result.name = system.name.lower()
             forecast = pd.concat([forecast, result.where(result > 1e-6, other=0)], axis=1)
         
-        if len(forecast.columns) > 1:
+        if len(forecast.columns) == 1:
+            forecast.columns = [self.name]
+        
+        elif len(forecast.columns) > 1:
             columns = [self.name] + list(forecast.columns)
             forecast[self.name] = forecast.sum(axis=1)
             forecast = forecast.reindex_axis(columns, axis=1)
