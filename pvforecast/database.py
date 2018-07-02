@@ -12,6 +12,7 @@ import os
 import io
 import json
 import shutil
+import time
 import pytz as tz
 import datetime as dt
 import pandas as pd
@@ -185,8 +186,19 @@ class CsvDatabase(Database):
     def _write_file(self, data, path, date):
         file = os.path.join(path, self._build_file_name(date))
         
+        data = data.tz_convert(tz.utc).astype(float)
         data.index.name = 'time'
-        data.tz_convert(tz.utc).astype(float).to_csv(file, sep=self.separator, decimal=self.decimal, encoding='utf-8')
+        
+        if os.path.isfile(file):
+            csv = pd.read_csv(file, sep=self.separator, decimal=self.decimal, encoding='utf-8', index_col='time', parse_dates=['time'])
+            csv.index = csv.index.tz_localize(tz.utc)
+            
+            if all(name in list(csv.columns) for name in list(data.columns)):
+                data = data.combine_first(csv)
+            else:
+                data = pd.concat([csv, data], axis=1)
+        
+        data.to_csv(file, sep=self.separator, decimal=self.decimal, encoding='utf-8')
 
 
     def _read_file(self, path, index_column='time', unix=True):
@@ -280,6 +292,9 @@ class JsonDatabase(object):
         
         if os.path.exists(moduledir):
             shutil.rmtree(moduledir)
+            
+            while os.path.exists(moduledir):
+                time.sleep(.1)
         
         os.makedirs(moduledir)
 
@@ -438,8 +453,8 @@ class ModuleDatabase(JsonDatabase):
         module['N_s']           = float(cec['N_s'])
         module['T_NOCT']        = float(cec['Average NOCT'])
         module['PTC']           = float(cec['PTC'])
-        module['pdc0']          = float(cec['Nameplate Pmax'])
-        module['gamma_pdc']     = float(cec['?Pmax'])/100.0
+        module['pdc0']          = float(cec['pdc0']) if not np.isnan(cec['pdc0']) else float(cec['Nameplate Pmax'])
+        module['gamma_pdc']     = float(cec['gamma_pdc']) if not np.isnan(cec['gamma_pdc']) else float(cec['?Pmax'])/100.0
         
         self._write_json(*path, module)
 

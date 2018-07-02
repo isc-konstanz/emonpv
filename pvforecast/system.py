@@ -164,9 +164,11 @@ class System(list):
             forecast = pd.concat([forecast, result.where(result > 1e-6, other=0)], axis=1)
         
         if len(forecast.columns) > 1:
+            columns = [self.name] + list(forecast.columns)
             forecast[self.name] = forecast.sum(axis=1)
+            forecast = forecast.reindex_axis(columns, axis=1)
         
-        return forecast.reindex_axis(sorted(forecast.columns), axis=1)
+        return forecast
 
 
     def grid_location(self, weather):
