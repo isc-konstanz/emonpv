@@ -3,10 +3,10 @@
     if (!isset($feedviewpath)) $feedviewpath = "graph/";
 ?>
 
-<script type="text/javascript" src="<?php echo $path; ?>Modules/solar/Views/solar.js?v=<?php echo $version; ?>"></script>
-<script type="text/javascript" src="<?php echo $path; ?>Modules/solar/Views/solar_table_fields.js?v=<?php echo $version; ?>"></script>
-<script type="text/javascript" src="<?php echo $path; ?>Lib/tablejs/custom-table-fields.js?v=<?php echo $version; ?>"></script>
-<script type="text/javascript" src="<?php echo $path; ?>Lib/tablejs/table.js?v=<?php echo $version; ?>"></script>
+<script type="text/javascript" src="<?php echo $path; ?>Modules/solar/Views/solar.js"></script>
+<script type="text/javascript" src="<?php echo $path; ?>Modules/solar/Views/solar_table_fields.js"></script>
+<script type="text/javascript" src="<?php echo $path; ?>Lib/tablejs/custom-table-fields.js"></script>
+<script type="text/javascript" src="<?php echo $path; ?>Lib/tablejs/table.js"></script>
 
 <style>
     .label-comment[href],
