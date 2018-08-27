@@ -69,15 +69,25 @@ def start(settings):
 
 
 def build(settings, rmlib):
-    from pvforecast.database import ModuleDatabase
+    from pvforecast.database import ModuleDatabase, InverterDatabase
     
     logger.info('Starting pvforecast module library build')
-    db = ModuleDatabase(settings)
+    
+    module_db = ModuleDatabase(settings)
     
     if rmlib:
-        db.clean()
+        module_db.clean()
         
-    db.build()
+    module_db.build()
+    
+    logger.info('Starting pvforecast inverter library build')
+    
+    inverter_db = InverterDatabase(settings)
+    
+    if rmlib:
+        inverter_db.clean()
+    
+    inverter_db.build()
 
 
 def main(settings, args=None):
