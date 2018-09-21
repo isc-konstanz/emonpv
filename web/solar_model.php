@@ -107,7 +107,7 @@ class Solar {
         }
         else {
             $result = $this->prepare($userid, $id);
-            if (isset($result["success"]) && !$result["success"]) {
+            if (isset($result['success']) && $result['success'] == false) {
                 return $result;
             }
             $template = $result;
@@ -146,7 +146,7 @@ class Solar {
                 }
                 
                 $result = $this->feed->create($userid, $feeds[$i]['tag'], $feeds[$i]['name'], intval($feeds[$i]['type']), intval($feeds[$i]['engine']), $options);
-                if($result["success"] === true) {
+                if($result['success'] === true) {
                     // Assign the created input id to the inputs array
                     $feeds[$i]['id'] = $result["feedid"];
                 }

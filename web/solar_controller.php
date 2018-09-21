@@ -29,16 +29,21 @@ function solar_controller() {
             if ($session['userid']<=1 || $session['admin']) $result = $solar->get_config();
         }
         else if ($route->action == 'forecast') {
-            if ($session['userid']>0) $result = $solar->get_data($session['userid'], prop('system'));
+            if ($session['userid']>0) $result = $solar->get_data($session['userid'],prop('system'));
         }
         else if (prop('id') !== null) {
             $systemid = intval(prop('id'));
             if ($solar->exist($systemid)) {
-                if ($route->action == "init") $result = $solar->init($session['userid'],$systemid,prop('template'));
-                else if ($route->action == "prepare") $result = $solar->prepare($session['userid'],$systemid);
-                else if ($route->action == "get") $result = $solar->get($systemid);
-                else if ($route->action == 'set') $result = $solar->set_fields($systemid,prop('fields'));
-                else if ($route->action == "delete") $result = $solar->delete($systemid);
+                $system = $solar->get($systemid);
+                if (isset($session['write']) && $session['write'] && $session['userid'] > 0
+                    && $session['userid'] == $system['userid']) {
+                    
+                    if ($route->action == "init") $result = $solar->init($session['userid'],$systemid,prop('template'));
+                    else if ($route->action == "prepare") $result = $solar->prepare($session['userid'],$systemid);
+                    else if ($route->action == "get") $result = $system;
+                    else if ($route->action == 'set') $result = $solar->set_fields($systemid,prop('fields'));
+                    else if ($route->action == "delete") $result = $solar->delete($systemid);
+                }
             }
             else {
                 $result = array('success'=>false, 'message'=>'System does not exist');

@@ -13,4 +13,4 @@ This tool was originally developed during the course of the European [CoSSMic](h
 ![ISC logo](https://github.com/isc-konstanz/pvforecast/blob/master/doc/img/ISC_logo.png)
 
 - [**ISC** Konstanz](http://isc-konstanz.de/) (International Solar Energy Research Center)
-- **Adian Minde**: adrian.minde@isc-konstanz.de
+- **Adrian Minde**: adrian.minde@isc-konstanz.de
