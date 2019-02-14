@@ -35,6 +35,8 @@ class Weather():
             self.server = NMM(configs.get('Meteoblue', 'name'), 
                               configs.get('Meteoblue', 'address'), 
                               configs.get('Meteoblue', 'apikey'))
+        elif model == 'NMM_Historic':
+            self.server = NMM_Historic()
         elif model == 'COSMO_DE':
             self.server = COSMO_DE(configs.get('W3Data', 'address'), 
                                    configs.get('W3Data', 'apikey'))
@@ -252,6 +254,151 @@ class NMM(ForecastModel):
         data = json.loads(response.text)
         return data.get('metadata')
 
+
+class NMM_Historic(ForecastModel):
+    """
+    Subclass of the ForecastModel class representing the Meteoblue
+    NMM (Nonhydrostatic Meso-Scale Modelling) forecast model.
+
+    Model data corresponds to 4km resolution forecasts.
+
+    Parameters
+    ----------
+    set_type: string, default 'best'
+        Type of model to pull data from.
+
+    Attributes
+    ----------
+    dataframe_variables: list
+        Common variables present in the final set of data.
+    model_name: string
+        Name of the UNIDATA forecast model.
+    model_type: string
+        UNIDATA category in which the model is located.
+    variables: dict
+        Defines the variables to obtain from the weather
+        model and how they should be renamed to common variable names.
+    units: dict
+        Dictionary containing the units of the standard variables
+        and the model specific variables.
+    """
+
+    def __init__(self, set_type='best'):
+        model_type = 'Forecast Model Data'
+        model_name = 'NMM Forecast'
+
+        self.variables = {
+            "Year": "Jahr", 
+            "Month": "Monat", 
+            "Day": "Tag", 
+            "Hour": "Stunde", 
+            "Minute": "Minute", 
+            "Temperature": "Temperatur in 2 m Hoehe [C]", 
+            "Wind Speed": "Windgeschwindigkeit in 10 m Hoehe [m/s]", 
+            "DNI - backwards": "dni", 
+            "DIF - backwards": "dhi", 
+            "Shortwave Radiation": "ghi?", 
+            "Mean Sea Level Pressure": "Luftdruck auf Hoehe des Meerespiegels [hPa]", 
+            "Wind Direction": "Windrichtung in 10 m Hoehe [Grad]", 
+            "Relative Humidity": "relative luftfeuchtigkeit in 2 m Hoehe [%]", 
+            "Total Cloud Cover": "Gesamtbedeckungsgrad mit Wolken [%]", 
+            "Low Cloud Cover": "Bedeckungsgrad mit niedrigen Wolken [%]", 
+            "Medium Cloud Cover ": "Bedeckungsgrad mit mittleren Wolken [%]", 
+            "High Cloud Cover": "Bedeckungsgrad mit hohen Wolken [%]", 
+            "Snow Fraction": "Schneefall [0.0 - 1.0]", 
+            "Wind Gust": "", 
+            "Total Precipitation": "Gesamtniederschlagsmenge [mm]"
+        }
+
+        self.output_variables = [
+            'temp_air',
+            'wind_speed',
+            'wind_direction',
+            'humidity_rel',
+            'pressure_sea',
+            'ghi',
+            'dni',
+            'dhi',
+            'total_clouds',
+            'low_clouds',
+            'mid_clouds',
+            'high_clouds',
+            'rain',
+            'snow']
+
+        super(NMM_Historic, self).__init__(model_type, model_name, set_type)
+
+
+    def process_data(self, data, **kwargs):
+        """
+        Defines the steps needed to convert raw forecast data
+        into processed forecast data.
+
+        Parameters
+        ----------
+        data: DataFrame
+            Raw forecast data
+
+        Returns
+        -------
+        data: DataFrame
+            Processed forecast data.
+        """
+        data = super(NMM_Historic, self).process_data(data, **kwargs)
+        data['temp_air'] = data['Temperature']
+        data['wind_speed'] = data['Wind Speed']
+        data['wind_direction'] = data['Wind Direction']
+        data['humidity_rel'] = data['Relative Humidity']
+        data['pressure_sea'] = data['Mean Sea Level Pressure']
+        data['ghi'] = data['Shortwave Radiation']###########???
+        data['dni'] = data['DNI - backwards']
+        data['dhi'] = data['DIF - backwards']
+        data['total_clouds'] = data['Total Cloud Cover']
+        data['low_clouds'] = data['Low Cloud Cover']
+        data['mid_clouds'] = data['Medium Cloud Cover']
+        data['high_clouds'] = data['High Cloud Cover']
+        data['rain'] = data['Total Precipitation']
+        data['snow'] = data['Snow Fraction']
+        
+        return data[self.output_variables]
+
+
+    def get_data(self, location):
+        """
+        Submits a query to the meteoblue servers and
+        converts the CSV response to a pandas DataFrame.
+
+        Parameters
+        ----------
+        location: Location
+            The geographic location of the requested forecast data.
+
+        Returns
+        -------
+        data : DataFrame
+            column names are the weather model's variable names.
+        """
+        self.latitude = location.latitude
+        self.longitude = location.longitude
+        self.altitude = location.altitude
+        self.location = location
+           
+        self.data = pd.read_csv('../lib/historic/' + str(round(self.latitude, 2)) + '_' + str(round(self.longitude, 2)) + '.csv', skipinitialspace=True)
+        self.data['time'] = pd.to_datetime(self.data['time'])
+        
+        self.data = self.data.set_index('time').tz_localize(tz.utc).tz_convert(location.tz)
+
+        return self.data
+
+    
+    def get_meta(self, location):
+        data = {
+            'latitude': location.latitude,
+            'longitude': location.longitude,
+            'height': location.altitude
+        }
+        return data
+    
 
 class COSMO_DE(ForecastModel):
     """

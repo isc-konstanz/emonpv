@@ -19,6 +19,7 @@ import datetime as dt
 
 from argparse import ArgumentParser, RawTextHelpFormatter
 from configparser import ConfigParser
+import datetime
 
 
 def forecast(settings, time):
@@ -48,6 +49,9 @@ def schedule_time(interval):
     return time, (time + dt.timedelta(minutes=interval) - now).total_seconds()
 
 
+def simulate(settings):
+    forecast(settings, datetime.datetime(2008, 1, 1))
+
 def run(settings):
     interval = int(settings.get('General', 'interval'))
     
@@ -67,6 +71,8 @@ def start(settings):
     schedule_forecast(scheduler, interval, schedule_date, settings)
     scheduler.run()
 
+def learn(settings):
+    logger.info('Starting training')
 
 def build(settings, rmlib):
     from pvforecast.database import ModuleDatabase, InverterDatabase
@@ -100,6 +106,12 @@ def main(settings, args=None):
     elif args.action == 'start':
         start(settings)
     
+    elif args.action == 'learn':
+        learn(settings)
+    
+    elif args.action == 'simulate':
+        simulate(settings)
+    
     elif args.action == 'build':
         settings.set('General', 'dbdir', args.dbdir)
         
@@ -121,6 +133,8 @@ def _get_parser(settings, configdir):
     subparsers.add_parser('start', help='Starts the ongoing calculation of photovoltaic yield in a regular interval')
     
     subparsers.add_parser('learn', help='Process passed measurement values to train the learning algorithm')
+    
+    subparsers.add_parser('simulate', help='Simulation')
     
     parser_build = subparsers.add_parser('build', help='Build the current photovoltaic module and inverter library')
     parser_build.add_argument('-r','--remove', action='store_true',
