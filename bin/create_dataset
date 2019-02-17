@@ -1,0 +1,143 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
+import os
+import pandas as pd
+import numpy as np
+from configparser import ConfigParser
+import json
+import datetime
+
+
+dir = '../datasets/'
+recreate_historic = True
+with_cyclic = True
+
+def convertTime(x):
+	return x.replace('T', ' ').replace('Z', '').replace('+00:00', '')#+00:00')
+    
+def to_cyclic_feature(df, feature, num):
+    df[feature + '_x'] = np.sin(2.0 * np.pi * df[feature] / num)
+    df[feature + '_y'] = np.cos(2.0 * np.pi * df[feature] / num)
+    return df.drop(feature, axis=1)
+
+def get_opsd_power_data():
+    # downloaded from OPSD
+    pv_data = pd.read_csv(dir + 'messdaten.csv', skipinitialspace=True).set_index('utc_timestamp')
+    pv_data.index = pd.to_datetime(pv_data.index)
+    for col in pv_data.columns.values:
+        power_data = pv_data[col].diff() * 1000
+        power_data = power_data.shift(1).dropna()
+        power_data.to_csv(dir + col + '.csv', sep=',', encoding='utf-8', date_format='%Y-%m-%d %H:%M:%S')
+
+def create_history_points():
+    # provided by Meteoblue
+    df1 = pd.read_csv(dir + 'meteoblue_history-export_ISC-Konstanz_2008-2017_main-variables.csv', skipinitialspace=True, sep=';', header=[18], index_col=[0, 1, 2, 3, 4])
+    df2 = pd.read_csv(dir + 'meteoblue_history-export_ISC-Konstanz_2008-2017_others.csv', skipinitialspace=True, sep=';', header=[18], index_col=[0, 1, 2, 3, 4])
+    df = df1.join(df2)
+    cols = df.columns.values
+    for i in range(1, 12):
+        filter_cols = [col for col in cols if col.startswith('point' + str(i) + ' ')]
+        d = df[filter_cols]
+        d.columns = [c.replace(c.split(' ')[0], '').replace(c.split('[')[1], '').replace('  [', '') for c in filter_cols]
+        d['time'] = [datetime.datetime(y, m, d, h, n) for y, m, d, h, n in d.index]
+        d.to_csv(dir + 'history_point' + str(i) + '.csv', sep=',', encoding='utf-8', date_format='%Y-%m-%d %H:%M:%S')
+
+def create_dataset(df_weather, name, loc, cols):
+    # extracted from OPSD household dataset in get_opsd_power_data()
+    df_power = pd.read_csv(dir + 'DE_KN_' + name + '.csv', skipinitialspace=True, names=['time', 'power']).set_index('time')
+    
+    # created by running: pvforecast simulate
+    df_power_sim_raw = pd.read_csv('../lib/systems/'+loc+'/20071231_230000.csv', skipinitialspace=True).set_index('time')
+    df_power_sim = pd.DataFrame()
+    df_power_sim['power_pvlib'] = df_power_sim_raw[cols].sum(axis=1)
+    df_power.index = df_power.index.map(convertTime)
+    df_power_sim.index = df_power_sim.index.map(convertTime)
+    df = pd.concat([df_power, df_power_sim], sort=True)
+    df = df[~df.index.duplicated(keep='first')]
+    df = df.power.combine_first(df.power_pvlib)
+    df = df_weather.join(df).join(df_power_sim).dropna()
+    df.to_csv(dir + 'historic_' + name + '_complete.csv', encoding='utf-8', date_format='%Y-%m-%d %H:%M:%S')
+
+    
+
+get_opsd_power_data()
+
+# joins historic weather data with pvlib predictions and measurements
+if recreate_historic:
+    create_history_points()
+
+    for i in range(2, 8):
+        # created in create_history_points()
+        df_weather = pd.read_csv(dir + '/history_point' + str(i) + '.csv', skipinitialspace=True).set_index('time')
+        if with_cyclic:
+            df_weather = to_cyclic_feature(df_weather, 'Hour', 24)
+            df_weather = to_cyclic_feature(df_weather, 'Month', 12)
+            df_weather = to_cyclic_feature(df_weather, 'Wind Direction', 360)
+            df_weather = df_weather.drop(['Year', 'Day', 'Minute'], axis=1)
+        
+        if i == 2:
+            create_dataset(df_weather, 'industrial3_pv', '47.67158_9.15218', ['Roof', 'Facade']) ###
+            create_dataset(df_weather, 'industrial3_pv_facade', '47.67158_9.15218', ['Facade'])
+            create_dataset(df_weather, 'industrial3_pv_roof', '47.67158_9.15218', ['Roof'])
+        elif i == 3:
+            create_dataset(df_weather, 'industrial2_pv_1', '47.67400_9.17636', ['Solar']) ### ohne subsysteme
+        elif i == 4:
+            create_dataset(df_weather, 'industrial1_pv_1', '47.67800_9.15325', ['Solar1'])
+            create_dataset(df_weather, 'industrial1_pv_2', '47.67800_9.15325', ['Solar2']) ### ohne subsysteme
+        elif i == 5:
+            create_dataset(df_weather, 'residential4_pv', '47.68376_9.16291', ['Solar'])
+        elif i == 6:
+            create_dataset(df_weather, 'residential6_pv', '47.67991_9.17085', ['Roof']) ### ohne subsysteme
+        elif i == 7:
+            create_dataset(df_weather, 'residential3_pv', '47.67683_9.18921', ['Solar'])
+
+# only use these 5 systems
+names = ['industrial3_pv_facade', 'industrial3_pv_roof', 'industrial1_pv_1', 'residential3_pv', 'residential4_pv']
+systems = ConfigParser()
+systems.read(dir + 'systems.cfg')
+
+df_from_each_file = []
+id = 0
+
+for name in names:
+    print('System' + str(id) + ':   ' + name)
+    # created in create_dataset()
+    df_sub = pd.read_csv(dir + 'historic_'+name+'_complete.csv', skipinitialspace=True).set_index('time')
+    
+    df_sub['latitude'] = systems.get(name, 'latitude')
+    df_sub['longitude'] = systems.get(name, 'longitude')
+    df_sub['altitude'] = systems.get(name, 'altitude')
+    df_sub['modules_per_string'] = systems.get(name, 'modules_per_string')
+    df_sub['strings_per_inverter'] = systems.get(name, 'strings_per_inverter')
+    df_sub['tilt'] = systems.get(name, 'tilt')
+    df_sub['azimuth'] = systems.get(name, 'azimuth')
+    df_sub['albedo'] = systems.get(name, 'albedo')
+    module = systems.get(name, 'module')
+    with open('../lib/modules/' + module + '.json') as f:
+        params = json.load(f)
+    t = 3 #CIGS
+    if params['Technology'] == "Mono-c-Si": t = 0
+    elif params['Technology'] == "Multi-c-Si": t = 1
+    elif params['Technology'] == "Thin Film": t = 2
+    df_sub['Technology'] = t
+    b = 1
+    if params['BIPV'] == 'N': b = 0
+    df_sub['BIPV'] = b
+    df_sub['A_c'] = params['A_c']
+    df_sub['N_s'] = params['N_s']
+    df_sub['pdc0'] = params['pdc0']
+    df_sub['gamma_pdc'] = params['gamma_pdc']
+    
+    df_sub['SystemID'] = id
+    id += 1
+    
+    power = df_sub.power
+    power_pvlib = df_sub.power_pvlib
+    df_sub = df_sub.drop(['power', 'power_pvlib'], axis=1)
+    df_sub['power'] = power
+    df_sub['power_pvlib'] = power_pvlib
+    df_from_each_file.append(df_sub)
+
+print('Creating CSV ...')
+pd.concat(df_from_each_file).to_csv(dir + 'full_data_5_systems.csv', sep=',', encoding='utf-8', date_format='%Y-%m-%d %H:%M:%S')
