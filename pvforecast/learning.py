@@ -10,7 +10,12 @@ from keras.models import Model, model_from_json, Sequential
 from keras.layers import Input, Dense, Flatten, LeakyReLU
 from keras.layers.convolutional import Conv1D
 from keras.callbacks import TensorBoard, History, EarlyStopping
-#from pvforecast.evaluation import Evaluation
+
+
+def to_cyclic_feature(df, feature, num):
+    df[feature + '_x'] = np.sin(2.0 * np.pi * df[feature] / num)
+    df[feature + '_y'] = np.cos(2.0 * np.pi * df[feature] / num)
+    return df.drop(feature, axis=1)
 
 
 class Learning():
@@ -23,21 +28,23 @@ class Learning():
         self.kernel_size = 2
         self.batch_size = 1024
         self.const_features = ['latitude', 'longitude', 'altitude', 'modules_per_string', 'strings_per_inverter', 'tilt',
-                          'azimuth', 'albedo', 'Technology', 'BIPV', 'A_c', 'N_s', 'pdc0', 'gamma_pdc']#, 'SystemID']#15
+                          'azimuth', 'albedo', 'Technology', 'BIPV', 'A_c', 'N_s', 'pdc0', 'gamma_pdc']
         self.dyn_features = ['Wind Direction_x', 'Wind Direction_y', 'Total Cloud Cover', 'Low Cloud Cover', 'Medium Cloud Cover',
-                        'High Cloud Cover', 'Wind Speed', 'Wind Gust', 'Total Precipitation',
+                        'High Cloud Cover', 'Wind Speed', 'Total Precipitation',
                         'Snow Fraction', 'Mean Sea Level Pressure', 'DIF - backwards', 'DNI - backwards', 'Shortwave Radiation',
-                        'Temperature', 'Relative Humidity', 'Hour_x', 'Hour_y', 'Month_x', 'Month_y']
+                        'Temperature', 'Relative Humidity', 'Hour_x', 'Hour_y', 'Month_x', 'Month_y']               
         self.target_features = ['power']
         self.act_fct = 'relu'
         self.loss_fct = 'mae'
         self.optim = 'adam'
-        self.metrics = ['mse']
+        self.metrics = []#'mse']
         self.history = History()
-        self.val_history = History()
+        #self.val_history = History()
 
         ## data params
         self.filename = '../datasets/full_data_5_systems.csv'
+        if not os.path.exists('../datasets/'):
+            os.makedirs('../datasets/')
         self.timesteps = 5
         self.num_sys = 5
         self.shape = (self.timesteps + 1, len(self.const_features + self.dyn_features + self.target_features) + 1)
@@ -49,6 +56,8 @@ class Learning():
         self.forecast_horizon = 24
         self.sliding_window = 120
         self.save_dir = '../learning/'
+        if not os.path.exists(self.save_dir):
+            os.makedirs(self.save_dir)
 
         self.get_model(load, name)
 
@@ -157,50 +166,87 @@ class Learning():
         print('Preprocessing done.')
     
     
+    # create input for prediction
+    def create_input(self, weather, system, location):
+        df = weather.rename(columns={'temp_air': 'Temperature', 'wind_speed': 'Wind Speed', 'humidity_rel': 'Relative Humidity',
+                       'pressure_sea': 'Mean Sea Level Pressure', 'ghi': 'Shortwave Radiation', 'dni': 'DNI - backwards',
+                       'dhi': 'DIF - backwards', 'total_clouds': 'Total Cloud Cover', 'low_clouds': 'Low Cloud Cover',
+                       'mid_clouds': 'Medium Cloud Cover', 'high_clouds': 'High Cloud Cover', 'rain': 'Total Precipitation',
+                       'snow': 'Snow Fraction', 'wind_direction': 'Wind Direction'})
+        df['Hour'] = pd.to_datetime(df.index).hour.values
+        df['Month'] = pd.to_datetime(df.index).month.values
+        df = to_cyclic_feature(df, 'Hour', 24)
+        df = to_cyclic_feature(df, 'Month', 12)
+        df = to_cyclic_feature(df, 'Wind Direction', 360)
+        
+        df['latitude'] = location.latitude
+        df['longitude'] = location.longitude
+        df['altitude'] = location.altitude
+        df['modules_per_string'] = system.modules_per_string
+        df['strings_per_inverter'] = system.strings_per_inverter
+        df['tilt'] = system.surface_tilt
+        df['azimuth'] = system.surface_azimuth
+        df['albedo'] = system.albedo
+        t = 3 #CIGS
+        if system.module_parameters['Technology'] == "Mono-c-Si": t = 0
+        elif system.module_parameters['Technology'] == "Multi-c-Si": t = 1
+        elif system.module_parameters['Technology'] == "Thin Film": t = 2
+        df['Technology'] = t
+        b = 1
+        if system.module_parameters['BIPV'] == 'N': b = 0
+        df['BIPV'] = b
+        df['A_c'] = system.module_parameters['A_c']
+        df['N_s'] = system.module_parameters['N_s']
+        df['pdc0'] = system.module_parameters['pdc0']
+        df['gamma_pdc'] = system.module_parameters['gamma_pdc']
+        df = df[pd.Timestamp.now('UTC') - pd.to_timedelta(self.timesteps, unit='h'):] # take only the last self.timesteps
+        df['forecast_horizon'] = 0
+        df['power'] = -1
+        df['power'].iloc[:self.timesteps] = -1 # TODO: set the correct measurements for the last self.timesteps here
+        
+        input = df[self.const_features + self.dyn_features + ['forecast_horizon'] + self.target_features].values
+        return input, df.index.values[self.timesteps:]
+    
+    
     # pre-train model with historical data
     def pre_train_model(self):
-        X = self.trainX
-        y = self.trainY
-
         print('Start pretraining ...')    
-        val_idx = int(len(y) / 10.0)
-        self.model.fit(X[val_idx:], y[val_idx:], self.batch_size, self.epochs, self.verbose, self.callbacks, validation_data=(X[:val_idx], y[:val_idx]))
+        self.train_model(self.trainX, self.trainY)
         print('Done.')
-        
         self.save_model('pretrained')
     
     
     # train model with new data
-    def train_model(self):
-        self.model.fit(features, labels, self.batch_size, epochs=self.epochs, validation_split=self.val_split, callbacks=callbacks, verbose=1)
+    def train_model(self, X, y):
+        val_idx = int(len(y) / 10.0)
+        self.model.fit(X[val_idx:], y[val_idx:], self.batch_size, self.epochs, self.verbose, self.callbacks, validation_data=(X[:val_idx], y[:val_idx]))
 
         
     # predict with new data
-    def predict(self, X, forecast_horizon):
+    def predict(self, X):
         # initialize values for lagged power columns
         p = []
         for l in range(self.timesteps):
-            p.append(X[i,:][l][-1])
+            p.append(X[l][-1])
         predictions = []
         ts = []
-        for f in range(self.forecast_horizon):
+        for f in range(len(X) - self.timesteps):
             # build input vector for future timestep
-            t = np.array([X[i+f]])
+            t = np.array([X[f:f+self.timesteps+1]])
             if t.size > 0:
                 for l in range(self.timesteps-1):
                     t[0][l,-1] = p[l]
                     p[l] = p[l+1]
                 t[0][-2,-1] = p[-1]
                 t[0][:,-2] = f
-                ts.append(t)
+                ts.append([t, -1])
 
                 # make prediction for input new vector
-                p[-1] = self.model.predict(t, self.batch_size, self.verbose).item(0)
+                p[-1] = self.model.predict(t, self.batch_size).item(0)
                 predictions.append(p[-1])
 
-        return pd.DataFrame(predictions))
-        #Evaluation(self.batch_size, self.lag_hours, self.output_dim, self.test_size).evaluate(self.testX, self.testY, self.indices, run, self.model, self.pvlib, self.dir, scatter, timeseries_week, timeseries_full, boxplot_full, plot_nice_day, boxplots_months, histogram)
-    
+        return ts, pd.DataFrame(predictions)
+
     
     # save model
     def save_model(self, name='model'):
@@ -213,5 +259,50 @@ class Learning():
         print("Saved model to disk")
 
 
-l = Learning()
-l.create_historical_dataset()
+if False:
+    l = Learning(True, 'pretrained')
+    l.create_historical_dataset()
+    #l.pre_train_model()
+
+    sliding_window = 72#12#24
+    state = dict()
+    ress = []
+    length = 168
+    for i in range(length): #hours
+        for s in range(5): #systems
+            vec, res = l.predict(l.testX[s+i*5])
+            if s == 4:
+                ress.append(res)
+            if s in state:
+                state[s].append(vec)
+                if len(state[s]) > sliding_window:
+                    state[s].pop(0)
+            else:
+                state[s] = [vec]
+        dX = {k: [[v[m][j] for j in range(len(v[m])) if j+1 < len(v)-m] for m in range(len(v))] for k, v in state.items()}
+
+        #new_measurements = l.testY[i*5:i*5+5]
+        for k, v in dX.items():
+            for j in range(len(v)):
+                for h in range(len(v[j])):
+                    if v[j][h][1] == -1: # [0] immernoch horizon????
+                        v[j][h][1] = -2-h#new_measurements[k]
+        
+        dX = np.stack(dX.values(), axis=1).reshape(-1)[:-5]
+        if len(dX) > 0:
+            X, y = map(list, zip(*[(d[0][0], d[0][1]) for d in dX]))
+            X = np.array(X)
+            X = X.reshape(X.shape[0]*X.shape[1], X.shape[2], X.shape[3])
+            y = np.array(y)
+            if len(X) > 5:
+                l.train_model(X, y)
+
+    df = pd.DataFrame()
+    df['y\''] = np.array(ress).flatten()
+    df['y'] = l.testY[4::5][:length].flatten()
+    print(df)
+    import matplotlib.pyplot as plt
+    plt.plot(df)
+    plt.show()
+        
+    print(asdf)

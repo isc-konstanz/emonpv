@@ -350,7 +350,7 @@ class NMM_Historic(ForecastModel):
         data['wind_direction'] = data['Wind Direction']
         data['humidity_rel'] = data['Relative Humidity']
         data['pressure_sea'] = data['Mean Sea Level Pressure']
-        data['ghi'] = data['Shortwave Radiation']###########???
+        data['ghi'] = data['Shortwave Radiation']
         data['dni'] = data['DNI - backwards']
         data['dhi'] = data['DIF - backwards']
         data['total_clouds'] = data['Total Cloud Cover']

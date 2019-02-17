@@ -22,22 +22,22 @@ from configparser import ConfigParser
 import datetime
 
 
-def forecast(settings, time):
+def forecast(settings, time, model=None, state=None):
     from pvforecast import DatabaseList, SystemList, Weather
     
     database = DatabaseList(settings)
     systems = SystemList(settings, database)
     weather = Weather(settings, database, model=settings.get('Weather', 'model'))
     
-    systems.forecast(weather, time)
+    systems.forecast(weather, time, model, state, int(settings.get('General', 'interval')))
+    
 
-
-def schedule_forecast(scheduler, interval, time, settings):
-    forecast(settings, time)
+def schedule_forecast(scheduler, interval, time, settings, model=None, state=None):
+    forecast(settings, time, model, state)
     
     time, delay = schedule_time(interval)
     scheduler.enter(delay, 1, forecast, 
-                    (scheduler, interval, time, settings))
+                    (scheduler, interval, time, settings, model, state))
 
 
 def schedule_time(interval):
@@ -52,27 +52,32 @@ def schedule_time(interval):
 def simulate(settings):
     forecast(settings, datetime.datetime(2008, 1, 1))
 
-def run(settings):
+
+def run(settings, model=None, state=None):
     interval = int(settings.get('General', 'interval'))
-    
     time,_ = schedule_time(interval)
-    forecast(settings, time)
+    forecast(settings, time, model, state)
 
 
-def start(settings):
+def start(settings, model=None, state=None):
     import sched, time
     
     logger.info('Starting pvforecast')
     
     interval = int(settings.get('General', 'interval'))
-    
     scheduler = sched.scheduler(time.time, time.sleep)
     schedule_date, _ = schedule_time(interval)
-    schedule_forecast(scheduler, interval, schedule_date, settings)
+    schedule_forecast(scheduler, interval, schedule_date, settings, model, state)
     scheduler.run()
 
-def learn(settings):
-    logger.info('Starting training')
+    
+def pretrain(settings):
+    from pvforecast.learning import Learning
+    logger.info('Starting pretraining on historical data')
+    model = Learning()
+    model.create_historical_dataset()
+    model.pre_train_model()
+    
 
 def build(settings, rmlib):
     from pvforecast.database import ModuleDatabase, InverterDatabase
@@ -100,14 +105,21 @@ def main(settings, args=None):
     settings.set('General', 'datadir', args.datadir)
     settings.set('General', 'configdir', args.configdir)
     
+    state = None
+    model = None
+    if bool(settings.get('General', 'NN_forecast')):
+        from pvforecast.learning import Learning
+        state = dict()
+        model = Learning(True, 'pretrained')
+    
     if args.action == 'run':
-        run(settings)
+        run(settings, model, state)
     
     elif args.action == 'start':
-        start(settings)
+        start(settings, model, state)
     
-    elif args.action == 'learn':
-        learn(settings)
+    elif args.action == 'pretrain':
+        pretrain(settings)
     
     elif args.action == 'simulate':
         simulate(settings)
@@ -132,9 +144,9 @@ def _get_parser(settings, configdir):
     
     subparsers.add_parser('start', help='Starts the ongoing calculation of photovoltaic yield in a regular interval')
     
-    subparsers.add_parser('learn', help='Process passed measurement values to train the learning algorithm')
+    subparsers.add_parser('pretrain', help='Pretrain the neural network with historical data')
     
-    subparsers.add_parser('simulate', help='Simulation')
+    subparsers.add_parser('simulate', help='Pvlib simulation')
     
     parser_build = subparsers.add_parser('build', help='Build the current photovoltaic module and inverter library')
     parser_build.add_argument('-r','--remove', action='store_true',

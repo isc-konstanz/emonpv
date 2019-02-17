@@ -96,7 +96,8 @@ class SystemList(list):
                 system.append(name, config, module, inverter)
 
 
-    def forecast(self, weather, time):
+    def forecast(self, weather, time, model=None, state=None, interval=60):
+        time = pd.to_datetime(time, utc=True)
         locations = {}
         for system in self:
             loc = system.grid_location(weather)
@@ -104,13 +105,42 @@ class SystemList(list):
                 locations[loc] = []
             
             locations[loc].append(system)
-        
+            
         # TODO: Implement multi threading
         for systems in locations.values():
             for system in systems:
-                forecast = system.forecast(weather.forecast(system, time))
+                if model is None or state is None:
+                    forecast = system.forecast(weather.forecast(system, time))
+                else:
+                    forecast = system.forecast_NN(weather.forecast(system, time), model, state)
                 self.database.post(system, forecast, date=time)
+        
+        
+        if model is not None and state is not None:
+            # select only those inputs that have measurements available
+            dX = {k: [[v[m][j] for j in range(len(v[m])) if j+(interval/60) < (len(v)-m)*(interval/60)] for m in range(len(v))] for k, v in state.items()}
 
+            # add the new measurements
+            for k, v in dX.items():
+                for j in range(len(v)):
+                    for h in range(len(v[j])):
+                        if v[j][h][1] == -1:
+                            v[j][h][1] = -2-h # TODO: set the correct new measurements
+            
+            # format training input and train model
+            num_sys = len(dX.keys())
+            import numpy as np
+            dX = np.stack(dX.values(), axis=1).reshape(-1)[:-num_sys]
+            if len(dX) > 0:
+                X, y = map(list, zip(*[(d[0][0], d[0][1]) for d in dX]))
+                X = np.array(X)
+                X = X.reshape(X.shape[0]*X.shape[1], X.shape[2], X.shape[3])
+                y = np.array(y)
+                if len(X) > num_sys:
+                    model.train_model(X, y)
+                    model.save_model('model_' + str(time.year) + '_' + str(time.month) + '_' + str(time.day) + '_' + str(time.hour))
+            
+        
 
 class System(list):
 
@@ -170,6 +200,35 @@ class System(list):
             columns = [self.name] + list(forecast.columns)
             forecast[self.name] = forecast.sum(axis=1)
             forecast = forecast.reindex_axis(columns, axis=1)
+        
+        return forecast
+        
+    
+    def forecast_NN(self, weather, model, state):
+        forecast = pd.DataFrame()
+        sliding_window = 236
+        for system in self:
+            input, idx = model.create_input(weather, system, self.location)
+            inputs, result = model.predict(input)
+            result = result.set_index(idx)[0]
+            result.name = system.name.lower()
+            forecast = pd.concat([forecast, result.where(result > 1e-6, other=0)], axis=1)
+            
+            # save prediction inputs for later training
+            if system.name in state:
+                state[system.name].append(inputs)
+                while len(state[system.name]) > sliding_window:
+                    state[system.name].pop(0)
+            else:
+                state[system.name] = [inputs]
+        
+        if len(forecast.columns) == 1:
+            forecast.columns = [self.name]
+        
+        elif len(forecast.columns) > 1:
+            columns = [self.name] + list(forecast.columns)
+            forecast[self.name] = forecast.sum(axis=1)
+            forecast = forecast.reindex(columns, axis=1)
         
         return forecast
 
