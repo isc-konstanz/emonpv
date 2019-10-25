@@ -1,18 +1,89 @@
+const LOCAL_CACHE_KEY = 'solar_systems_collapsed';
 const INTERVAL_RESULTS = 5000;
 const INTERVAL_REDRAW = 15000;
 var redrawTime = new Date().getTime();
 var redraw = false;
+var scrolled = false;
 var updater;
 var timeout;
 
-var systems = {};
-var inverters = {};
-var modules = {};
+var collapsed = [];
 
-var collapsed = {};
+//---------------------------------------------------------------------------------------------
+//Configure solar systems
+//---------------------------------------------------------------------------------------------
+var view = new Vue({
+    el: "#solar-view",
+    data: {
+        systems: {},
+        inverters: {},
+        modules: {},
+        loaded: false
+    },
+    computed: {
+        systemCount: function() {
+            return Object.keys(this.systems).length;
+        }
+    },
+    methods: {
+        scroll: function() {
+            window.clearTimeout(timeout);
+            timeout = window.setTimeout(function() {
+                scrolled = window.scrollY > 45;
+            }, 100);
+        },
+        toggleCollapse: function(event, id) {
+            window.clearTimeout(timeout);
+            timeout = window.setTimeout(function() {
+                let shown = $('#solar-system'+id).hasClass('in');
+                let index = collapsed.indexOf(id);
+                if ((index > -1) == shown) {
+                    if (shown) {
+                        collapsed.splice(index, 1);
+                        $('#solar-system'+id+'-icon').html("<use xlink:href='#icon-chevron-up' />");
+                    }
+                    else {
+                        collapsed.push(id);
+                        $('#solar-system'+id+'-icon').html("<use xlink:href='#icon-chevron-down' />");
+                    }
+                    if (!Array.isArray(collapsed)) {
+                        collapsed = [];
+                    }
+                    docCookies.setItem(LOCAL_CACHE_KEY, JSON.stringify(collapsed));
+                }
+            }, 100);
+        },
+        isCollapsed: function(id) {
+            return collapsed.indexOf(id) > -1
+        }
+    },
+    created() {
+        window.addEventListener('scroll', this.scroll);
+    },
+    destroyed() {
+        window.removeEventListener('scroll', this.scroll);
+    }
+});
 
 setTimeout(function() {
     solar.list(function(result) {
+        if (docCookies.hasItem(LOCAL_CACHE_KEY)) {
+            var cache = JSON.parse(docCookies.getItem(LOCAL_CACHE_KEY));
+            if (Array.isArray(cache)) {
+                collapsed = cache;
+            }
+            else {
+                collapsed = [];
+            }
+        }
+        else {
+            for (var s in result) {
+                var system = result[s];
+                if (collapsed.indexOf(system.id) === -1) {
+                    collapsed.push(system.id);
+                }
+            }
+        }
         draw(result);
         updaterStart();
     });
@@ -52,91 +123,33 @@ function updaterStop() {
     updater = null;
 }
 
-//---------------------------------------------------------------------------------------------
-// Draw solar systems
-//---------------------------------------------------------------------------------------------
 function draw(result) {
-    $('#solar-loader').hide();
-    $("#solar-systems").empty();
-    
-    if (typeof result.success !== 'undefined' && !result.success) {
-        //alert("Error:\n" + result.message);
-        return;
-    }
-    else if (result.length == 0) {
-        $("#solar-header").hide();
-        $("#solar-actions").hide();
-        $("#solar-footer").show();
-        $("#solar-none").show();
-        
-        return;
-    }
-    
-    $("#solar-header").show();
-    $("#solar-actions").show();
-    $("#solar-footer").show();
-    $("#solar-none").hide();
-    
-    systems = {};
-    inverters = {};
-    modules = {};
-    
-    for (var i in result) {
-        drawSystem(result[i]);
-    }
-    registerEvents();
-}
+    view.systems = {};
+    view.inverters = {};
+    view.modules = {};
 
-function drawSystem(system) {
-    if (typeof collapsed[system.id] === 'undefined') {
-        collapsed[system.id] = true;
+    for (var s in result) {
+        var system = result[s];
+        for (var i in system['inverters']) {
+            var inverter = system['inverters'][i];
+            for (var m in inverter['modules']) {
+                var module = inverter['modules'][m];
+                view.modules[module.id] = module;
+            }
+            delete inverter['modules'];
+            view.inverters[inverter.id] = inverter;
+        }
+        delete system['inverters'];
+        view.systems[system.id] = system;
     }
-    
-    $("#solar-systems").append(
-        "<div class='system group'>" +
-            "<div id='solar-system"+system.id+"-header' class='group-header' data-toggle='collapse' data-target='#solar-system"+system.id+"'>" +
-                "<div class='group-item' data-id='"+system.id+"'>" +
-                    "<div class='group-collapse'>" +
-                        "<svg id='solar-system"+system.id+"-icon' class='icon icon-collapse'>" +
-	                        "<use xlink:href='#icon-chevron-right' />" +
-	                    "</svg>" +
-                    "</div>" +
-                    "<div class='name'><span>"+system.name+(system.description.length>0 ? ":" : "")+"</span></div>" +
-                    "<div class='description'><span>"+system.description+"</span></div>" +
-                    "<div class='group-grow'></div>" +
-                    "<div class='group-menu dropdown action'>" +
-                        "<svg class='dropdown-toggle icon icon-menu' data-toggle='dropdown'>" +
-	                        "<use xlink:href='#icon-dots-vertical' />" +
-	                    "</svg>" +
-	                    "<ul class='dropdown-menu pull-right'>" +
-                            "<li><a class='system-config'>Edit system</a></li>" +
-	                        "<li><a class='system-export' disabled>Export results</a></li>" +
-	                    "</ul>" +
-                    "</div>" +
-                "</div>" +
-            "</div>" +
-            "<div id='solar-system"+system.id+"' class='group-body collapse "+(collapsed[system.id] ? '' : 'in')+"'>" +
-	            "<div class='alert alert-comment'>" +
-	            	"Placeholder" +
-	            "</div>" +
-    		"</div>" +
-        "</div>"
-    );
-    for (var i in systems['inverters']) {
-        drawInverter(systems['inverters'][i]);
-    }
-    delete systems['inverters'];
-    systems[systems.id] = systems;
-}
+    view.loaded = true;
 
-function drawInverter(inverter) {
-	
+    // TODO: move this to vue section
+    $(".solar-inverter-img img").hover(function() {
+    	let img = $(this);
+    	img.attr('src', img.attr('src').replace("mono", "blue"));
+    }, function() {
+    	let img = $(this);
+    	img.attr('src', img.attr('src').replace("blue", "mono"));
+    });
 }
-
-function registerEvents() {
-    
-}
-
-$("#system-new").on('click', function () {
-    solar_system.newSystem();
-});

@@ -20,7 +20,9 @@ var solar_system = {
             $('#system-config-delete').hide();
             $('#system-config-save').prop('disabled', true);
             $('#system-config-save').html('Create');
-            
+
+            $('#system-model').val('').addClass('select-default');
+            $('#system-model-tooltip').hide();
             $('#system-name').val('');
             $('#system-description').val('').hide();
             $('#system-latitude').val('');
@@ -39,6 +41,10 @@ var solar_system = {
             $('#system-config-delete').show();
             $('#system-config-save').prop('disabled', false);
             $('#system-config-save').html('Save');
+            
+            $('#system-model').val(system.model).removeClass('select-default');
+            $('#system-model-tooltip').tooltip({title: "Placeholder description for the <b>"+$('#system-model option:selected', this).text()+"</b> model.", 
+            									html:true, container:modal}).show();
             
             $('#system-name').val(system.name);
             
@@ -117,7 +123,7 @@ var solar_system = {
     registerConfigEvents: function() {
 
         $("#system-model").off('change').on('change', function() {
-        	var title = $('option:selected', this).text();
+        	var title = $('#system-model option:selected', this).text();
         	var tooltip = $('#system-model-tooltip').tooltip({title: "Placeholder description for the <b>"+title+"</b> model.",
 						html:true,
 						container:'#system-config-modal'})
