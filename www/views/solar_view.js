@@ -55,9 +55,35 @@ var view = new Vue({
         },
         isCollapsed: function(id) {
             return collapsed.indexOf(id) > -1
+        },
+        setCount: function(event) {
+        	let input = $(event.currentTarget);
+        	let value = input.val();
+        	if (value >= 1000) {
+        		input.width(44);
+        	}
+        	else if (value >= 100) {
+        		input.width(34);
+        	}
+        	else if (value >= 10) {
+        		input.width(24);
+        	}
+        	else {
+        		input.width(14);
+        	}
         }
     },
     created() {
+    	$(document).on({
+    	    mouseenter: function() {
+    	    	let img = $(this).find('.clipart img');
+    	    	img.attr('src', img.attr('src').replace("mono", "blue"));
+    	    },
+    	    mouseleave: function() {
+    	    	let img = $(this).find('.clipart img');
+    	    	img.attr('src', img.attr('src').replace("blue", "mono"));
+    	    }
+    	}, ".inverter");
         window.addEventListener('scroll', this.scroll);
     },
     destroyed() {
@@ -136,20 +162,11 @@ function draw(result) {
                 var module = inverter['modules'][m];
                 view.modules[module.id] = module;
             }
-            delete inverter['modules'];
+            //delete inverter['modules'];
             view.inverters[inverter.id] = inverter;
         }
-        delete system['inverters'];
+        //delete system['inverters'];
         view.systems[system.id] = system;
     }
     view.loaded = true;
-
-    // TODO: move this to vue section
-    $(".solar-inverter-img img").hover(function() {
-    	let img = $(this);
-    	img.attr('src', img.attr('src').replace("mono", "blue"));
-    }, function() {
-    	let img = $(this);
-    	img.attr('src', img.attr('src').replace("blue", "mono"));
-    });
 }
