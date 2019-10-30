@@ -97,6 +97,9 @@ function inverter_controller($system) {
             if ($route->subaction == "get") {
                 return $system->inverter->get(get('id'));
             }
+            else if ($route->subaction == "update") {
+                return $system->inverter->update(get('id'), get('fields'));
+            }
             else if ($route->subaction == "delete" && $session['write']) {
                 return $system->inverter->delete(get('id'));
             }
@@ -121,7 +124,10 @@ function modules_controller($system) {
         }
         else if ($session['read']) {
             if ($route->subaction == "get") {
-                return $system->inverte->modulesr->get(get('id'));
+                return $system->inverter->modules->get(get('id'));
+            }
+            else if ($route->subaction == "update") {
+                return $system->inverter->modules->update(get('id'), get('fields'));
             }
             else if ($route->subaction == "delete" && $session['write']) {
                 return $system->inverter->modules->delete(get('id'));

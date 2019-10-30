@@ -8,7 +8,7 @@ $schema['solar_system'] = array(
     'forecast' => array('type' => 'TINYINT(1)', 'default'=>0),
     'model' => array('type' => 'VARCHAR(32)', 'Null'=>false),
     'name' => array('type' => 'TEXT', 'Null'=>false),
-    'description' => array('type' => 'TEXT', 'default'=>0),
+    'description' => array('type' => 'TEXT'),
     'latitude' => array('type' => 'DOUBLE(8,5)', 'Null'=>false),
     'longitude' => array('type' => 'DOUBLE(8,5)', 'Null'=>false),
     'altitude' => array('type' => 'DOUBLE(5,2)'),

@@ -176,6 +176,38 @@ class SolarInverter {
         );
     }
 
+    public function update($id, $fields) {
+        $id = intval($id);
+        if (!$this->exist($id)) {
+            throw new SolarException("Inverter for id $id does not exist");
+        }
+        $fields = json_decode(stripslashes($fields), true);
+        
+        if (isset($fields['count'])) {
+            $count = $fields['count'];
+            
+            if (empty($count) || !is_numeric($count) || $count < 1) {
+                throw new SolarException("The inverter count is invalid: $count");
+            }
+            if ($stmt = $this->mysqli->prepare("UPDATE solar_inverter SET count = ? WHERE id = ?")) {
+                $stmt->bind_param("ii", $count, $id);
+                if ($stmt->execute() === false) {
+                    $stmt->close();
+                    throw new SolarException("Error while update count of inverter#$id");
+                }
+                $stmt->close();
+                
+                if ($this->redis) {
+                    $this->redis->hset("solar:inverter#$id", 'count', $count);
+                }
+            }
+            else {
+                throw new SolarException("Error while setting up database update");
+            }
+        }
+        return array('success'=>true, 'message'=>'Inverter successfully updated');
+    }
+
     public function delete($id) {
         $id = intval($id);
         if (!$this->exist($id)) {
@@ -189,7 +221,7 @@ class SolarInverter {
         if ($this->redis) {
             $this->delete_redis($id);
         }
-        return array('success'=>true, 'message'=>'System successfully deleted');
+        return array('success'=>true, 'message'=>'Inverter successfully deleted');
     }
 
     private function delete_redis($id) {

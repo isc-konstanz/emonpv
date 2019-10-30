@@ -15,6 +15,10 @@ var solar = {
         create:function(system, callback) {
             return solar.request(callback, "solar/inverter/create.json", "sysid="+system.id);
         },
+        update:function(system, id, fields, callback) {
+            return solar.request(callback, "solar/inverter/update.json", "sysid="+system.id+"&id="+id+
+                    "&fields="+JSON.stringify(fields));
+        },
         remove:function(system, id, callback) {
             return solar.request(callback, "solar/inverter/delete.json", "sysid="+system.id+"&id="+id);
         }
@@ -24,6 +28,10 @@ var solar = {
         create:function(inverter, azimuth, tilt, type, settings, callback) {
             return solar.request(callback, "solar/modules/create.json", "invid="+inverter.id+"&azimuth="+azimuth+"&tilt="+tilt+"&type="+type+
                     "&settings="+JSON.stringify(settings));
+        },
+        update:function(inverter, id, fields, callback) {
+            return solar.request(callback, "solar/modules/update.json", "invid="+inverter.id+"&id="+id+
+                    "&fields="+JSON.stringify(fields));
         },
         remove:function(inverter, id, callback) {
             return solar.request(callback, "solar/modules/delete.json", "invid="+inverter.id+"&id="+id);

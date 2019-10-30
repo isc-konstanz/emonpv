@@ -54,20 +54,28 @@ var view = new Vue({
         isCollapsed: function(id) {
             return collapsed.indexOf(id) > -1
         },
-        setCount: function(event) {
+        setCount: function(event, parent, element, type) {
             let input = $(event.currentTarget);
             let value = input.val();
             if (value >= 1000) {
-                input.width(44);
+                input.width(40);
             }
             else if (value >= 100) {
-                input.width(34);
+                input.width(30);
             }
             else if (value >= 10) {
-                input.width(24);
+                input.width(20);
             }
             else {
                 input.width(14);
+            }
+            if (input[0].checkValidity()) {
+                element.count = value;
+                window.clearTimeout(timeout);
+                timeout = window.setTimeout(function() {
+                	solar[type].update(parent, element.id, {count: value});
+                	
+                }, 250);
             }
         },
         run: function(system) {

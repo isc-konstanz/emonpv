@@ -180,6 +180,7 @@
 .inverter-item:hover {
     background-color: #0069b4;
 }
+.inverter-item:hover .name,
 .inverter-item:hover .icon-action {
     color: #def2ff;
 }

@@ -192,6 +192,38 @@ class SolarModules {
         );
     }
 
+    public function update($id, $fields) {
+        $id = intval($id);
+        if (!$this->exist($id)) {
+            throw new SolarException("Modules for id $id does not exist");
+        }
+        $fields = json_decode(stripslashes($fields), true);
+        
+        if (isset($fields['count'])) {
+            $count = $fields['count'];
+            
+            if (empty($count) || !is_numeric($count) || $count < 1) {
+                throw new SolarException("The modules count is invalid: $count");
+            }
+            if ($stmt = $this->mysqli->prepare("UPDATE solar_modules SET count = ? WHERE id = ?")) {
+                $stmt->bind_param("ii", $count, $id);
+                if ($stmt->execute() === false) {
+                    $stmt->close();
+                    throw new SolarException("Error while update count of modules#$id");
+                }
+                $stmt->close();
+                
+                if ($this->redis) {
+                    $this->redis->hset("solar:modules#$id", 'count', $count);
+                }
+            }
+            else {
+                throw new SolarException("Error while setting up database update");
+            }
+        }
+        return array('success'=>true, 'message'=>'Modules successfully updated');
+    }
+
     public function delete($id) {
         $id = intval($id);
         if (!$this->exist($id)) {
