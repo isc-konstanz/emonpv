@@ -15,7 +15,7 @@ defined('EMONCMS_EXEC') or die('Restricted access');
 
 class SolarSystem {
 
-    public const DEFAULT_DIR = "/var/opt/pvforecast/";
+    const DEFAULT_DIR = "/var/opt/pvforecast/";
 
     private $log;
 
