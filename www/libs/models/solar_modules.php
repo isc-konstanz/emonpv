@@ -57,6 +57,8 @@ class SolarModules {
         else {
             $type = null;
         }
+        $settings = json_decode(stripslashes($settings), true);
+        
         if (empty($settings)) {
             $settings = null;
         }
@@ -98,7 +100,7 @@ class SolarModules {
         }
         usort($modules, function($v1, $v2) {
             if($v1['count'] == $v2['count']) {
-                return strcmp($v1['name'], $v2['name']);
+                return strcmp($v1['type'], $v2['type']);
             }
             return $v1['count'] - $v2['count'];
         });

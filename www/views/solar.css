@@ -1,14 +1,10 @@
 .modal .modal-body {
     max-height: none;
 }
-.modal .alert-comment {
-    margin: 0px;
-    color: #737373;
-    background-color: #f9f9f9;
-    border-color: #e6e6e6;
-}
-.modal .alert-comment h4 {
-    color: #737373;
+.modal .description {
+    font-size: 15px;
+    font-weight: lighter;
+    color: #666;
 }
 .modal .divider {
     width: 100%;
@@ -17,6 +13,19 @@
     margin-top: 10px;
     margin-bottom: 10px;
     border-bottom: #f0f0f0 1px solid;
+}
+
+.alert-comment {
+    margin: 0px;
+    color: #737373;
+    background-color: #f9f9f9;
+    border-color: #e6e6e6;
+}
+.alert-comment h4 {
+    color: #737373;
+}
+.alert h4 {
+    margin-top: 10px;
 }
 
 .tooltip {
@@ -108,22 +117,6 @@
 .system-header .system-item {
     height: 40px;
 }
-.system-header .name {
-    padding-right: 5px;
-    font-weight: bold;
-    color: #666;
-}
-.system-header .desc {
-    font-size: 15px;
-    font-weight: lighter;
-    color: #666;
-}
-.system-header .desc em {
-    color: #999;
-}
-@media(max-width: 600px) {
-    .system-header .desc { display: none; }
-}
 
 .system-body {
     width: 100%;
@@ -150,10 +143,34 @@
     text-align: right;
     cursor: pointer;
 }
+.system-item .name,
+.inverter-item .name {
+    padding-right: 5px;
+    font-weight: bold;
+    color: #666;
+}
+.system-item .description,
+.inverter-item .description {
+    font-size: 15px;
+    font-weight: lighter;
+    color: #666;
+}
+.system-item .description em,
+.inverter-item .description em {
+    color: #999;
+}
+@media(max-width: 600px) {
+    .system-item .description,
+    .inverter-item .description { display: none; }
+}
 
 .inverter > div {
+    vertical-align: top;
     padding-top: 18px;
     padding-top: 18px;
+}
+.inverter > .count {
+    padding-top: 54px;
 }
 .inverter-item {
     height: 42px;
@@ -163,6 +180,15 @@
 .inverter-item:hover {
     background-color: #0069b4;
 }
+.inverter-item:hover .icon-action {
+    color: #def2ff;
+}
+.inverter-item .icon-action {
+    color: #999;
+}
+.inverter-item .icon-action:hover {
+    color: #fff;
+}
 .inverter-item > div {
     border-bottom: 1px solid #f5f5f5;
     color: #333;
@@ -170,15 +196,17 @@
 .inverter-item > div:last-child {
     padding-right: 18px;
 }
-.inverter-item:first-child:before {
+.inverter-item:before {
     content: "";
     position: absolute;
     height: 15px;
-    border-bottom: 3px solid #545454;
-    border-top: 3px solid #545454;
+    width: 40px;
     margin-top: 10px;
     margin-left: -40px;
-    width: 40px;
+}
+.inverter-item:first-child:before {
+    border-bottom: 3px solid #545454;
+    border-top: 3px solid #545454;
 }
 .inverter:hover .inverter-item:first-child:before {
     border-bottom: 3px solid #0069b4;
@@ -205,16 +233,17 @@
     cursor: pointer;
 }
 
-.inverter .modules {
-	height: 100%;
+.inverter .inverter-body {
+    height: 100%;
     width: 100%;
-    vertical-align: top;
 }
-.inverter .modules > div {
+.inverter .inverter-body > div:first-child {
     display: table;
     padding-left: 40px;
     padding-right: 40px;
-    padding-top: 10px;
+    padding-top: 7px;
+    border-collapse: separate;
+    border-spacing: 0 3px;
 }
 
 .system-menu .dropdown-menu {
@@ -245,27 +274,28 @@
 }
 
 .system-new,
-.system-add {
+.inverter-add {
     display: flex !important;
     justify-content: center;
     align-items: center;
     padding-left: 10px;
 }
 .system-new .divider,
-.system-add .divider {
+.inverter-add .divider {
     height: 1px;
     flex-grow: 1;
     margin-left: 8px;
+    margin-right:40px;
     border-bottom: #ebebeb 1px solid;
     transition: color .15s ease-in-out,background-color .15s ease-in-out,border-color .15s ease-in-out,box-shadow .15s ease-in-out;
 }
-.system-add:hover {
+.inverter-add:hover {
     cursor: pointer;
 }
-.system-add:hover .divider {
+.inverter-add:hover .divider {
     border-bottom: #ddd 1px solid;
 }
-.system-add .btn {
+.inverter-add .btn {
     color: #ddd;
     box-shadow: none;
     -webkit-box-shadow: none;
@@ -273,8 +303,39 @@
     -ms-box-shadow: none;
     background-color: transparent;
 }
-.system-add:hover .btn {
+.inverter-add:hover .btn {
     color: #999;
+    background-color: #ddd;
+}
+
+.inverter-item.new {
+    height: 36px;
+    background-color: #f5f5f5;
+}
+.inverter-item.new:hover {
+    background-color: #fcfcfc;
+    cursor: pointer;
+}
+.inverter-item.new > div {
+    border-top: 2px dashed #eee;
+    border-bottom: 2px dashed #eee;
+}
+.inverter-item.new > div:first-child {
+    border-left: 2px dashed #eee;
+}
+.inverter-item.new > div:last-child {
+    border-right: 2px dashed #eee;
+}
+.inverter-item.new:hover > div {
+    border-color: #ddd;
+}
+.inverter-item.new .btn {
+    margin-left: 8px;
+    color: #bbb;
+    background-color: #e3e3e3;
+}
+.inverter-item.new:hover .btn {
+    color: #666;
     background-color: #ddd;
 }
 
@@ -295,7 +356,7 @@
 }
 
 .system-run {
-	margin: 24px 40px 14px 14px;
+    margin: 14px 40px 14px 14px;
 }
 
 #system-location .input-small {
@@ -383,6 +444,7 @@ svg.icon-collapse {
 svg.icon-action {
     width: .9em;
     height: .9em;
+    vertical-align: -.01em;
 }
 svg.icon-menu {
     width: 1.1em;
@@ -501,6 +563,11 @@ input[type=number]::-webkit-outer-spin-button {
     padding: 0;
     margin: 0;
 } */
+.settings .description {
+    font-size: 15px;
+    font-weight: lighter;
+    color: #999;
+}
 
 .settings-header > * {
     padding-top: 10px;

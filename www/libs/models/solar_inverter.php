@@ -19,7 +19,7 @@ class SolarInverter {
     private $redis;
     private $mysqli;
 
-    private $modules;
+    public $modules;
 
     public function __construct($mysqli, $redis) {
         $this->log = new EmonLogger(__FILE__);
@@ -79,9 +79,9 @@ class SolarInverter {
         if ($this->redis) {
             $this->add_redis($inverter);
         }
-        $modules = array($this->modules->create($id));
+        //$modules = array($this->modules->create($id));
         
-        return $this->parse($inverter, $modules);
+        return $this->parse($inverter);
     }
 
     public function get_list($sysid) {
@@ -92,7 +92,7 @@ class SolarInverter {
         }
         usort($inverters, function($i1, $i2) {
             if($i1['count'] == $i2['count']) {
-                return strcmp($i1['name'], $i2['name']);
+                return strcmp($i1['type'], $i2['type']);
             }
             return $i1['count'] - $i2['count'];
         });
@@ -152,7 +152,7 @@ class SolarInverter {
         $this->redis->hMSet("solar:inverter#".$inverter['id'], $inverter);
     }
 
-    private function parse($inverter, $modules=null) {
+    private function parse($inverter, $modules=array()) {
         if ($modules == null) {
             $modules = $this->modules->get_list($inverter['id']);
         }

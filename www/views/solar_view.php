@@ -40,16 +40,17 @@ foreach ($svgs as $svg) {
                                 </svg>
                             </div>
                             <div class="name"><span>{{system.name+(system.description.length>0 ? ":" : "")}}</span></div>
-                            <div class="desc"><span>{{system.description}}</span></div>
+                            <div class="description"><span>{{system.description}}</span></div>
                             <div class='grow'></div>
                             <div class="menu dropdown action" @click.prevent>
-                                <svg class="dropdown-toggle icon icon-menu" data-toggle="dropdown">" +
-                                    <use xlink:href="#icon-dots-vertical" />" +
+                                <svg class="dropdown-toggle icon icon-menu" data-toggle="dropdown">
+                                    <use xlink:href="#icon-dots-vertical" />
                                 </svg>
                                 <ul class="dropdown-menu pull-right">
                                     <li><a @click.prevent.stop="solar_system.openExport(system)" disabled><?php echo _("Export results"); ?></a></li>
-                                    <li><a @click.prevent.stop="solar_system.openConfig(system)"><?php echo _("Settings"); ?></a></li>
-                                    <li><a @click.prevent.stop="solar_system.openDelete(system)"><?php echo _("Delete"); ?></a></li>
+                                    <li><a @click.prevent.stop="solar_inverter.newConfig(system)"><?php echo _("Add Inverter"); ?></a></li>
+                                    <li><a @click.prevent.stop="solar_system.openConfig(system)"><?php echo _("Edit System"); ?></a></li>
+                                    <li><a @click.prevent.stop="solar_system.openDelete(system)"><?php echo _("Delete System"); ?></a></li>
                                 </ul>
                             </div>
                         </div>
@@ -57,41 +58,68 @@ foreach ($svgs as $svg) {
                     <div :id="'system'+sysid" class="system-body collapse" :class="{ 'in': !isCollapsed(sysid) }">
                         <div class="inverter system-item" v-for="inverter in system.inverters" :data-id="inverter.id">
                             <div class="count"><input type="number" min="1" step="1" required :value="inverter.count" v-on:input="setCount"></input></div>
-                            <div class="clipart"><img src="<?php echo $path; ?>Modules/solar/images/inverter-mono.png"></img></div>
-                            <div class="modules">
+                            <div class="clipart" title="<?php echo _("Edit inverter"); ?>" @click="solar_inverter.openConfig(system, inverter.id)">
+                                <img src="<?php echo $path; ?>Modules/solar/images/inverter-mono.png"></img>
+                            </div>
+                            <div class="inverter-body">
                                 <div>
-                                    <div class="inverter-item" v-for="module in inverter.modules" :data-id="module.id">
-                            			<div class="count"><input type="number" min="1" step="1" required :value="module.count" v-on:input="setCount"></input></div>
-                            			<div class="name"><span>{{(module.type != null ? module.type : "")}}</span></div>
-                                        <div class='grow'></div>
+                                    <div class="modules inverter-item" v-for="module in inverter.modules" :data-id="module.id">
+                                        <div class="count"><input type="number" min="1" step="1" required :value="module.count" v-on:input="setCount"></input></div>
+                                        <div class="name"><span>{{(module.type)}}</span></div>
+                                        <div class="grow"></div>
+                                        <div class="action" @click="solar_modules.openDeletion(inverter, module.id)">
+                                            <svg class="icon icon-action">
+                                                <use xlink:href="#icon-bin" />
+                                            </svg>
+                                        </div>
+                                        <div class="action" @click="solar_modules.openConfig(inverter, module.id)">
+                                            <svg class="icon icon-action">
+                                                <use xlink:href="#icon-wrench" />
+                                            </svg>
+                                        </div>
                                     </div>
-                                </div>
-                                <div class="system-add">
-                                    <button title="Add inverter" type="button" class="btn btn-plain btn-small btn-circle" @click="solar_inverter.addModules(inverter)">
-                                        <svg class="icon">
-                                            <use xlink:href="#icon-plus" />
-                                        </svg>
-                                    </button>
-                            		<div class="divider"></div>
+                                    <div class="inverter-item new" title="<?php echo _("Add modules"); ?>" @click="solar_modules.newConfig(inverter)">
+                                        <div>
+                                            <button type="button" class="btn btn-plain btn-small btn-circle">
+                                                <svg class="icon">
+                                                    <use xlink:href="#icon-plus" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                        <div></div>
+                                        <div class="grow"></div>
+                                        <div></div>
+                                        <div></div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                        <div class="system-add">
-                            <button title="Add inverter" type="button" class="btn btn-plain btn-small btn-circle" @click="solar_system.addInverter(system)">
+                        <div class="inverter-add" title="<?php echo _("Add inverter"); ?>" @click="solar_inverter.newConfig(system)">
+                            <button type="button" class="btn btn-plain btn-small btn-circle">
                                 <svg class="icon">
                                     <use xlink:href="#icon-plus" />
                                 </svg>
                             </button>
-                    		<div class="divider" style="margin-right:40px;"></div>
+                            <div class="divider"></div>
                         </div>
-                        <button :id="'system'+sysid+'-run'" class="system-run btn btn-plain btn-default pull-right"><?php echo _('Start'); ?></button>
+                        <div :id="'system'+sysid+'-results'" class="alert alert-comment" style="display:none; margin: 10px 38px 0px;">
+                            <?php echo _('Placeholder for the simulation results and visualization.'); ?>
+                        </div>
+                        <button :id="'system'+sysid+'-run'" class="system-run btn btn-primary btn-plain pull-right" @click="run(system)"><?php echo _('Start'); ?></button>
                     </div>
                 </div>
             </template>
+            <div class="alert" v-else>
+                <h3 class="alert-heading mt-0"><?php echo _('No inputs created'); ?></h3>
+                <p>
+                    <?php echo _('This is a placeholder to explain what this is and what to do.'); ?><br>
+                    <?php echo _('You may want the next link as a guide for generating your request: '); ?><a href="api"><?php echo _('Solar system API helper'); ?></a>
+                </p>
+            </div>
             <div id="solar-footer">
                 <div class="system-new">
                     <div class="divider"></div>
-                    <button id="system-new" title="New solar system" type="button" class="btn btn-plain btn-light btn-circle" @click="solar_system.newSystem">
+                    <button id="system-new" title="New solar system" type="button" class="btn btn-plain btn-light btn-circle" @click="solar_system.newConfig">
                         <svg class="icon">
                             <use xlink:href="#icon-plus" />
                         </svg>
@@ -105,6 +133,8 @@ foreach ($svgs as $svg) {
 </div>
 
 <?php require "Modules/solar/dialogs/solar_system.php"; ?>
+<?php require "Modules/solar/dialogs/solar_inverter.php"; ?>
+<?php require "Modules/solar/dialogs/solar_modules.php"; ?>
 
 <script src="<?php echo $path; ?>Lib/moment.min.js"></script>
 <script src="<?php echo $path; ?>Lib/misc/gettext.js?v=<?php echo $v; ?>"></script>

@@ -1,511 +1,78 @@
-var dialog =
-{
-    moduleNavStart: 0,
-    moduleNavEnd: 100,
-    moduleMeta: null,
-    moduleType: null,
-    module: null,
-    modules: [],
-    system: null,
-    template: null,
+var solar_modules = {
 
-    'loadSystemConfig':function(system) {
-        if (system != null) {
-            this.system = system;
+    id: null,
+    inverter: null,
+
+    newConfig: function(inverter) {
+        solar_modules.id = null;
+        solar_modules.inverter = inverter;
+        solar_modules.drawConfig();
+    },
+
+    openConfig: function(inverter, id) {
+        solar_modules.id = id;
+        solar_modules.inverter = inverter;
+        solar_modules.drawConfig(inverter.modules[id]);
+    },
+
+    drawConfig: function(modules = null) {
+        var modal = $("#modules-config-modal").modal('show');
+        if (modules == null) {
+            $('#modules-config-label').html('Create modules');
+            $('#modules-config-delete').hide();
+            //$('#modules-config-save').prop('disabled', true);
+            $('#modules-config-save').prop('disabled', false);
+            $('#modules-config-save').html('Create');
             
-            // The modules array needs to be deep cloned, to allow the comparison for changed modules later
-            this.modules = JSON.parse(JSON.stringify(system.modules));
+            $('#modules-azimuth').val('');
+            $('#modules-tilt').val('');
         }
         else {
-            this.system = null;
-            this.modules = [];
-        }
-        this.template = null;
-        this.module = null;
-        this.moduleType = null;
-        
-        this.moduleNavStart = 0;
-        this.moduleNavEnd = 100;
-        
-        this.drawSystemConfig();
-    },
-
-    'drawSystemConfig':function() {
-        $("#system-modal").modal('show');
-        this.adjustSystemModal();
-        
-        $('#system-name-tooltip').attr("title", 
-                "The name should work as a unique identifier for the system, " +
-                "to be able to distinguish e.g. the systems <i>roof</i> and <i>garage</i>.").tooltip({html: true});
-        
-        $('#system-description-tooltip').attr("title", 
-                "The description provides space for small descriptive comments " +
-                "regarding the specific system and may be left empty").tooltip({html: true});
-        
-        $('#system-location-tooltip').attr("title", 
-                "The geographic coordinates longitude, latitude and altitude of the solar system.<br>" +
-                "Those may be extracted e.g. by using <a href='https://www.google.de/maps'>Google Maps<a>").tooltip({html: true});
-        
-        if (this.system != null) {
-            $('#system-name').val(this.system.name);
-            $('#system-description').val(this.system.description);
-            $('#system-latitude').val(this.system.latitude);
-            $('#system-longitude').val(this.system.longitude);
-            $('#system-altitude').val(this.system.altitude);
-            $('#system-delete').show();
-            $("#system-init").show();
-        }
-        else {
-            $('#system-name').val('');
-            $('#system-description').val('');
-            $('#system-latitude').val('');
-            $('#system-longitude').val('');
-            $('#system-altitude').val('');
-            $('#system-delete').hide();
-            $("#system-init").hide();
-        }
-        this.drawSystemModules();
-        this.drawModuleSidebar();
-    },
-
-    'drawSystemModules':function() {
-        var table = $("#system-modules-table");
-        
-        if (dialog.modules.length > 0) {
-            table.html("<tr id='system-modules-header'></tr>");
+            $('#modules-config-label').html('Configure modules');
+            $('#modules-config-delete').show();
+            $('#modules-config-save').prop('disabled', false);
+            $('#modules-config-save').html('Save');
             
-            var row = $("#system-modules-header");
-            row.append("<th>Name</th>");
-            row.append("<th>Manufacturer</th>");
-            row.append("<th>Model</th>");
-            row.append("<th>Count</th>");
-            row.append("<th></th>");
-            row.append("<th></th>");
-            
-            for (var i = 0; i < dialog.modules.length; i++) {
-                var type = dialog.modules[i].type;
-                var group = type.split('/')[0];
-                var module = dialog.moduleMeta[group][type];
-                
-                table.append("<tr id='system-modules-row-"+i+"' row='"+i+"'></tr>");
-                row = $("#system-modules-row-"+i);
-                row.append("<td>" + dialog.modules[i].name + "</td>");
-                row.append("<td>" + module.Manufacturer + "</td>");
-                row.append("<td>" + module.Name + "</td>");
-                row.append("<td>" + dialog.modules[i].modules_per_string*dialog.modules[i].strings_per_inverter + "</td>");
-                row.append("<td><a class='module-edit' title='Edit'><i class='icon-wrench' style='cursor:pointer'></i></a></td>");
-                row.append("<td><a class='module-remove' title='Remove'><i class='icon-trash' style='cursor:pointer'></i></a></td>");
-            }
-            $("#system-modules-table").show();
-            $("#system-modules-none").hide();
+            $('#modules-azimuth').val(modules.orientation.azimuth);
+            $('#modules-tilt').val(modules.orientation.tilt);
         }
-        else {
-            table.text("");
-            $("#system-modules-table").hide();
-            $("#system-modules-none").show();
-        }
+        $('#modules-orientation-tooltip').tooltip({html:true, container:modal});
+        $('#modules-settings-tooltip').tooltip({html:true, container:modal});
         
-        // Initialize callbacks
-        dialog.registerSystemEvents();
+//        if (dialog.moduleType != null && dialog.moduleType != '') {
+//            var groups = Object.keys(dialog.moduleMeta);
+//            var group = dialog.moduleType.split('/')[0];
+//            var index = groups.indexOf(group);
+//            if (index >= 0) {
+//                var module = dialog.moduleMeta[group][dialog.moduleType];
+//
+//                $('#module-description').html(module.Name+'<br><em style="color:#888">'+module.Description+'</em>');
+//                
+//                dialog.moduleNavStart = Math.floor(index/10)*10;
+//                dialog.moduleNavEnd = dialog.moduleNavStart + 100;
+//                dialog.drawModuleSidebar();
+//                
+//                $(".module-body[group='"+group+"']").show();
+//                $(".module-row[type='"+dialog.moduleType+"']").addClass("module-selected");
+//                $("#module-sidebar").scrollTop();
+//                
+//                return;
+//            }
+//            else {
+//                $(".module-body").hide();
+//                $(".module-row").removeClass("module-selected");
+//                $('#module-description').text('');
+//            }
+//        }
+//        else {
+//            $(".module-body").hide();
+//            $(".module-row").removeClass("module-selected");
+//            $('#module-description').text('');
+//        }
+        solar_modules.registerConfigEvents();
     },
 
-    'closeSystemConfig':function(result) {
-        if (typeof result.success !== 'undefined' && !result.success) {
-            alert(result.message);
-            return false;
-        }
-        $('#system-modal').modal('hide');
-        update();
-        
-        return true
-    },
-
-    'adjustSystemModal':function() {
-
-        var width = $(window).width();
-        var height = $(window).height();
-        
-        if ($("#system-modal").length) {
-            var h = height - $("#system-modal").position().top - 180;
-            $("#system-body").height(h);
-        }
-    },
-
-    'registerSystemEvents':function() {
-
-        $("#system-save").off('click').on('click', function() {
-            var name = $('#system-name').val();
-            var lat = $('#system-latitude').val();
-            var lon = $('#system-longitude').val();
-            var alt = $('#system-altitude').val();
-            
-            if (name && lon && lat && alt && dialog.modules.length > 0) {
-                var desc = $('#system-description').val();
-                
-                if (dialog.system != null) {
-                    var fields = {};
-                    if (dialog.system.name != name) fields['name'] = name;
-                    if (dialog.system.description != desc) fields['description'] = desc;
-                    if (dialog.system.latitude != lat) fields['latitude'] = lat;
-                    if (dialog.system.longitude != lon) fields['longitude'] = lon;
-                    if (dialog.system.altitude != alt) fields['altitude'] = alt;
-                    
-                    if (JSON.stringify(dialog.system.modules) != JSON.stringify(dialog.modules)) {
-                        fields['modules'] = dialog.modules;
-                    }
-                    solar.set(dialog.system.id, fields, dialog.closeSystemConfig);
-                }
-                else {
-                    var location = {
-                            longitude: lon,
-                            latitude: lat,
-                            altitude: alt
-                    };
-                    solar.create(name, desc, location, dialog.modules, function(result) {
-                        if (dialog.closeSystemConfig(result)) {
-                            dialog.system = {
-                                    id: result.id,
-                                    name: name,
-                                    description: desc,
-                                    latitude: lat,
-                                    longitude: lon,
-                                    altitude: alt,
-                                    modules: dialog.modules
-                            };
-                            dialog.loadInitConfig();
-                        }
-                    });
-                }
-            }
-            else {
-                alert('System needs to be configured first.');
-                return false;
-            }
-        });
-        
-        $('#system-modules-table').on('click', '.module-edit', function() {
-            var row = $(this).closest('tr').attr('row');
-            var module = dialog.modules[row];
-            
-            $('#system-modal').modal('hide');
-            dialog.loadModuleConfig(module);
-        });
-        
-        $('#system-modules-table').on('click', '.module-remove', function() {
-            var row = $(this).closest('tr').attr('row');
-            dialog.modules.splice(row, 1);
-            dialog.drawSystemModules();
-        });
-        
-        $("#system-modules-add").off('click').on('click', function() {
-            $('#system-modal').modal('hide');
-            dialog.loadModuleConfig();
-        });
-        
-        $("#system-init").off('click').on('click', function() {
-            $('#system-modal').modal('hide');
-            dialog.loadInitConfig();
-        });
-        
-        $("#system-delete").off('click').on('click', function() {
-            $('#system-modal').modal('hide');
-            dialog.loadSystemDelete(dialog.system);
-        });
-    },
-
-    'loadInitConfig': function() {
-        dialog.template = [];
-        solar.prepare(dialog.system.id, function(result) {
-            if (typeof result.success !== 'undefined' && !result.success) {
-                alert('Unable to initialize system:\n'+result.message);
-                return false;
-            }
-            dialog.template = result;
-            dialog.drawInitConfig();
-        });
-        
-        // Initialize callbacks
-        $("#system-init-confirm").off('click').on('click', function() {
-            $('#system-init-modal').modal('hide');
-            
-            var template = dialog.parseInitTemplate();
-            var foo = JSON.stringify(template);
-            solar.init(dialog.system.id, template, function(result) {
-                if (typeof result.success !== 'undefined' && !result.success) {
-                    alert('Unable to initialize system:\n'+result.message);
-                    return false;
-                }
-            });
-        });
-    },
-
-    'adjustInitModal':function() {
-        var width = $(window).width();
-        var height = $(window).height();
-        
-        if ($("#system-init-modal").length) {
-            var h = height - $("#system-init-modal").position().top - 180;
-            $("#system-init-body").height(h);
-        }
-    },
-
-    'drawInitConfig': function() {
-        $('#system-init-modal').modal('show');
-        $('#system-init-modal-label').html('Initialize System: <b>'+dialog.system.name+'</b>');
-        dialog.adjustInitModal();
-        
-        if (typeof dialog.template.feeds !== 'undefined' && dialog.template.feeds.length > 0) {
-            $('#system-init-feeds').show();
-            var table = "";
-            for (var i = 0; i < dialog.template.feeds.length; i++) {
-                var feed = dialog.template.feeds[i];
-                var row = "";
-                if (feed.action.toLowerCase() == "none") {
-                    row += "<td><input row='"+i+"' class='input-select' type='checkbox' checked disabled /></td>";
-                }
-                else {
-                    row += "<td><input row='"+i+"' class='input-select' type='checkbox' checked /></td>";
-                }
-                row += "<td>"+dialog.drawInitAction(feed.action)+"</td>"
-                row += "<td>"+feed.tag+"</td><td>"+feed.name+"</td>";
-                row += "<td>"+dialog.drawInitProcessList(feed.processList)+"</td>";
-                
-                table += "<tr>"+row+"</tr>";
-            }
-            $('#system-init-feeds-table').html(table);
-        }
-        else {
-            $('#system-init-feeds').hide();
-        }
-        
-        if (typeof dialog.template.inputs !== 'undefined' && dialog.template.inputs.length > 0) {
-            $('#system-init-inputs').show();
-            var table = "";
-            for (var i = 0; i < dialog.template.inputs.length; i++) {
-                var input = dialog.template.inputs[i];
-                var row = "";
-                if (input.action.toLowerCase() == "none") {
-                    row += "<td><input row='"+i+"' class='input-select' type='checkbox' checked disabled /></td>";
-                }
-                else {
-                    row += "<td><input row='"+i+"' class='input-select' type='checkbox' checked /></td>";
-                }
-                row += "<td>"+dialog.drawInitAction(input.action)+"</td>"
-                row += "<td>"+input.node+"</td><td>"+input.name+"</td><td>"+input.description+"</td>";
-                row += "<td>"+dialog.drawInitProcessList(input.processList)+"</td>";
-                
-                table += "<tr>"+row+"</tr>";
-            }
-            $('#system-init-inputs-table').html(table);
-        }
-        else {
-            $('#system-init-inputs').hide();
-            $('#system-init-inputs-table').html("");
-        }
-        
-        return true;
-    },
-
-    'drawInitAction': function(action) {
-        action = action.toLowerCase();
-        
-        var color;
-        if (action === 'create' || action === 'set') {
-            color = "rgb(0,110,205)";
-        }
-        else if (action === 'override') {
-            color = "rgb(255,125,20)";
-        }
-        else {
-            color = "rgb(50,200,50)";
-            action = "exists"
-        }
-        action = action.charAt(0).toUpperCase() + action.slice(1);
-        
-        return "<span style='color:"+color+";'>"+action+"</span>";
-    },
-
-    'drawInitProcessList': function(processList) {
-        if (!processList || processList.length < 1) return "";
-        var out = "";
-        for (var i = 0; i < processList.length; i++) {
-            var process = processList[i];
-            if (process['arguments'] != undefined && process['arguments']['value'] != undefined && process['arguments']['type'] != undefined) {
-                var name = "<small>"+process["name"]+"</small>";
-                var value = process['arguments']['value'];
-                
-                var title;
-                var color = "info";
-                switch(process['arguments']['type']) {
-                case 0: // VALUE
-                    title = "Value: " + value;
-                    break;
-                    
-                case 1: // INPUTID
-                    title = "Input: " + value;
-                    break;
-                    
-                case 2: // FEEDID
-                    title = "Feed: " + value;
-                    break;
-                    
-                case 4: // TEXT
-                    title = "Text: " + value;
-                    break;
-
-                case 5: // SCHEDULEID
-                    title = "Schedule: " + value;
-                    break;
-
-                default:
-                    title = value;
-                    break;
-                }
-                out += "<span class='label label-"+color+"' title='"+title+"' style='cursor:default'>"+name+"</span> ";
-            }
-        }
-        return out;
-    },
-
-    'parseInitTemplate': function() {
-        var template = {};
-        
-        template['feeds'] = [];
-        if (typeof dialog.template.feeds !== 'undefined' && 
-                dialog.template.feeds.length > 0) {
-            
-            var feeds = dialog.template.feeds;
-            $("#system-init-feeds-table tr").find('input[type="checkbox"]:checked').each(function() {
-                template['feeds'].push(feeds[$(this).attr("row")]); 
-            });
-        }
-        
-        template['inputs'] = [];
-        if (typeof dialog.template.inputs !== 'undefined' && 
-                dialog.template.inputs.length > 0) {
-            
-            var inputs = dialog.template.inputs;
-            $("#system-init-inputs-table tr").find('input[type="checkbox"]:checked').each(function() {
-                template['inputs'].push(inputs[$(this).attr("row")]); 
-            });
-        }
-        
-        return template;
-    },
-
-    'loadSystemDelete': function(system, row) {
-        dialog.system = system;
-        
-        $('#system-delete-modal').modal('show');
-        $('#system-delete-modal-label').html('Delete System: <b>'+dialog.system.name+'</b>');
-        
-        // Initialize callbacks
-        dialog.registerDeleteEvents(row);
-    },
-
-    'registerDeleteEvents':function(row) {
-        
-        $("#system-delete-confirm").off('click').on('click', function() {
-            solar.remove(dialog.system.id, function() {
-                if (row != null) {
-                    table.remove(row);
-                }
-                update();
-                $('#system-delete-modal').modal('hide');
-            });
-        });
-    },
-
-    'loadModuleConfig':function(module) {
-        if (module != null) {
-            dialog.module = module;
-            dialog.moduleType = module.type;
-        }
-        else {
-            dialog.module = null;
-            dialog.moduleType = null;
-        }
-        dialog.drawModuleConfig();
-    },
-
-    'drawModuleConfig':function() {
-        $("#module-modal").modal('show');
-        dialog.adjustModuleModal();
-        
-        $('#module-name-tooltip').attr("title", 
-                "The key that will be used to clearly distinguish different module groups from each other.<br>" +
-                'This may be e.g. "east", "west" or inverter inventory numbers').tooltip({html: true});
-        
-        $('#module-count-tooltip').attr("title", 
-                "The <b>number of strings</b> and the <b>number of solar modules in each string</b>, " +
-                "for their specified orientation in the system. " +
-                "In larger systems, individual modules are connected in both series and parallel. " +
-                "A series-connected set of solar cells or modules is called a string.").tooltip({html: true});
-        
-        $('#module-orientation-tooltip').attr("title", 
-                "The modules tilt from horizontal and the azimuth, the horizontal angle measured clockwise from north.").tooltip({html: true});
-        
-        $('#module-albedo-tooltip').attr("title", 
-                "The modules ground reflectance, depending on the ground the system is installed upon.").tooltip({html: true});
-        
-        if (dialog.module != null) {
-            $('#module-name').val(dialog.module.name);
-            $('#module-strings').val(dialog.module.strings_per_inverter);
-            $('#module-number').val(dialog.module.modules_per_string);
-            $('#module-tilt').val(dialog.module.tilt);
-            $('#module-azimuth').val(dialog.module.azimuth);
-            $('#module-albedo').val(dialog.module.albedo);
-            $('#module-delete').show();
-            $("#module-save").html("Save");
-            $("#module-save").prop('disabled', false);
-            $("#module-modal-label").html("Configure Solar Module");
-        }
-        else {
-            $('#module-name').val('');
-            $('#module-strings').val(1);
-            $('#module-number').val(1);
-            $('#module-tilt').val('');
-            $('#module-azimuth').val('');
-            $('#module-albedo').val(0.18);
-            $('#module-delete').hide();
-            $("#module-save").html("Add");
-            $("#module-save").prop('disabled', true);
-            $("#module-modal-label").html("Add Solar Module");
-        }
-        
-        if (dialog.moduleType != null && dialog.moduleType != '') {
-            var groups = Object.keys(dialog.moduleMeta);
-            var group = dialog.moduleType.split('/')[0];
-            var index = groups.indexOf(group);
-            if (index >= 0) {
-                var module = dialog.moduleMeta[group][dialog.moduleType];
-
-                $('#module-description').html(module.Name+'<br><em style="color:#888">'+module.Description+'</em>');
-                
-                dialog.moduleNavStart = Math.floor(index/10)*10;
-                dialog.moduleNavEnd = dialog.moduleNavStart + 100;
-                dialog.drawModuleSidebar();
-                
-                $(".module-body[group='"+group+"']").show();
-                $(".module-row[type='"+dialog.moduleType+"']").addClass("module-selected");
-                $("#module-sidebar").scrollTop();
-                
-                return;
-            }
-            else {
-                $(".module-body").hide();
-                $(".module-row").removeClass("module-selected");
-                $('#module-description').text('');
-            }
-        }
-        else {
-            $(".module-body").hide();
-            $(".module-row").removeClass("module-selected");
-            $('#module-description').text('');
-        }
-    },
-
-    'drawModuleSidebar':function() {
+    drawConfigSidebar:function() {
         var table = "";
         var groups = Object.keys(dialog.moduleMeta);
         
@@ -548,34 +115,25 @@ var dialog =
         dialog.registerModuleEvents();
     },
 
-    'adjustModuleModal':function() {
-        var width = $(window).width();
-        var height = $(window).height();
-        
-        if ($("#module-modal").length) {
-            var h = height - $("#module-modal").position().top - 180;
-            $("#module-body").height(h);
-        }
-        
-        $("#module-content").css("transition","0");
-        $("#module-sidebar").css("transition","0");
-        if (width < 1024) {
-            $("#module-content").css("margin-left","0");
-            $("#module-sidebar").css("width","0");
-            $("#module-sidebar-open").show();
+    saveConfig: function() {
+        var type = "Placeholder";
 
-            $("#module-content").css("transition","0.5s");
-            $("#module-sidebar").css("transition","0.5s");
+        var azimuth = $('#modules-azimuth').val();
+        var tilt = $('#modules-tilt').val();
+
+        if (solar_modules.modules == null) {
+            var settings = {};
+            
+            solar.modules.create(solar_modules.inverter, azimuth, tilt, type, settings, solar_modules.closeConfig);
         }
         else {
-            $("#module-content").css("margin-left","250px");
-            $("#module-sidebar").css("width","250px");
-            $("#module-sidebar-open").hide();
-            $("#module-sidebar-close").hide();
+            var fields = {};
+            
+            solar.modules.set(solar_modules.id, fields, solar_modules.closeConfig);
         }
     },
 
-    'registerModuleEvents':function() {
+    registerConfigEvents:function() {
 
         $('#module-table .module-header').off('click').on('click', function() {
             var group = $(this).attr("group");
@@ -733,27 +291,53 @@ var dialog =
                 return false;
             }
         });
-        
-        $("#module-cancel").off('click').on('click', function() {
-            $('#system-modal').modal('show');
-            dialog.adjustSystemModal();
-            dialog.drawSystemModules();
+
+        $("#modules-config-delete").off('click').on('click', function () {
+            $('#modules-config-modal').modal('hide');
+            
+            solar_modules.openDeletion(solar_modules.inverter, solar_modules.id);
         });
-        
-        $("#module-delete").off('click').on('click', function() {
-            var index = dialog.modules.indexOf(dialog.module);
-            if (index >= 0) {
-                dialog.modules.splice(index, 1);
-            }
-            $('#module-modal').modal('hide');
-            $('#system-modal').modal('show');
-            dialog.drawSystemModules();
+
+        $("#modules-config-save").off('click').on('click', function() {
+            solar_modules.saveConfig();
         });
     },
 
-    'adjustModal':function() {
-        dialog.adjustSystemModal();
-        dialog.adjustInitModal();
-        dialog.adjustModuleModal();
+    closeConfig: function(result) {
+        $('#modules-config-loader').hide();
+        
+        if (typeof result.success !== 'undefined' && !result.success) {
+            alert('Solar modules could not be configured:\n'+result.message);
+            return false;
+        }
+        update();
+        $('#modules-config-modal').modal('hide');
+    },
+
+    openDeletion: function(inverter, id) {
+        solar_modules.id = id;
+        solar_modules.inverter = inverter;
+        
+        $('#modules-delete-modal').modal('show');
+        $('#modules-delete-label').html('Delete modules');
+        $("#modules-delete-confirm").off('click').on('click', function() {
+            $('#modules-delete-loader').show();
+            
+            solar.modules.remove(solar_modules.inverter, solar_modules.id, function(result) {
+                $('#modules-delete-loader').hide();
+                
+                if (typeof result.success !== 'undefined' && !result.success) {
+                    alert('Unable to delete modules:\n'+result.message);
+                    return false;
+                }
+                let systems = view.systems;
+                delete systems[solar_modules.inverter.sysid]
+                        .inverters[solar_modules.inverter.id]
+                        .modules[solar_modules.id];
+                
+                draw(systems);
+                $('#modules-delete-modal').modal('hide');
+            });
+        });
     }
 }

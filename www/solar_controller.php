@@ -37,6 +37,12 @@ function solar_controller() {
     }
     else if ($route->format == 'json' && $session['userid'] > 0) {
         try {
+            if ($route->action == "modules") {
+                return modules_controller($system);
+            }
+            if ($route->action == "inverter") {
+                return inverter_controller($system);
+            }
             return system_controller($system);
             
         } catch(SolarException $e) {
@@ -58,16 +64,67 @@ function system_controller($system) {
     else if ($session['read']) {
         $sysid = get('id');
         if (!empty($sysid)) {
-            $details = $system->get($sysid);
-            if ($details['userid'] != $session['userid']) {
+            $sys = $system->get($sysid);
+            if ($sys['userid'] != $session['userid']) {
                 return array('success'=>false, 'message'=>'Invalid permissions to access this system');
             }
             
             if ($route->action == "get") {
-                return $details;
+                return $sys;
             }
             else if ($route->action == "delete" && $session['write']) {
                 return $system->delete($sysid);
+            }
+        }
+    }
+    return array('content'=>EMPTY_ROUTE);
+}
+
+function inverter_controller($system) {
+    global $session, $route;
+    
+    $sysid = get('sysid');
+    if (!empty($sysid)) {
+        $sys = $system->get($sysid);
+        if ($sys['userid'] != $session['userid']) {
+            return array('success'=>false, 'message'=>'Invalid permissions to access this inverter');
+        }
+        
+        if ($route->subaction == "create" && $session['write']) {
+            return $system->inverter->create($sysid);
+        }
+        else if ($session['read']) {
+            if ($route->subaction == "get") {
+                return $system->inverter->get(get('id'));
+            }
+            else if ($route->subaction == "delete" && $session['write']) {
+                return $system->inverter->delete(get('id'));
+            }
+        }
+    }
+    return array('content'=>EMPTY_ROUTE);
+}
+
+function modules_controller($system) {
+    global $session, $route;
+    
+    $invid = get('invid');
+    if (!empty($invid)) {
+        $inv = $system->inverter->get($invid);
+        $sys = $system->get($inv['sysid']);
+        if ($sys['userid'] != $session['userid']) {
+            return array('success'=>false, 'message'=>'Invalid permissions to access these modules');
+        }
+        
+        if ($route->subaction == "create" && $session['write']) {
+            return $system->inverter->modules->create($invid, get('azimuth'), get('tilt'), get('type'), get('settings'));
+        }
+        else if ($session['read']) {
+            if ($route->subaction == "get") {
+                return $system->inverte->modulesr->get(get('id'));
+            }
+            else if ($route->subaction == "delete" && $session['write']) {
+                return $system->inverter->modules->delete(get('id'));
             }
         }
     }

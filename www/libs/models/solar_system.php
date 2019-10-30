@@ -22,7 +22,7 @@ class SolarSystem {
     private $redis;
     private $mysqli;
 
-    private $inverter;
+    public $inverter;
 
     public function __construct($mysqli, $redis) {
         $this->log = new EmonLogger(__FILE__);

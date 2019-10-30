@@ -16,8 +16,6 @@ var view = new Vue({
     el: "#solar-view",
     data: {
         systems: {},
-        inverters: {},
-        modules: {},
         loaded: false
     },
     computed: {
@@ -35,16 +33,16 @@ var view = new Vue({
         toggleCollapse: function(event, id) {
             window.clearTimeout(timeout);
             timeout = window.setTimeout(function() {
-                let shown = $('#solar-system'+id).hasClass('in');
+                let shown = $('#system'+id).hasClass('in');
                 let index = collapsed.indexOf(id);
                 if ((index > -1) == shown) {
                     if (shown) {
                         collapsed.splice(index, 1);
-                        $('#solar-system'+id+'-icon').html("<use xlink:href='#icon-chevron-up' />");
+                        $('#system'+id+'-icon').html("<use xlink:href='#icon-chevron-up' />");
                     }
                     else {
                         collapsed.push(id);
-                        $('#solar-system'+id+'-icon').html("<use xlink:href='#icon-chevron-down' />");
+                        $('#system'+id+'-icon').html("<use xlink:href='#icon-chevron-down' />");
                     }
                     if (!Array.isArray(collapsed)) {
                         collapsed = [];
@@ -57,33 +55,36 @@ var view = new Vue({
             return collapsed.indexOf(id) > -1
         },
         setCount: function(event) {
-        	let input = $(event.currentTarget);
-        	let value = input.val();
-        	if (value >= 1000) {
-        		input.width(44);
-        	}
-        	else if (value >= 100) {
-        		input.width(34);
-        	}
-        	else if (value >= 10) {
-        		input.width(24);
-        	}
-        	else {
-        		input.width(14);
-        	}
+            let input = $(event.currentTarget);
+            let value = input.val();
+            if (value >= 1000) {
+                input.width(44);
+            }
+            else if (value >= 100) {
+                input.width(34);
+            }
+            else if (value >= 10) {
+                input.width(24);
+            }
+            else {
+                input.width(14);
+            }
+        },
+        run: function(system) {
+        	$("#system"+system.id+"-results").show();
         }
     },
     created() {
-    	$(document).on({
-    	    mouseenter: function() {
-    	    	let img = $(this).find('.clipart img');
-    	    	img.attr('src', img.attr('src').replace("mono", "blue"));
-    	    },
-    	    mouseleave: function() {
-    	    	let img = $(this).find('.clipart img');
-    	    	img.attr('src', img.attr('src').replace("blue", "mono"));
-    	    }
-    	}, ".inverter");
+        $(document).on({
+            mouseenter: function() {
+                let img = $(this).find('.clipart img');
+                img.attr('src', img.attr('src').replace("mono", "blue"));
+            },
+            mouseleave: function() {
+                let img = $(this).find('.clipart').find('img');
+                img.attr('src', img.attr('src').replace("blue", "mono"));
+            }
+        }, ".inverter");
         window.addEventListener('scroll', this.scroll);
     },
     destroyed() {
@@ -92,7 +93,7 @@ var view = new Vue({
 });
 
 setTimeout(function() {
-    solar.list(function(result) {
+    solar.system.list(function(result) {
         if (docCookies.hasItem(LOCAL_CACHE_KEY)) {
             var cache = JSON.parse(docCookies.getItem(LOCAL_CACHE_KEY));
             if (Array.isArray(cache)) {
@@ -116,7 +117,7 @@ setTimeout(function() {
 }, 100);
 
 function update() {
-    solar.list(draw);
+    solar.system.list(draw);
 }
 
 function updateView() {
@@ -125,7 +126,7 @@ function updateView() {
         redrawTime = time;
         redraw = true;
         
-        solar.list(function(result) {
+        solar.system.list(function(result) {
             draw(result);
             redraw = false;
         });
@@ -151,21 +152,21 @@ function updaterStop() {
 
 function draw(result) {
     view.systems = {};
-    view.inverters = {};
-    view.modules = {};
-
     for (var s in result) {
         var system = result[s];
-        for (var i in system['inverters']) {
-            var inverter = system['inverters'][i];
-            for (var m in inverter['modules']) {
-                var module = inverter['modules'][m];
-                view.modules[module.id] = module;
+        var inverters = {};
+        for (var i in system.inverters) {
+            var inverter = system.inverters[i];
+            var modules = {};
+            for (var m in inverter.modules) {
+                var module = inverter.modules[m];
+                modules[module.id] = module;
             }
-            //delete inverter['modules'];
-            view.inverters[inverter.id] = inverter;
+            inverter.modules = modules;
+            inverters[inverter.id] = inverter;
         }
-        //delete system['inverters'];
+        system.inverters = inverters;
+        
         view.systems[system.id] = system;
     }
     view.loaded = true;
