@@ -49,7 +49,14 @@ var solar_system = {
             $('#system-name').val(system.name);
             
             var description = system.description != null ? system.description : '';
-            $('#system-description').val(description).toggle(description != '');
+            if (description != '') {
+                $("#system-description").val(description).show();
+                $("#system-description-icon").html('<use xlink:href="#icon-cross" />').data('show', true);
+            }
+            else {
+                $("#system-description").val(description).hide();
+                $("#system-description-icon").html('<use xlink:href="#icon-plus" />').data('show', false);
+            }
             
             $('#system-latitude').val(system.location.latitude);
             $('#system-longitude').val(system.location.longitude);
@@ -137,14 +144,12 @@ var solar_system = {
 
         $("#system-description-icon").off('click').on('click', function() {
             if (!$(this).data('show')) {
-                $("#system-description-icon").html('<use xlink:href="#icon-cross" />');
                 $("#system-description").animate({width:'toggle'}, 250);
-                $(this).data('show', true);
+                $(this).html('<use xlink:href="#icon-cross" />').data('show', true);
             }
             else {
-                $("#system-description-icon").html('<use xlink:href="#icon-plus" />');
                 $("#system-description").animate({width:'toggle'}, 250).val("");
-                $(this).data('show', false);
+                $(this).html('<use xlink:href="#icon-plus" />').data('show', false);
             }
         });
 

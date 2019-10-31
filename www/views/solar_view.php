@@ -58,7 +58,8 @@ foreach ($svgs as $svg) {
                     <div :id="'system'+sysid" class="system-body collapse" :class="{ 'in': !isCollapsed(sysid) }">
                         <div class="inverter system-item" v-for="inverter in system.inverters" :data-id="inverter.id">
                             <div class="count">
-                                <input type="number" min="1" step="1" required :value="inverter.count" v-on:input="setCount($event, system, inverter, 'inverter')"></input>
+                                <input  :style="'width:'+(1+inverter.count.length)+'ch;'" type="number" min="1" step="1" required
+                                        :value="inverter.count" v-on:input="setCount($event, system, inverter, 'inverter')"></input>
                             </div>
                             <div class="clipart" title="<?php echo _("Edit inverter"); ?>" @click="solar_inverter.openConfig(system, inverter.id)">
                                 <img src="<?php echo $path; ?>Modules/solar/images/inverter-mono.png"></img>
@@ -67,7 +68,8 @@ foreach ($svgs as $svg) {
                                 <div>
                                     <div class="modules inverter-item" v-for="module in inverter.modules" :data-id="module.id">
                                         <div class="count">
-                                            <input type="number" min="1" step="1" required :value="module.count" v-on:input="setCount($event, inverter, module, 'modules')"></input>
+                                            <input :style="'width:'+(1+module.count.length)+'ch;'" type="number" min="1" step="1" required 
+                                                   :value="module.count" v-on:input="setCount($event, inverter, module, 'modules')"></input>
                                         </div>
                                         <div class="name"><span>{{(module.type)}}</span></div>
                                         <div class="grow"></div>

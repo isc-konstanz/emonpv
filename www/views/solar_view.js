@@ -57,18 +57,8 @@ var view = new Vue({
         setCount: function(event, parent, element, type) {
             let input = $(event.currentTarget);
             let value = input.val();
-            if (value >= 1000) {
-                input.width(40);
-            }
-            else if (value >= 100) {
-                input.width(30);
-            }
-            else if (value >= 10) {
-                input.width(20);
-            }
-            else {
-                input.width(14);
-            }
+            
+            input.width((1+value.length)+'ch');
             if (input[0].checkValidity()) {
                 element.count = value;
                 window.clearTimeout(timeout);
