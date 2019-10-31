@@ -68,7 +68,7 @@ foreach ($svgs as $svg) {
                                 <div>
                                     <div class="modules inverter-item" v-for="module in inverter.modules" :data-id="module.id">
                                         <div class="count">
-                                            <input :style="'width:'+(1+module.count.length)+'ch;'" type="number" min="1" step="1" required 
+                                            <input :style="'width:'+(1+module.count.length)+'ch;'" style="margin-left:0!important" type="number" min="1" step="1" required 
                                                    :value="module.count" v-on:input="setCount($event, inverter, module, 'modules')"></input>
                                         </div>
                                         <div class="description"><span>x</span></div>
