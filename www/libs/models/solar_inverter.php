@@ -118,9 +118,10 @@ class SolarInverter {
             }
         }
         else {
-            $inverters = $this->get_list_mysql($userid);
-            foreach($inverters as $inverter) {
+            $result = $this->mysqli->query("SELECT * FROM solar_inverter WHERE sysid='$sysid'");
+            while ($inverter = $result->fetch_array()) {
                 $this->add_redis($inverter);
+                $inverters[] = $this->parse($inverter);
             }
         }
         return $inverters;

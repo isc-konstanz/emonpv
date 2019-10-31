@@ -182,9 +182,10 @@ class SolarSystem {
             }
         }
         else {
-            $systems = $this->get_list_mysql($userid);
-            foreach($systems as $system) {
+            $result = $this->mysqli->query("SELECT * FROM solar_system WHERE userid='$userid' ORDER BY time_rn,time_cr,name asc");
+            while ($system = $result->fetch_array()) {
                 $this->add_redis($system);
+                $systems[] = $this->parse($system);
             }
         }
         return $systems;

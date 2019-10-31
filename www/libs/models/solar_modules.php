@@ -92,11 +92,11 @@ class SolarModules {
         return $this->parse($variant);
     }
 
-    public function get_list($sysid) {
+    public function get_list($invid) {
         if ($this->redis) {
-            $modules = $this->get_list_redis($sysid);
+            $modules = $this->get_list_redis($invid);
         } else {
-            $modules = $this->get_list_mysql($sysid);
+            $modules = $this->get_list_mysql($invid);
         }
         usort($modules, function($v1, $v2) {
             if($v1['count'] == $v2['count']) {
@@ -118,7 +118,7 @@ class SolarModules {
         return $modules;
     }
 
-    private function get_list_redis() {
+    private function get_list_redis($invid) {
         $modules = array();
         if ($this->redis->exists("solar:inverter#$invid:modules")) {
             foreach ($this->redis->sMembers("solar:inverter#$invid:modules") as $id) {
@@ -126,9 +126,10 @@ class SolarModules {
             }
         }
         else {
-            $modules = $this->get_list_mysql($userid);
-            foreach($modules as $variant) {
-                $this->add_redis($userid, $variant);
+            $result = $this->mysqli->query("SELECT * FROM solar_modules WHERE invid='$invid'");
+            while ($variant = $result->fetch_array()) {
+                $this->add_redis($invid, $variant);
+                $modules[] = $this->parse($variant);
             }
         }
         return $modules;
@@ -191,6 +192,60 @@ class SolarModules {
             'tracking' => $tracking
         );
     }
+
+//     public function get_models_meta() {
+//         $meta = array();
+        
+//         $dir = $this->get_module_dir();
+//         foreach (glob($dir.'/*.json') as $file) {
+//             $meta[basename($file, ".json")] = (array) json_decode(file_get_contents($file), true);
+//         }
+//         ksort($meta);
+        
+//         return $meta;
+//     }
+
+//     public function get_models_list() {
+//         $list = array();
+        
+//         $dir = $this->get_models_dir();
+//         foreach (new DirectoryIterator($dir) as $modules) {
+//             if ($modules->isDir() && !$modules->isDot()) {
+//                 $it = new RecursiveDirectoryIterator($modules->getPathname());
+//                 foreach (new RecursiveIteratorIterator($it) as $file) {
+//                     if (file_exists($file) && $file->getExtension() == "json") {
+//                         $type = substr(pathinfo($file, PATHINFO_DIRNAME), strlen($dir)).'/'.pathinfo($file, PATHINFO_FILENAME);
+//                         $list[$type] = (array) json_decode(file_get_contents($file->getPathname()), true);
+//                     }
+//                 }
+//             }
+//         }
+//         return $list;
+//     }
+
+//     public function get_models($type) {
+//         $dir = $this->get_models_dir();
+//         $file = $dir.$type.'.json';
+        
+//         if (file_exists($file)) {
+//             return (array) json_decode(file_get_contents($file), true);
+//         }
+//         return array("success"=>false, "message"=>"Module for type ".$type." does not exist");
+//     }
+
+//     private function get_models_dir() {
+//         global $settings;
+//         if (!empty($settings['pvforecast']['dir'])) {
+//             $models_dir = $settings['pvforecast']['dir'];
+//         }
+//         else {
+//             $models_dir = SolarSystem::DEFAULT_DIR;
+//         }
+//         if (substr($models_dir, -1) !== "/") {
+//             $models_dir .= "/";
+//         }
+//         return $models_dir."lib/modules/";
+//     }
 
     public function update($id, $fields) {
         $id = intval($id);
