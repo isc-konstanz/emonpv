@@ -167,10 +167,14 @@
 .inverter > div {
     vertical-align: top;
     padding-top: 18px;
-    padding-top: 18px;
 }
 .inverter > .count {
     padding-top: 54px;
+    text-align: right
+}
+.inverter > div:first-child {
+    padding-left: 8px;
+    padding-right: 8px;
 }
 .inverter-item {
     height: 42px;
@@ -180,7 +184,9 @@
 .inverter-item:hover {
     background-color: #0069b4;
 }
+.inverter-item:hover .count > input:not(:hover):not(:focus):not(:active):not(:hover),
 .inverter-item:hover .name,
+.inverter-item:hover .description,
 .inverter-item:hover .icon-action {
     color: #def2ff;
 }
@@ -196,6 +202,9 @@
 }
 .inverter-item > div:last-child {
     padding-right: 18px;
+}
+.inverter-item > div:first-child {
+    padding-left: 8px;
 }
 .inverter-item:before {
     content: "";
@@ -215,13 +224,29 @@
 }
 
 .inverter .count > input {
-    height: 14px;
-    width: 14px;
-    margin: 0px 8px;
+    height: 2ch;
+    width: 2ch;
+    margin: 0;
     padding: 4px;
     text-align: center;
     white-space: normal;
     border-radius: 0;
+    transition: margin .25s ease-in-out;
+}
+.inverter .count > input:not(:hover):not(:focus):not(:active):not(:hover) {
+	border-color: transparent;
+	background-color: transparent;
+    box-shadow: none;
+    -webkit-box-shadow: none;
+    -moz-box-shadow: none;
+    -ms-box-shadow: none;
+	color: #666;
+}
+.inverter-item .count > input:hover, 
+.inverter-item .count > input:focus, 
+.inverter-item .count > input:active {
+    margin-left: 6px;
+    margin-right: 6px;
 }
 
 .inverter .clipart {
@@ -331,7 +356,6 @@
     border-color: #ddd;
 }
 .inverter-item.new .btn {
-    margin-left: 8px;
     color: #bbb;
     background-color: #e3e3e3;
 }
@@ -454,7 +478,6 @@ svg.icon-menu {
 
 .btn-light:hover, 
 .btn-light:focus, 
-.btn-light:active, 
 .btn-light.active {
     color: #999;
     background-color: #e6e6e6;
@@ -465,7 +488,6 @@ svg.icon-menu {
 }
 .btn-default:hover, 
 .btn-default:focus, 
-.btn-default:active, 
 .btn-default.active {
     color: #333;
     background-color: #d9d9d9;

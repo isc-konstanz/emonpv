@@ -28,9 +28,12 @@ $schema['solar_modules'] = array(
     'invid' => array('type' => 'INT(11)', 'Null'=>false),
     'strid' => array('type' => 'TINYINT(4)', 'default'=>1),
     'count' => array('type' => 'INT(11)', 'default'=>1),
+    'pitch' => array('type' => 'DOUBLE(5,2)'),
+    'elevation' => array('type' => 'DOUBLE(5,2)'),
     'azimuth' => array('type' => 'DOUBLE(5,2)'),
     'tilt' => array('type' => 'DOUBLE(5,2)'),
     'type' => array('type' => 'VARCHAR(64)'),
+    'number' => array('type' => 'INT(11)'),
     'settings' => array('type' => 'TEXT'),
     'tracking' => array('type' => 'TEXT')
 );

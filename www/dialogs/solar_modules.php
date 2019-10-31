@@ -5,7 +5,7 @@
 <div id="modules-config-modal" class="modal hide keyboard" tabindex="-1" role="dialog" aria-labelledby="modules-config-label" aria-hidden="true" data-backdrop="static">
     <div class="modal-header">
         <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
-        <h3 id="modules-config-label"><?php echo _('Configure Solar Module'); ?></h3>
+        <h3 id="modules-config-label"></h3>
     </div>
     <div id="modules-body" class="modal-body">
         <!--div id="modules-sidebar" class="sidebar-wrapper">
@@ -24,8 +24,8 @@
             
             <div class="settings">
                 <div class="settings-title fill">
-                    <span type="text"><?php echo _('Orientation'); ?></span>
-                    <span id="modules-orientation-tooltip" data-toggle="tooltip" data-placement="right"
+                    <span type="text"><?php echo _('Geometry'); ?></span>
+                    <span id="modules-geometry-tooltip" data-toggle="tooltip" data-placement="right"
                             title="The modules azimuth, the horizontal angle measured clockwise from north, and the tilt from horizontal.">
                         <svg class="icon icon-info">
                             <use xlink:href="#icon-question" />

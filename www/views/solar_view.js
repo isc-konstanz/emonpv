@@ -54,16 +54,18 @@ var view = new Vue({
         isCollapsed: function(id) {
             return collapsed.indexOf(id) > -1
         },
-        setCount: function(event, parent, element, type) {
+        setCount: function(event, parent, element, type, field='count') {
             let input = $(event.currentTarget);
             let value = input.val();
             
             input.width((1+value.length)+'ch');
             if (input[0].checkValidity()) {
-                element.count = value;
+                element[field] = value;
                 window.clearTimeout(timeout);
                 timeout = window.setTimeout(function() {
-                	solar[type].update(parent, element.id, {count: value});
+                	let fields = {};
+                	fields[field] = value;
+                	solar[type].update(parent, element.id, fields);
                 	
                 }, 250);
             }

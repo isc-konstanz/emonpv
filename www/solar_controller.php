@@ -120,7 +120,8 @@ function modules_controller($system) {
         }
         
         if ($route->subaction == "create" && $session['write']) {
-            return $system->inverter->modules->create($invid, get('azimuth'), get('tilt'), get('type'), get('settings'));
+            return $system->inverter->modules->create($invid, get('strid'), get('count'), get('geometry'), get('tracking'), 
+                get('type'), get('number'), get('settings'));
         }
         else if ($session['read']) {
             if ($route->subaction == "get") {

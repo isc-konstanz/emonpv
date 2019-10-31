@@ -27,9 +27,10 @@ var solar = {
     },
 
     modules: {
-        create:function(inverter, azimuth, tilt, type, settings, callback) {
-            return solar.request(callback, "solar/modules/create.json", "invid="+inverter.id+"&azimuth="+azimuth+"&tilt="+tilt+"&type="+type+
-                    "&settings="+JSON.stringify(settings));
+        create:function(inverter, strid, count, geometry, tracking, type, number, settings, callback) {
+            return solar.request(callback, "solar/modules/create.json", "invid="+inverter.id+"&strid="+strid+
+            		"&count="+count+"&geometry="+JSON.stringify(geometry)+"&tracking="+JSON.stringify(tracking)+
+            		"&type="+type+"&number="+number+"&settings="+JSON.stringify(settings));
         },
         update:function(inverter, id, fields, callback) {
             return solar.request(callback, "solar/modules/update.json", "invid="+inverter.id+"&id="+id+

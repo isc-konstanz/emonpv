@@ -42,32 +42,44 @@ class SolarModules {
         return false;
     }
 
-    public function create($invid, $azimuth=null, $tilt=null, $type=null, $settings=null, $tracking=null) {
+    public function create($invid, $strid, $count, $geometry, $tracking, $type, $number, $settings) {
         $invid = intval($invid);
+        $strid = intval($strid);
         
-        if ((!empty($azimuth) && !is_numeric($azimuth)) || 
-                (!empty($tilt) && !is_numeric($tilt))) {
-            
-            throw new SolarException("The modules orientation specification is invalid");
+        if (empty($geometry)) {
+            throw new SolarException("The systems geometry needs to be specified");
         }
+        $geometry = json_decode(stripslashes($geometry), true);
+        
+        if (!isset($geometry['pitch']) || !is_numeric($geometry['pitch']) || 
+            !isset($geometry['elevation']) || !is_numeric($geometry['elevation']) || 
+            !isset($geometry['azimuth']) || !is_numeric($geometry['azimuth']) || 
+            !isset($geometry['tilt']) || !is_numeric($geometry['tilt'])) {
+            
+            throw new SolarException("The modules geometrical specification is invalid");
+        }
+        
+        $tracking = json_decode(stripslashes($tracking), true);
+        if (empty($tracking)) {
+            $tracking = null;
+        }
+        
+        $count = intval($count);
+        $number = intval($number);
         if (!empty($type)) {
             $type = preg_replace('/[^\/\|\,\w\s\-\:]/','', $type);
-            // TODO: check if inverter exists
+            // TODO: check if module exists
         }
         else {
             $type = null;
         }
         $settings = json_decode(stripslashes($settings), true);
-        
         if (empty($settings)) {
             $settings = null;
         }
-        if (empty($tracking)) {
-            $tracking = null;
-        }
         
-        $stmt = $this->mysqli->prepare("INSERT INTO solar_modules (invid,azimuth,tilt,type,settings,tracking) VALUES (?,?,?,?,?,?)");
-        $stmt->bind_param("iddsss",$invid,$azimuth,$tilt,$type,$settings,$tracking);
+        $stmt = $this->mysqli->prepare("INSERT INTO solar_modules (invid,strid,count,pitch,elevation,azimuth,tilt,type,number,settings,tracking) VALUES (?,?,?,?,?,?,?,?,?,?,?)");
+        $stmt->bind_param("iiiddddsiss",$invid,$strid,$count,$geometry['pitch'],$geometry['elevation'],$geometry['azimuth'],$geometry['tilt'],$type,$number,$settings,$tracking);
         $stmt->execute();
         $stmt->close();
         
@@ -76,13 +88,16 @@ class SolarModules {
             throw new SolarException("Unable to create modules");
         }
         $variant = array(
-            'id' => $invid,
+            'id' => $id,
             'invid' => $invid,
-            'strid' => 1,
-            'count' => 1,
-            'azimuth' => $azimuth,
-            'tilt' => $tilt,
+            'strid' => $strid,
+            'count' => $count,
+            'pitch' => $geometry['pitch'],
+            'elevation' => $geometry['elevation'],
+            'azimuth' => $geometry['azimuth'],
+            'tilt' => $geometry['tilt'],
             'type' => $type,
+            'number' => $number,
             'settings' => empty(!$settings) ? json_encode($settings) : null,
             'tracking' => empty(!$tracking) ? json_encode($tracking) : null
         );
@@ -100,6 +115,9 @@ class SolarModules {
         }
         usort($modules, function($v1, $v2) {
             if($v1['count'] == $v2['count']) {
+                if($v1['number'] == $v2['number']) {
+                    return $v1['number'] - $v2['number'];
+                }
                 return strcmp($v1['type'], $v2['type']);
             }
             return $v1['count'] - $v2['count'];
@@ -183,13 +201,16 @@ class SolarModules {
             'invid' => $modules['invid'],
             'strid' => $modules['strid'],
             'count' => $modules['count'],
-            'orientation' => array(
+            'geometry' => array(
+                'pitch' => $modules['pitch'],
+                'elevation' => $modules['elevation'],
                 'azimuth' => $modules['azimuth'],
                 'tilt' => $modules['tilt']
             ),
+            'tracking' => $tracking,
             'type' => $modules['type'],
-            'settings' => $settings,
-            'tracking' => $tracking
+            'number' => $modules['number'],
+            'settings' => $settings
         );
     }
 
@@ -270,6 +291,28 @@ class SolarModules {
                 
                 if ($this->redis) {
                     $this->redis->hset("solar:modules#$id", 'count', $count);
+                }
+            }
+            else {
+                throw new SolarException("Error while setting up database update");
+            }
+        }
+        if (isset($fields['number'])) {
+            $number = $fields['number'];
+            
+            if (empty($number) || !is_numeric($number) || $number < 1) {
+                throw new SolarException("The modules number is invalid: $number");
+            }
+            if ($stmt = $this->mysqli->prepare("UPDATE solar_modules SET number = ? WHERE id = ?")) {
+                $stmt->bind_param("ii", $number, $id);
+                if ($stmt->execute() === false) {
+                    $stmt->close();
+                    throw new SolarException("Error while update number of modules#$id");
+                }
+                $stmt->close();
+                
+                if ($this->redis) {
+                    $this->redis->hset("solar:modules#$id", 'number', $number);
                 }
             }
             else {

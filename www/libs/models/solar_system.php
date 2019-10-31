@@ -93,7 +93,7 @@ class SolarSystem {
         }
         $location = json_decode(stripslashes($location), true);
         
-        if (empty($location['latitude']) || empty($location['longitude']) ||
+        if (!isset($location['latitude']) || !isset($location['longitude']) ||
                 !is_numeric($location['latitude']) || !is_numeric($location['longitude'])) {
                     
             throw new SolarException("The systems location specification is incomplete or invalid");
@@ -236,7 +236,7 @@ class SolarSystem {
             'forecast' => $system['forecast'],
             'model' => $system['model'],
             'name' => $system['name'],
-            'description' => $system['description'],
+            'description' => isset($system['description']) ? $system['description'] : '',
             'location' => array(
                 'latitude' => $system['latitude'],
                 'longitude' => $system['longitude'],

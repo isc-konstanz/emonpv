@@ -33,10 +33,10 @@ var solar_modules = {
             $('#modules-config-save').prop('disabled', false);
             $('#modules-config-save').html('Save');
             
-            $('#modules-azimuth').val(modules.orientation.azimuth);
-            $('#modules-tilt').val(modules.orientation.tilt);
+            $('#modules-azimuth').val(modules.geometry.azimuth);
+            $('#modules-tilt').val(modules.geometry.tilt);
         }
-        $('#modules-orientation-tooltip').tooltip({html:true, container:modal});
+        $('#modules-geometry-tooltip').tooltip({html:true, container:modal});
         $('#modules-settings-tooltip').tooltip({html:true, container:modal});
         
 //        if (dialog.moduleType != null && dialog.moduleType != '') {
@@ -122,9 +122,16 @@ var solar_modules = {
         var tilt = $('#modules-tilt').val();
 
         if (solar_modules.modules == null) {
+            var geometry = {
+                    'pitch': 0,
+                    'elevation': 0,
+                    'azimuth': azimuth,
+                    'tilt': tilt
+            };
+            var tracking = {};
             var settings = {};
             
-            solar.modules.create(solar_modules.inverter, azimuth, tilt, type, settings, solar_modules.closeConfig);
+            solar.modules.create(solar_modules.inverter, 1, 1, geometry, tracking, type, 1, settings, solar_modules.closeConfig);
         }
         else {
             var fields = {};

@@ -71,11 +71,21 @@ foreach ($svgs as $svg) {
                                             <input :style="'width:'+(1+module.count.length)+'ch;'" type="number" min="1" step="1" required 
                                                    :value="module.count" v-on:input="setCount($event, inverter, module, 'modules')"></input>
                                         </div>
+                                        <div class="description"><span>x</span></div>
+                                        <div class="count">
+                                            <input :style="'width:'+(1+module.number.length)+'ch;'" type="number" min="1" step="1" required 
+                                                   :value="module.number" v-on:input="setCount($event, inverter, module, 'modules', 'number')"></input>
+                                        </div>
                                         <div class="name"><span>{{(module.type)}}</span></div>
                                         <div class="grow"></div>
                                         <div class="action" @click="solar_modules.openDeletion(inverter, module.id)">
                                             <svg class="icon icon-action">
                                                 <use xlink:href="#icon-bin" />
+                                            </svg>
+                                        </div>
+                                        <div class="action">
+                                            <svg class="icon icon-action">
+                                                <use xlink:href="#icon-content_copy" />
                                             </svg>
                                         </div>
                                         <div class="action" @click="solar_modules.openConfig(inverter, module.id)">
@@ -92,10 +102,7 @@ foreach ($svgs as $svg) {
                                                 </svg>
                                             </button>
                                         </div>
-                                        <div></div>
-                                        <div class="grow"></div>
-                                        <div></div>
-                                        <div></div>
+                                        <div></div><div></div><div></div><div></div><div class="grow"></div><div></div><div></div>
                                     </div>
                                 </div>
                             </div>
