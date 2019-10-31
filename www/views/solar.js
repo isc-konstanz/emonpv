@@ -5,9 +5,11 @@ var solar = {
             return solar.request(callback, "solar/create.json", "model="+model+"&name="+name+"&description="+description+
                     "&location="+JSON.stringify(location));
         },
-
         list:function(callback) {
             return solar.request(callback, "solar/list.json");
+        },
+        remove:function(id, callback) {
+            return solar.request(callback, "solar/delete.json", "id="+id);
         }
     },
 

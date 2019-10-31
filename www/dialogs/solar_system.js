@@ -206,34 +206,27 @@ var solar_system = {
         $('#system-config-modal').modal('hide');
     },
 
-    openDeletion: function(system, row) {
+    openDeletion: function(system) {
+        solar_system.system = system;
         
         $('#system-delete-modal').modal('show');
-//        $('#system-delete-label').html('Delete solar system: <b>'+system.name+'</b>');
-        
-        this.registerDeleteEvents(row);
-    },
-
-    registerDeleteEvents: function(row) {
-        
+        $('#system-delete-label').html('Delete system');
         $("#system-delete-confirm").off('click').on('click', function() {
             $('#system-delete-loader').show();
-//            system.remove();
-//            
-//            if (typeof table !== 'undefined' && row != null) table.remove(row);
+            
+            solar.system.remove(solar_system.system.id, function(result) {
+                $('#system-delete-loader').hide();
+                
+                if (typeof result.success !== 'undefined' && !result.success) {
+                    alert('Unable to delete system:\n'+result.message);
+                    return false;
+                }
+                let systems = view.systems;
+                delete systems[solar_system.system.id];
+                draw(systems);
+                $('#system-delete-modal').modal('hide');
+            });
         });
-    },
-
-    closeDeletion: function(result) {
-        $('#system-delete-loader').hide();
-        
-//        if (typeof result.success !== 'undefined' && !result.success) {
-//            alert('Unable to delete solar system:\n'+result.message);
-//            return false;
-//        }
-        
-        update();
-        $('#system-delete-modal').modal('hide');
     },
 
     drawMap: function(advanced=false) {

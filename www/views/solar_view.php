@@ -50,7 +50,7 @@ foreach ($svgs as $svg) {
                                     <li><a @click.prevent.stop="solar_system.openExport(system)" disabled><?php echo _("Export results"); ?></a></li>
                                     <li><a @click.prevent.stop="solar_inverter.newConfig(system)"><?php echo _("Add Inverter"); ?></a></li>
                                     <li><a @click.prevent.stop="solar_system.openConfig(system)"><?php echo _("Edit System"); ?></a></li>
-                                    <li><a @click.prevent.stop="solar_system.openDelete(system)"><?php echo _("Delete System"); ?></a></li>
+                                    <li><a @click.prevent.stop="solar_system.openDeletion(system)"><?php echo _("Delete System"); ?></a></li>
                                 </ul>
                             </div>
                         </div>
