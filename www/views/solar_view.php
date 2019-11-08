@@ -149,12 +149,11 @@ foreach ($svgs as $svg) {
 <?php require "Modules/solar/dialogs/solar_inverter.php"; ?>
 <?php require "Modules/solar/dialogs/solar_modules.php"; ?>
 
+<script>
+var models = <?php echo json_encode($models); ?>;
+</script>
 <script src="<?php echo $path; ?>Lib/moment.min.js"></script>
 <script src="<?php echo $path; ?>Lib/misc/gettext.js?v=<?php echo $v; ?>"></script>
 <script src="<?php echo $path; ?>Lib/user_locale.js?v=<?php echo $v; ?>"></script>
 <script type="text/javascript" src="<?php echo $path; ?>Modules/solar/views/solar.js"></script>
-<script>
-var path = "<?php echo $path; ?>";
-
-</script>
 <script type="text/javascript" src="<?php echo $path; ?>Modules/solar/views/solar_view.js?v=<?php echo $v; ?>"></script>

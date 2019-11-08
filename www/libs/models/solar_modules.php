@@ -214,59 +214,59 @@ class SolarModules {
         );
     }
 
-//     public function get_models_meta() {
-//         $meta = array();
+    public function get_model_meta() {
+        $meta = array();
         
-//         $dir = $this->get_module_dir();
-//         foreach (glob($dir.'/*.json') as $file) {
-//             $meta[basename($file, ".json")] = (array) json_decode(file_get_contents($file), true);
-//         }
-//         ksort($meta);
+        $dir = $this->get_model_dir();
+        foreach (glob($dir.'/*.json') as $file) {
+            $meta[basename($file, ".json")] = (array) json_decode(file_get_contents($file), true);
+        }
+        ksort($meta);
         
-//         return $meta;
-//     }
+        return $meta;
+    }
 
-//     public function get_models_list() {
-//         $list = array();
+    public function get_model_list() {
+        $list = array();
         
-//         $dir = $this->get_models_dir();
-//         foreach (new DirectoryIterator($dir) as $modules) {
-//             if ($modules->isDir() && !$modules->isDot()) {
-//                 $it = new RecursiveDirectoryIterator($modules->getPathname());
-//                 foreach (new RecursiveIteratorIterator($it) as $file) {
-//                     if (file_exists($file) && $file->getExtension() == "json") {
-//                         $type = substr(pathinfo($file, PATHINFO_DIRNAME), strlen($dir)).'/'.pathinfo($file, PATHINFO_FILENAME);
-//                         $list[$type] = (array) json_decode(file_get_contents($file->getPathname()), true);
-//                     }
-//                 }
-//             }
-//         }
-//         return $list;
-//     }
+        $dir = $this->get_model_dir();
+        foreach (new DirectoryIterator($dir) as $modules) {
+            if ($modules->isDir() && !$modules->isDot()) {
+                $it = new RecursiveDirectoryIterator($modules->getPathname());
+                foreach (new RecursiveIteratorIterator($it) as $file) {
+                    if (file_exists($file) && $file->getExtension() == "json") {
+                        $type = substr(pathinfo($file, PATHINFO_DIRNAME), strlen($dir)).'/'.pathinfo($file, PATHINFO_modelNAME);
+                        $list[$type] = (array) json_decode(file_get_contents($file->getPathname()), true);
+                    }
+                }
+            }
+        }
+        return $list;
+    }
 
-//     public function get_models($type) {
-//         $dir = $this->get_models_dir();
-//         $file = $dir.$type.'.json';
+    public function get_model($type) {
+        $dir = $this->get_model_dir();
+        $file = $dir.$type.'.json';
         
-//         if (file_exists($file)) {
-//             return (array) json_decode(file_get_contents($file), true);
-//         }
-//         return array("success"=>false, "message"=>"Module for type ".$type." does not exist");
-//     }
+        if (file_exists($file)) {
+            return (array) json_decode(file_get_contents($file), true);
+        }
+        return array("success"=>false, "message"=>"Module for type ".$type." does not exist");
+    }
 
-//     private function get_models_dir() {
-//         global $settings;
-//         if (!empty($settings['pvforecast']['dir'])) {
-//             $models_dir = $settings['pvforecast']['dir'];
-//         }
-//         else {
-//             $models_dir = SolarSystem::DEFAULT_DIR;
-//         }
-//         if (substr($models_dir, -1) !== "/") {
-//             $models_dir .= "/";
-//         }
-//         return $models_dir."lib/modules/";
-//     }
+    private function get_model_dir() {
+        global $settings;
+        if (!empty($settings['pvforecast']['data_dir'])) {
+            $models_dir = $settings['pvforecast']['data_dir'];
+        }
+        else {
+            $models_dir = SolarSystem::DEFAULT_DIR;
+        }
+        if (substr($models_dir, -1) !== "/") {
+            $models_dir .= "/";
+        }
+        return $models_dir."modules/";
+    }
 
     public function update($id, $fields) {
         $id = intval($id);

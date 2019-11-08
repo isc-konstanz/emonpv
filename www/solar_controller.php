@@ -32,8 +32,12 @@ function solar_controller() {
             // Empty string result forces the user back to login
             return '';
         }
-        else if ($route->action == "view" && $session['write']) return view("Modules/solar/views/solar_view.php", array());
-        else if ($route->action == 'api' && $session['write']) return view("Modules/solar/views/solar_api.php", array());
+        else if ($route->action == "view" && $session['write']) {
+            return view("Modules/solar/views/solar_view.php", array('models'=>$system->inverter->modules->get_model_meta()));
+        }
+        else if ($route->action == 'api' && $session['write']) {
+            return view("Modules/solar/views/solar_api.php", array());
+        }
     }
     else if ($route->format == 'json' && $session['userid'] > 0) {
         try {
@@ -111,27 +115,37 @@ function inverter_controller($system) {
 function modules_controller($system) {
     global $session, $route;
     
-    $invid = get('invid');
-    if (!empty($invid)) {
-        $inv = $system->inverter->get($invid);
-        $sys = $system->get($inv['sysid']);
-        if ($sys['userid'] != $session['userid']) {
-            return array('success'=>false, 'message'=>'Invalid permissions to access these modules');
+    if ($route->subaction == 'model' && $session['read']) {
+        if ($route->subaction2 == 'list') {
+            return $system->inverter->modules->get_model_meta();
         }
-        
-        if ($route->subaction == "create" && $session['write']) {
-            return $system->inverter->modules->create($invid, get('strid'), get('count'), get('geometry'), get('tracking'), 
-                get('type'), get('number'), get('settings'));
+        else if ($route->subaction2 == 'get') {
+            return $system->inverter->modules->get_model(get('type'));
         }
-        else if ($session['read']) {
-            if ($route->subaction == "get") {
-                return $system->inverter->modules->get(get('id'));
+    }
+    else {
+        $invid = get('invid');
+        if (!empty($invid)) {
+            $inv = $system->inverter->get($invid);
+            $sys = $system->get($inv['sysid']);
+            if ($sys['userid'] != $session['userid']) {
+                return array('success'=>false, 'message'=>'Invalid permissions to access these modules');
             }
-            else if ($route->subaction == "update") {
-                return $system->inverter->modules->update(get('id'), get('fields'));
+            
+            if ($route->subaction == "create" && $session['write']) {
+                return $system->inverter->modules->create($invid, get('strid'), get('count'), get('geometry'), get('tracking'),
+                    get('type'), get('number'), get('settings'));
             }
-            else if ($route->subaction == "delete" && $session['write']) {
-                return $system->inverter->modules->delete(get('id'));
+            else if ($session['read']) {
+                if ($route->subaction == "get") {
+                    return $system->inverter->modules->get(get('id'));
+                }
+                else if ($route->subaction == "update") {
+                    return $system->inverter->modules->update(get('id'), get('fields'));
+                }
+                else if ($route->subaction == "delete" && $session['write']) {
+                    return $system->inverter->modules->delete(get('id'));
+                }
             }
         }
     }

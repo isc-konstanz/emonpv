@@ -114,6 +114,7 @@ setTimeout(function() {
         draw(result);
         updaterStart();
     });
+    solar_modules.drawSidebar(models);
 }, 100);
 
 function update() {

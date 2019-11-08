@@ -14,7 +14,7 @@
             <?php echo _('Placeholder for a short description of this dialog and what to do here.'); ?>
         </p>
         
-        <div class="settings">
+        <div class="settings" style="margin-top: 10px;">
             <div>
                 <div>
                     <select id="system-model" class="select-large select-default" type="text" required>

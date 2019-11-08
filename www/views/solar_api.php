@@ -45,7 +45,6 @@
 
 <p><b><?php echo _('Solar Module actions'); ?></b></p>
 <table class="table">
-    <tr><td><?php echo _('List module meta info'); ?></td><td><a href="<?php echo $path; ?>solar/module/meta.json"><?php echo $path; ?>solar/module/meta.json</a></td></tr>
-    <tr><td><?php echo _('List module details'); ?></td><td><a href="<?php echo $path; ?>solar/module/list.json"><?php echo $path; ?>solar/module/list.json</a></td></tr>
-    <tr><td><?php echo _('Get module details'); ?></td><td><a href="<?php echo $path; ?>solar/module/get.json?type=example"><?php echo $path; ?>solar/module/get.json?type=example</a></td></tr>
+    <tr><td><?php echo _('List module meta info'); ?></td><td><a href="<?php echo $path; ?>solar/modules/model/list.json"><?php echo $path; ?>solar/modules/model/list.json</a></td></tr>
+    <tr><td><?php echo _('Get module details'); ?></td><td><a href="<?php echo $path; ?>solar/modules/model/get.json?type=example"><?php echo $path; ?>solar/modules/model/get.json?type=example</a></td></tr>
 </table>

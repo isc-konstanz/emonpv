@@ -1,6 +1,7 @@
 var solar_modules = {
 
     id: null,
+    type:null,
     inverter: null,
 
     newConfig: function(inverter) {
@@ -23,7 +24,10 @@ var solar_modules = {
             //$('#modules-config-save').prop('disabled', true);
             $('#modules-config-save').prop('disabled', false);
             $('#modules-config-save').html('Create');
-            
+
+            $('#modules-count').val(1);
+            $('#modules-pitch').val('');
+            $('#modules-elevation').val('');
             $('#modules-azimuth').val('');
             $('#modules-tilt').val('');
         }
@@ -32,87 +36,83 @@ var solar_modules = {
             $('#modules-config-delete').show();
             $('#modules-config-save').prop('disabled', false);
             $('#modules-config-save').html('Save');
-            
+
+            $('#modules-count').val(modules.count);
+            $('#modules-pitch').val(modules.geometry.pitch);
+            $('#modules-elevation').val(modules.geometry.elevation);
             $('#modules-azimuth').val(modules.geometry.azimuth);
             $('#modules-tilt').val(modules.geometry.tilt);
         }
+        $('#modules-pitch-tooltip').tooltip({html:true, container:modal});
         $('#modules-geometry-tooltip').tooltip({html:true, container:modal});
         $('#modules-settings-tooltip').tooltip({html:true, container:modal});
         
-//        if (dialog.moduleType != null && dialog.moduleType != '') {
-//            var groups = Object.keys(dialog.moduleMeta);
-//            var group = dialog.moduleType.split('/')[0];
-//            var index = groups.indexOf(group);
-//            if (index >= 0) {
-//                var module = dialog.moduleMeta[group][dialog.moduleType];
+//      if (dialog.moduleType != null && dialog.moduleType != '') {
+//          var groups = Object.keys(dialog.moduleMeta);
+//          var group = dialog.moduleType.split('/')[0];
+//          var index = groups.indexOf(group);
+//          if (index >= 0) {
+//              var module = dialog.moduleMeta[group][dialog.moduleType];
 //
-//                $('#module-description').html(module.Name+'<br><em style="color:#888">'+module.Description+'</em>');
-//                
-//                dialog.moduleNavStart = Math.floor(index/10)*10;
-//                dialog.moduleNavEnd = dialog.moduleNavStart + 100;
-//                dialog.drawModuleSidebar();
-//                
-//                $(".module-body[group='"+group+"']").show();
-//                $(".module-row[type='"+dialog.moduleType+"']").addClass("module-selected");
-//                $("#module-sidebar").scrollTop();
-//                
-//                return;
-//            }
-//            else {
-//                $(".module-body").hide();
-//                $(".module-row").removeClass("module-selected");
-//                $('#module-description').text('');
-//            }
-//        }
-//        else {
-//            $(".module-body").hide();
-//            $(".module-row").removeClass("module-selected");
-//            $('#module-description').text('');
-//        }
+//              $('#module-description').html(module.Name+'<br><em style="color:#888">'+module.Description+'</em>');
+//              
+//              dialog.moduleNavStart = Math.floor(index/10)*10;
+//              dialog.moduleNavEnd = dialog.moduleNavStart + 100;
+//              dialog.drawModuleSidebar();
+//              
+//              $(".module-body[group='"+group+"']").show();
+//              $(".module-row[type='"+dialog.moduleType+"']").addClass("module-selected");
+//              $("#module-sidebar").scrollTop();
+//              
+//              return;
+//          }
+//          else {
+//              $(".module-body").hide();
+//              $(".module-row").removeClass("module-selected");
+//              $('#module-description').text('');
+//          }
+//      }
+//      else {
+//          $(".module-body").hide();
+//          $(".module-row").removeClass("module-selected");
+//          $('#module-description').text('');
+//      }
+        
         solar_modules.registerConfigEvents();
     },
 
-    drawConfigSidebar:function() {
-        var table = "";
-        var groups = Object.keys(dialog.moduleMeta);
-        
-        for (var i = dialog.moduleNavStart; i < dialog.moduleNavEnd; i++) {
-            var group = groups[i];
+    drawSidebar:function(models) {
+        var html = "";
+        for (manufacturer in models) {
+            var group = models[manufacturer];
             
-            if (dialog.moduleMeta.hasOwnProperty(group)) {
-                var modules = dialog.moduleMeta[group];
-                
-                var header = false
-                for (id in modules) {
-                    if (modules.hasOwnProperty(id)) {
-                        var module = modules[id];
-                        
-                        if (!header) {
-                            header = true;
-                            
-                            table += "<tbody>"
-                            table += "<tr class='module-header' group='"+group+"' style='background-color:#ccc; cursor:pointer'>";
-                            table += "<td style='font-size:12px; padding:4px; padding-left:8px; font-weight:bold'>"+module.Manufacturer+"</td>";
-                            table += "</tr>";
-                            table += "</tbody>";
-                            
-                            table += "<tbody class='module-body' group='"+group+"' style='display:none'>";
-                        }
-                        
-                        table += "<tr class='module-row' type='"+id+"' group='"+group+"' >";
-                        table += "<td style='padding-left:12px; cursor:pointer style='display:none'>"+module.Name+"</td>";
-                        table += "</tr>";
+            var header = false
+            for (id in group) {
+                    var model = group[id];
+                    if (!header) {
+                        header = true;
+                        html += "<div class='accordion-group'>" +
+	                            "<div class='accordion-heading'>" +
+	                                "<span class='accordion-toggle' data-toggle='collapse' " +
+	                                    "data-parent='#modules-sidebar-models' data-target='#modules-model-"+manufacturer+"-collapse'>" +
+	                                    model.Manufacturer +
+	                                "</span>" +
+	                            "</div>" +
+	                            "<div id='modules-model-"+manufacturer+"-collapse' class='accordion-body collapse'>" +
+	                                "<div class='accordion-inner'>";
                     }
-                }
-                table += "</tbody>";
+                    html += "<div id='modules-model-"+id.replace('/', '-')+"' data-manufacturer='"+manufacturer+"' data-type='"+id+"'>" +
+		                    "<span>"+model.Name+"</span>" +
+		                "</div>";
             }
+            html += "</div>" +
+	        		"</div>" +
+	    		"</div>";
         }
-        table += "</tbody>";
-        
-        $("#module-table").html(table);
+        $("#modules-sidebar-models").html(html);
         
         // Initialize callbacks
-        dialog.registerModuleEvents();
+        //dialog.registerModuleEvents();
     },
 
     saveConfig: function() {
