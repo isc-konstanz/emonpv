@@ -13,6 +13,12 @@
 // no direct access
 defined('EMONCMS_EXEC') or die('Restricted access');
 
+define("MODULES_STRID_MAX",     20);
+define("MODULES_PITCH_MAX",     100);
+define("MODULES_ELEVATION_MAX", 100);
+define("MODULES_AZIMUTH_MAX", 359.9);
+define("MODULES_TILT_MAX", 90);
+
 class SolarModules {
     private $log;
 
@@ -275,51 +281,78 @@ class SolarModules {
         }
         $fields = json_decode(stripslashes($fields), true);
         
-        if (isset($fields['count'])) {
-            $count = $fields['count'];
-            
-            if (empty($count) || !is_numeric($count) || $count < 1) {
-                throw new SolarException("The modules count is invalid: $count");
-            }
-            if ($stmt = $this->mysqli->prepare("UPDATE solar_modules SET count = ? WHERE id = ?")) {
-                $stmt->bind_param("ii", $count, $id);
-                if ($stmt->execute() === false) {
-                    $stmt->close();
-                    throw new SolarException("Error while update count of modules#$id");
-                }
+        $this->update_integer($id, $fields, 'strid', 1, MODULES_STRID_MAX);
+        $this->update_integer($id, $fields, 'count', 1, PHP_INT_MAX);
+        $this->update_integer($id, $fields, 'number', 1, PHP_INT_MAX);
+        
+        $this->update_double($id, $fields, 'pitch', 0, MODULES_PITCH_MAX);
+        $this->update_double($id, $fields, 'elevation', 0, MODULES_ELEVATION_MAX);
+        $this->update_double($id, $fields, 'azimuth', 0, MODULES_AZIMUTH_MAX);
+        $this->update_double($id, $fields, 'tilt', 0, MODULES_TILT_MAX);
+        
+        $this->update_string($id, $fields, 'tracking', true);
+        $this->update_string($id, $fields, 'settings', true);
+        $this->update_string($id, $fields, 'type');
+        
+        return $this->get($id);
+    }
+
+    public function update_integer($id, $fields, $field, $min, $max) {
+        $this->update_number($id, $fields, $field, $min, $max, 'i');
+    }
+
+    public function update_double($id, $fields, $field, $min, $max) {
+        $this->update_number($id, $fields, $field, $min, $max, 'd');
+    }
+
+    public function update_number($id, $fields, $field, $min, $max, $type) {
+        if (!isset($fields[$field])) {
+            return;
+        }
+        $value = $fields[$field];
+        if (!is_numeric($value) || $value < $min || $value > $max) {
+            throw new SolarException("The modules elevation is invalid: $elevation");
+        }
+        if ($stmt = $this->mysqli->prepare("UPDATE solar_modules SET $field = ? WHERE id = ?")) {
+            $stmt->bind_param($type."i", $value, $id);
+            if ($stmt->execute() === false) {
                 $stmt->close();
-                
-                if ($this->redis) {
-                    $this->redis->hset("solar:modules#$id", 'count', $count);
-                }
+                throw new SolarException("Error while update $field of modules#$id");
             }
-            else {
-                throw new SolarException("Error while setting up database update");
+            $stmt->close();
+            
+            if ($this->redis) {
+                $this->redis->hset("solar:modules#$id", $field, $value);
             }
         }
-        if (isset($fields['number'])) {
-            $number = $fields['number'];
-            
-            if (empty($number) || !is_numeric($number) || $number < 1) {
-                throw new SolarException("The modules number is invalid: $number");
-            }
-            if ($stmt = $this->mysqli->prepare("UPDATE solar_modules SET number = ? WHERE id = ?")) {
-                $stmt->bind_param("ii", $number, $id);
-                if ($stmt->execute() === false) {
-                    $stmt->close();
-                    throw new SolarException("Error while update number of modules#$id");
-                }
+        else {
+            throw new SolarException("Error while setting up database update");
+        }
+    }
+
+    public function update_string($id, $fields, $field, $json=false) {
+        if (!isset($fields[$field])) {
+            return;
+        }
+        $value = $fields[$field];
+        if ($json) {
+            $value = json_encode($value);
+        }
+        if ($stmt = $this->mysqli->prepare("UPDATE solar_modules SET $field = ? WHERE id = ?")) {
+            $stmt->bind_param("si", $value, $id);
+            if ($stmt->execute() === false) {
                 $stmt->close();
-                
-                if ($this->redis) {
-                    $this->redis->hset("solar:modules#$id", 'number', $number);
-                }
+                throw new SolarException("Error while update $field of modules#$id");
             }
-            else {
-                throw new SolarException("Error while setting up database update");
+            $stmt->close();
+            
+            if ($this->redis) {
+                $this->redis->hset("solar:modules#$id", $field, $value);
             }
         }
-        return array('success'=>true, 'message'=>'Modules successfully updated');
+        else {
+            throw new SolarException("Error while setting up database update");
+        }
     }
 
     public function delete($id) {

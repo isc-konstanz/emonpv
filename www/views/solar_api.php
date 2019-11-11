@@ -39,12 +39,18 @@
     <tr><td><?php echo _('Create a system'); ?></td><td><a href="<?php echo $path; ?>solar/create.json?model=pvlib&name=System&location={%22latitude%22:47.67158,%22longitude%22:9.15218,%22altitude%22:403}"><?php echo $path; ?>solar/create.json?model=pvlib&name=System&location={"latitude":47.67158,"longitude":9.15218,"altitude":403}</a></td></tr>
     <tr><td><?php echo _('List systems'); ?></td><td><a href="<?php echo $path; ?>solar/list.json"><?php echo $path; ?>solar/list.json</a></td></tr>
     <tr><td><?php echo _('Get system details'); ?></td><td><a href="<?php echo $path; ?>solar/get.json?id=1"><?php echo $path; ?>solar/get.json?id=1</a></td></tr>
-    <tr><td><?php echo _('Update system'); ?></td><td><a href="<?php echo $path; ?>solar/set.json?id=1&fields={%22name%22:%22Power plant%22,%22description%22:%22Specifics%22}"><?php echo $path; ?>solar/set.json?id=1&fields={"name":"Power plant","description":"Specifics"}</a></td></tr>
+    <tr><td><?php echo _('Update system'); ?></td><td><a href="<?php echo $path; ?>solar/update.json?id=1&fields={%22name%22:%22Power plant%22,%22description%22:%22Specifics%22}"><?php echo $path; ?>solar/update.json?id=1&fields={"name":"Power plant","description":"Specifics"}</a></td></tr>
     <tr><td><?php echo _('Delete system'); ?></td><td><a href="<?php echo $path; ?>solar/delete.json?id=1"><?php echo $path; ?>solar/delete.json?id=1</a></td></tr>
+</table>
+
+<p><b><?php echo _('Solar Inverter actions'); ?></b></p>
+<table class="table">
+    <tr><td><?php echo _('Update inverter'); ?></td><td><a href="<?php echo $path; ?>solar/inverter/update.json?sysid=1&id=1&fields={%22count%22:1}"><?php echo $path; ?>solar/inverter/update.json?sysid=1&id=1&fields={"count":1}</a></td></tr>
 </table>
 
 <p><b><?php echo _('Solar Module actions'); ?></b></p>
 <table class="table">
-    <tr><td><?php echo _('List module meta info'); ?></td><td><a href="<?php echo $path; ?>solar/modules/model/list.json"><?php echo $path; ?>solar/modules/model/list.json</a></td></tr>
-    <tr><td><?php echo _('Get module details'); ?></td><td><a href="<?php echo $path; ?>solar/modules/model/get.json?type=example"><?php echo $path; ?>solar/modules/model/get.json?type=example</a></td></tr>
+    <tr><td><?php echo _('List module model meta info'); ?></td><td><a href="<?php echo $path; ?>solar/modules/model/list.json"><?php echo $path; ?>solar/modules/model/list.json</a></td></tr>
+    <tr><td><?php echo _('Get modules model details'); ?></td><td><a href="<?php echo $path; ?>solar/modules/model/get.json?type=example"><?php echo $path; ?>solar/modules/model/get.json?type=example</a></td></tr>
+    <tr><td><?php echo _('Update modules'); ?></td><td><a href="<?php echo $path; ?>solar/modules/update.json?invid=1&id=1&fields={%22count%22:1}"><?php echo $path; ?>solar/modules/update.json?invid=1&id=1&fields={"count":1}</a></td></tr>
 </table>

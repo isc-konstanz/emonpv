@@ -55,10 +55,10 @@
 
 .modal-adjust .modal-body {
     padding: 0;
-    height: 300px;
-    min-height: 300px;
+    min-height: 350px;
     max-height: none;
     overflow-y: hidden;
+    transition: height 0.25s ease-in-out;
 }
 
 .modal-adjust .modal-content {
@@ -70,7 +70,7 @@
     min-width: 345px;
     overflow-x: hidden;
     overflow-y: auto;
-    transition: width 0.5s ease-in-out;
+    transition: left 0.25s ease-in-out;
 }
 .modal-adjust .modal-body.sidebar .modal-content {
     left: 250px;
@@ -87,8 +87,8 @@
     overflow-x: hidden;
     overflow-y: auto;
     background-color: #f2f2f2;
-    transition: width 0.3s ease-in-out;
     z-index: 1000;
+    transition: width 0.25s ease-in-out;
 }
 .modal-adjust .modal-body.sidebar .modal-sidebar {
     width: 250px;
@@ -117,7 +117,6 @@
     border-top: 0px;
 }
 .modal-adjust .modal-sidebar .accordion-toggle {
-    white-space: nowrap;
     overflow: hidden;
 }
 .modal-adjust .modal-sidebar .accordion-heading {
@@ -139,7 +138,11 @@
     cursor: pointer;
 }
 .modal-adjust .modal-sidebar .accordion-inner > div:hover {
-    background-color: #44b3e2;
+    background-color: #3c9ee6;
+    color: #ffffff;
+}
+.modal-adjust .modal-sidebar .accordion-inner > div.selected {
+    background-color: #0069b4;
     color: #ffffff;
 }
 
@@ -180,7 +183,8 @@
 .tooltip.in {
     opacity: .95;
     filter: alpha(opacity=95);
-}.system-actions {
+}
+.system-actions {
     display: table;
     height: 25px;
     padding-left: 12px;
@@ -263,6 +267,7 @@
     white-space: nowrap;
 }
 
+.settings .menu,
 .system-item .action,
 .inverter-item .action {
     width: 14px;
@@ -492,6 +497,20 @@
     background-color: #ddd;
 }
 
+.modules-settings > div,
+.modules-info > div {
+    white-space: nowrap;
+}
+.modules-info > div {
+    vertical-align: top !important;
+}
+.modules-info > div:first-child {
+    padding-left: 18px;
+}
+.modules-info span {
+	padding-top: 20px;
+}
+
 .system-new {
     margin-top: 15px;
 }
@@ -698,6 +717,10 @@ input[type=number]::-webkit-outer-spin-button {
     margin-bottom: 0px;
     margin-right: 5px;
 }
+.settings .input-small {
+	margin-right: 8px;
+    width: 50px;
+}
 
 .settings select.select-default {
     color: #888;
@@ -714,6 +737,9 @@ input[type=number]::-webkit-outer-spin-button {
     padding: 0;
     margin: 0;
 } */
+.settings .name {
+    color: #555;
+}
 .settings .description {
     font-size: 15px;
     font-weight: lighter;

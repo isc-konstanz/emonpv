@@ -7,7 +7,7 @@
         <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
         <h3 id="modules-config-label"></h3>
     </div>
-    <div id="modules-config" class="modal-body sidebar">
+    <div id="modules-config" class="modal-body">
         <div id="modules-config-sidebar" class="modal-sidebar">
             <div style="overflow-x: hidden; width:100%">
                 <div id="modules-sidebar-models" class="accordion"></div>
@@ -63,7 +63,7 @@
             
             <div class="modules-settings settings" style="padding-left: 0;">
                 <div>
-                    <div class="settings-title fill">
+                    <div class="settings-title">
                         <svg id="settings-collapse-icon" class="icon icon-collapse">
                             <use xlink:href="#icon-chevron-right" />
                         </svg>
@@ -75,20 +75,30 @@
                             </svg>
                         </span>
                     </div>
+                    <div class="fill"></div>
                     <div class="menu dropdown action" @click.prevent>
-                        <svg class="dropdown-toggle icon icon-advanced" data-toggle="dropdown">
+                        <svg id="modules-model-menu" class="dropdown-toggle icon icon-advanced" data-toggle="dropdown">
                             <use xlink:href="#icon-dots-vertical" />
                         </svg>
                         <ul class="dropdown-menu pull-right">
-                            <li><a @click.prevent.stop><?php echo _("Edit model"); ?></a></li>
-                            <li><a @click.prevent.stop><?php echo _("Advanced settings"); ?></a></li>
+                            <li><a onclick="solar_modules.showSidebar()"><?php echo _("Edit model"); ?></a></li>
+                            <li><a onclick="solar_modules.showAdvanced()"><?php echo _("Advanced settings"); ?></a></li>
                         </ul>
                     </div>
                 </div>
-            	<div>
-            		<div style="padding: 10px 0 0 18px;">
-                        <span id="modules-type" class="name"><?php echo _('Placeholder name'); ?></span>
-                    	<p id="modules-description" class="description"><?php echo _('Placeholder description'); ?></p>
+                <div class="modules-info settings-header">
+                    <div><span><?php echo _('Count'); ?></span></div>
+                    <div><span><?php echo _('Type'); ?></span></div>
+            		<div></div>
+                </div>
+            	<div class="modules-info">
+                    <div><input id="modules-number" class="input-small" type="number" step="1" min="1" required /></div>
+            		<div>
+                        <div id="modules-model-manufacturer" class="name" style="padding-top:5px;"><?php echo _('Select a model type'); ?></div>
+                        <div id="modules-model-type" class="name"></div>
+                    	<p id="modules-model-description" class="description"></p>
+            		</div>
+            		<div>
             		</div>
             	</div>
             </div>
@@ -99,6 +109,7 @@
         <button id="modules-config-delete" class="btn btn-plain btn-danger" style="cursor:pointer"><i class="icon-trash icon-white"></i> <?php echo _('Delete'); ?></button>
         <button id="modules-config-save" class="btn btn-plain btn-primary"><?php echo _('Save'); ?></button>
     </div>
+    <div id="modules-config-loader" class="ajax-loader" style="display: none;"></div>
 </div>
 
 <div id="modules-delete-modal" class="modal hide" tabindex="-1" role="dialog" aria-labelledby="modules-delete-label" aria-hidden="true" data-backdrop="static">
@@ -123,3 +134,8 @@
 </div>
 
 <script type="text/javascript" src="<?php echo $path; ?>Modules/solar/dialogs/solar_modules.js"></script>
+<script>
+    $(window).resize(function() {
+        solar_modules.adjustConfig();
+    });
+</script>

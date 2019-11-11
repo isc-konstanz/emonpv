@@ -36,26 +36,14 @@ var solar_inverter = {
     saveConfig: function() {
         if (solar_inverter.id == null) {
             
-            solar.inverter.create(solar_inverter.system, function(result) {
-                if (solar_inverter.verifyResult(result)) {
-                    // TODO: find better way to force reload vue.js
-                    let systems = view.systems;
-                    systems[result.sysid].inverters[result.id] = result;
-                    draw(systems);
-                    $('#inverter-config-modal').modal('hide');
-                }
-            });
+            solar.inverter.create(solar_inverter.system, solar_inverter.verifyResult);
         }
         else {
             var fields = {};
             
-            solar.system.set(solar_inverter.system, solar_inverter.id, fields, function(result) {
-                if (solar_inverter.verifyResult(result)) {
-                    
-                    $('#inverter-config-modal').modal('hide');
-                }
-            });
+            solar.system.set(solar_inverter.system, solar_inverter.id, fields, solar_inverter.verifyResult);
         }
+        $('#inverter-config-loader').show();
     },
 
     verifyConfig: function() {
@@ -68,6 +56,12 @@ var solar_inverter = {
             alert('Solar inverter could not be configured:\n'+result.message);
             return false;
         }
+        // TODO: find better way to force reload vue.js
+        let systems = view.systems;
+        systems[result.sysid].inverters[result.id] = result;
+        draw(systems);
+        
+        $('#inverter-config-modal').modal('hide');
         return true;
     },
 

@@ -63,15 +63,15 @@ var view = new Vue({
                 element[field] = value;
                 window.clearTimeout(timeout);
                 timeout = window.setTimeout(function() {
-                	let fields = {};
-                	fields[field] = value;
-                	solar[type].update(parent, element.id, fields);
-                	
+                    let fields = {};
+                    fields[field] = value;
+                    solar[type].update(parent, element.id, fields);
+                    
                 }, 250);
             }
         },
         run: function(system) {
-        	$("#system"+system.id+"-results").show();
+            $("#system"+system.id+"-results").show();
         }
     },
     created() {
