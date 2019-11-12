@@ -4,7 +4,6 @@
     ~~~~~
     
     
-    
 """
 import pandas as pd
 from pvlib import modelchain
@@ -99,8 +98,8 @@ class ModelChain(modelchain.ModelChain):
             return self.ashrae_aoi_loss
         else:
             return self.no_aoi_loss
- 
- 
+
+
     def infer_spectral_model(self):
         params = set(self.system.module_parameters.keys())
         if set(['A4', 'A3', 'A2', 'A1', 'A0']) <= params:

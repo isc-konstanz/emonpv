@@ -28,7 +28,7 @@ with warnings.catch_warnings():
 
 
 class Weather():
-    
+
     def __init__(self, configs, database, model='NMM'):
         self.model = model
         if model == 'NMM':
@@ -56,7 +56,7 @@ class Weather():
             forecast = self.server.get_processed_data(system.location)
             
             # Store the retrieved forecast
-            self.database.post(system, forecast, date=time)
+            self.database.persist(system, forecast, date=time)
         
         return forecast
 
