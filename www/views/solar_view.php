@@ -76,8 +76,8 @@ foreach ($svgs as $svg) {
                                             <input :style="'width:'+(1+module.number.length)+'ch;'" type="number" min="1" step="1" required 
                                                    :value="module.number" v-on:input="setCount($event, inverter, module, 'modules', 'number')"></input>
                                         </div>
-                                        <div class="name"><span>{{models[module.type.split("/")[0]][module.type].Manufacturer}}</span></div>
-                                        <div class="description"><span>{{models[module.type.split("/")[0]][module.type].Name}}</span></div>
+                                        <div class="name"><span>{{getModel(module.type).Manufacturer}}</span></div>
+                                        <div class="description"><span>{{getModel(module.type).Name}}</span></div>
                                         <div class="grow"></div>
                                         <div class="action" @click="solar_modules.openDeletion(inverter, module.id)">
                                             <svg class="icon icon-action">

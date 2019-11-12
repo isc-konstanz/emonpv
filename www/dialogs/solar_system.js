@@ -352,6 +352,8 @@ var solar_system = {
         solar_system.drawMapMarker(latlng, title);
         $('#system-latitude').val(parseFloat(latlng['lat'].toFixed(5)));
         $('#system-longitude').val(parseFloat(latlng['lng'].toFixed(5)));
+        
+        solar_system.verifyConfig();
     },
 
     onMapClick: function(e) {

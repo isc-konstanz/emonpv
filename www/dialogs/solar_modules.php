@@ -21,9 +21,10 @@
             <div class="settings">
                 <div class="settings-header">
                     <div><span><?php echo _('Count'); ?></span></div>
+                    <div><span><?php echo _('Pitch'); ?></span></div>
                     <div>
-                        <span><?php echo _('Pitch'); ?></span>
-                        <span id="modules-pitch-tooltip" data-toggle="tooltip" data-placement="right"
+                        <span><?php echo _('Clearance height'); ?></span>
+                        <span id="modules-rows-tooltip" data-toggle="tooltip" data-placement="right"
                                 title="Placeholder description of the row count and pitch in meters.">
                             <svg class="icon icon-info">
                                 <use xlink:href="#icon-question" />
@@ -34,12 +35,13 @@
                 <div>
                     <div><input id="modules-count" class="input-small" type="number" step="1" min="1" required /></div>
                     <div><input id="modules-pitch" class="input-small" type="number" step="0.01" min="0" placeholder="[m]" /></div>
+                    <div><input id="modules-elevation" class="input-small" type="number" step="0.01" min="0" placeholder="[m]" /></div>
                 </div>
             </div>
             <div class="settings" style="margin-top: 20px;">
                 <div class="settings-title fill">
-                    <span type="text"><?php echo _('Geometry'); ?></span>
-                    <span id="modules-geometry-tooltip" data-toggle="tooltip" data-placement="right"
+                    <span type="text"><?php echo _('Orientation'); ?></span>
+                    <span id="modules-orientation-tooltip" data-toggle="tooltip" data-placement="right"
                             title="The modules azimuth, the horizontal angle measured clockwise from north, and the tilt from horizontal.">
                         <svg class="icon icon-info">
                             <use xlink:href="#icon-question" />
@@ -51,12 +53,10 @@
                 <div class="settings-header">
                     <div><span><?php echo _('Azimuth'); ?></span></div>
                     <div><span><?php echo _('Tilt'); ?></span></div>
-                    <div><span><?php echo _('Elevation'); ?></span></div>
                 </div>
                 <div>
                     <div><input id="modules-azimuth" class="input-small" type="number" step="0.1" min="0" max="359.9" placeholder="[ &deg; ]" required /></div>
                     <div><input id="modules-tilt" class="input-small" type="number" step="0.1" min="0" max="90" placeholder="[ &deg; ]" required /></div>
-                    <div><input id="modules-elevation" class="input-small" type="number" step="0.01" min="0" placeholder="[m]" /></div>
                 </div>
             </div>
             <div class="divider"></div>

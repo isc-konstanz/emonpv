@@ -30,6 +30,9 @@ var view = new Vue({
                 scrolled = window.scrollY > 45;
             }, 100);
         },
+	    getModel: function(type) {
+	    	return models[type.split('/')[0]][type];
+	    },
         toggleCollapse: function(event, id) {
             window.clearTimeout(timeout);
             timeout = window.setTimeout(function() {

@@ -37,7 +37,7 @@ var solar_modules = {
             $('#modules-azimuth').val('');
             $('#modules-tilt').val('');
             
-            $('#modules-model-name').text('');
+            $('#modules-model-type').text('');
             $('#modules-model-description').text('');
             $('#modules-model-manufacturer').text('Select a model type');
             $('#modules-model-menu').data('toggle', 'none').html('<use xlink:href="#icon-checkmark" />');
@@ -62,8 +62,8 @@ var solar_modules = {
             $('#modules-model-manufacturer').html('<b>'+model.Manufacturer+':</b>');
             $('#modules-model-menu').html('<use xlink:href="#icon-dots-vertical" />').data('toggle', 'dropdown');
         }
-        $('#modules-pitch-tooltip').tooltip({html:true, container:modal});
-        $('#modules-geometry-tooltip').tooltip({html:true, container:modal});
+        $('#modules-rows-tooltip').tooltip({html:true, container:modal});
+        $('#modules-orientation-tooltip').tooltip({html:true, container:modal});
         $('#modules-settings-tooltip').tooltip({html:true, container:modal});
         
         $('#modules-model-menu').off('click').on('click', function(e) {
