@@ -35,8 +35,12 @@ class SystemList(list):
         
         datadir = configs.get('General', 'datadir')
         
-        if 'emoncms' in self.database:
-            systems = self.database['emoncms'].connection._request_json('solar/config.json?')
+        with open(os.path.join(configs.get('General', 'configdir'), 'systems.json')) as systemsfile:
+            systems = json.load(systemsfile)
+#         if 'emoncms' in self.database:
+#             systems = self.database['emoncms'].connection._request_json('solar/config.json?')
+#             with open(os.path.join(configs.get('General', 'configdir'), 'systems.json'), 'w') as systemsfile:
+#                 json.dump(systems, systemsfile, indent=4)
             for config in systems:
                 system = System(config['name'], config, datadir)
                 
@@ -47,8 +51,8 @@ class SystemList(list):
                     system.append(group['name'], group, module, inverter)
                 
                 self.append(system)
-        else:
-            self.__read_ini(configs)
+#         else:
+#             self.__read_ini(configs)
 
 
     def __read_ini(self, configs):
@@ -109,7 +113,7 @@ class SystemList(list):
         for systems in locations.values():
             for system in systems:
                 forecast = system.forecast(weather.forecast(system, time))
-                self.database.post(system, forecast, date=time)
+                self.database.persist(system, forecast, date=time)
 
 
 class System(list):

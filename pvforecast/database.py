@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-    theoptimization.database
+    pvforecast.database
     ~~~~~
     
     
@@ -45,9 +45,9 @@ class DatabaseList(OrderedDict):
                 self[key] = CsvDatabase(configs, timezone=timezone)
 
 
-    def post(self, system, data, **kwargs):
+    def persist(self, system, data, **kwargs):
         for database in reversed(self.values()):
-            database.post(system, data, datatype='systems', **kwargs)
+            database.persist(system, data, datatype='systems', **kwargs)
 
 
     def get(self, system, start, end, interval, **kwargs):
@@ -86,7 +86,7 @@ class Database(ABC):
 
 
     @abstractmethod
-    def post(self, system, data, **kwargs):
+    def persist(self, system, data, **kwargs):
         """ 
         Post a set of data values, to persistently store them on the server
         
@@ -124,7 +124,7 @@ class EmoncmsDatabase(Database):
         pass
 
 
-    def post(self, system, data, **kwargs):
+    def persist(self, system, data, **kwargs):
         if hasattr(system, 'apikey'):
             bulk = EmoncmsData(timezone=self.timezone)
             for key in data.columns:
@@ -137,7 +137,7 @@ class EmoncmsDatabase(Database):
                     if value is not None and not np.isnan(value):
                         bulk.add(time, self.node, name, float(value))
             
-            self.connection.post(bulk, apikey=system.apikey)
+            self.connection.persist(bulk, apikey=system.apikey)
 
 
 class CsvDatabase(Database):
@@ -174,7 +174,7 @@ class CsvDatabase(Database):
         return data
 
 
-    def post(self, system, data, datatype='weather', **kwargs):
+    def persist(self, system, data, datatype='weather', **kwargs):
         if data is not None:
             path = self._build_dir(system, datatype)
             if not os.path.exists(path):
@@ -191,12 +191,13 @@ class CsvDatabase(Database):
         
         if os.path.isfile(file):
             csv = pd.read_csv(file, sep=self.separator, decimal=self.decimal, encoding='utf-8', index_col='time', parse_dates=['time'])
-            csv.index = csv.index.tz_localize(tz.utc)
-            
-            if all(name in list(csv.columns) for name in list(data.columns)):
-                data = data.combine_first(csv)
-            else:
-                data = pd.concat([csv, data], axis=1)
+            if not csv.empty:
+                csv.index = csv.index.tz_localize(tz.utc)
+                
+                if all(name in list(csv.columns) for name in list(data.columns)):
+                    data = data.combine_first(csv)
+                else:
+                    data = pd.concat([csv, data], axis=1)
         
         data.to_csv(file, sep=self.separator, decimal=self.decimal, encoding='utf-8')
 
