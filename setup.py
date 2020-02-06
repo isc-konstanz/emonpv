@@ -1,11 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-    pvforecast
-    ~~~~~
+    pvsyst
+    ~~~~~~
     
-    PV forecast provides a set of functions to forecast the energy generation of photovoltaic systems.
-    To improve prediction performance, the recursive optimization of hourly efficiency values may be used.
+    PVsyst provides a set of functions to calculate the energy yield of photovoltaic systems.
     It utilizes the independent pvlib toolbox, originally developed in MATLAB at Sandia National Laboratories,
     and can be found on GitHub "https://github.com/pvlib/pvlib-python".
     
@@ -19,31 +18,29 @@ except ImportError:
 
 here = path.abspath(path.dirname(__file__))
 info = {}
-with open(path.join("pvforecast", "_version.py")) as f: exec(f.read(), info)
+with open(path.join("pvsyst", "_version.py")) as f: exec(f.read(), info)
 
 VERSION = info['__version__']
 
-DESCRIPTION = 'PV forecast provides a set of functions to forecast the energy generation of photovoltaic systems.'
+DESCRIPTION = 'PVsyst provides a set of functions to calculate the energy yield of photovoltaic systems.'
 
 # Get the long description from the README file
 with open(path.join(here, 'README.md')) as f:
     README = f.read()
 
-NAME = 'pvforecast'
+NAME = 'pvsyst'
 LICENSE = 'GPLv3'
 AUTHOR = 'ISC Konstanz'
 MAINTAINER_EMAIL = 'adrian.minde@isc-konstanz.de'
 URL = 'https://github.com/isc-konstanz/pvforecast'
 
-INSTALL_REQUIRES = ['numpy >= 1.9.0',
-                    'pandas >= 0.14.0',
-                    'emonpy >= 0.1.2',
+INSTALL_REQUIRES = ['numpy',
+                    'pandas',
                     'pvlib >= 0.3.2']
-#                   'cvxopt >= 1.1.7']
 
-PACKAGES = ['pvforecast']
+PACKAGES = ['pvsyst']
 
-# SCRIPTS = ['bin/pvforecast']
+# SCRIPTS = ['bin/pvsyst']
 
 SETUPTOOLS_KWARGS = {
     'zip_safe': False,

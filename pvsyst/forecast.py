@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-    pvforecast.weather
+    pvsyst.weather
     ~~~~~
     
-    This module provides functions to read :class:`pvforecast.Weather` objects, 
+    This module provides functions to open :class:`pvsyst.Weather` objects, 
     used as reference to calculate a photovoltaic installations' generated power.
     The provided environmental data contains temperatures and horizontal 
     solar irradiation, which can be used, to calculate the effective irradiance 
@@ -11,8 +11,9 @@
     
 """
 import logging
-logger = logging.getLogger('pvforecast.weather')
+logger = logging.getLogger('pvsyst.weather')
 
+import os
 import warnings
 import requests
 import json
@@ -21,6 +22,9 @@ import pandas as pd
 import pytz as tz
 
 from io import StringIO
+from configparser import ConfigParser
+
+from core import Database
 
 with warnings.catch_warnings():
     warnings.simplefilter("ignore")
@@ -29,32 +33,45 @@ with warnings.catch_warnings():
 
 class Weather():
 
-    def __init__(self, configs, database, model='NMM'):
-        self.model = model
-        if model == 'NMM':
-            self.server = NMM(configs.get('Meteoblue', 'name'), 
-                              configs.get('Meteoblue', 'address'), 
-                              configs.get('Meteoblue', 'apikey'))
-        elif model == 'COSMO_DE':
-            self.server = COSMO_DE(configs.get('W3Data', 'address'), 
-                                   configs.get('W3Data', 'apikey'))
+    def __init__(self, settings, location, **kwargs):
+        weather = ConfigParser()
+        weather.read(os.path.join(settings.get('General', 'dir'), 'weather.cfg'))
+        
+        self.model = weather.get('General', 'model')
+        if self.model == 'NMM':
+            self.server = NMM(weather, **kwargs)
+        
+        elif self.model == 'COSMO':
+            self.server = COSMO(settings.get('W3Data', 'address'), 
+                                settings.get('W3Data', 'apikey'))
         else:
             raise ValueError('Invalid forecast model argument')
         
-        if 'csv' in database:
-            self.database = database['csv']
+        if weather.has_section('Database'):
+            database_dir = weather.get('Database', 'dir')
+            if not os.path.isabs(database_dir):
+                database_dir = os.path.join(settings.get('General', 'dir'), database_dir)
+                weather.set('Database', 'dir', database_dir)
+            
+            self.database = Database.open(weather)
         else:
             self.database = None
 
+        self.location = location
 
-    def forecast(self, system, time):
-        if self.database.exists(system, time):
-            forecast = self.database.get(system, time)
+    def get(self, start, end=None):
+        location = '{0:06.2f}'.format(float(self.location.latitude)).replace('.', '') + '_' + \
+                   '{0:06.2f}'.format(float(self.location.longitude)).replace('.', '')
+        
+        if self.database is not None and self.database.exists(start, subdir=location):
+            forecast = self.database.get(start, end, subdir=location)
+        
         else:
-            forecast = self.server.get_processed_data(system.location)
+            forecast = self.server.get_processed_data(self.location)
             
-            # Store the retrieved forecast
-            self.database.persist(system, forecast, date=time)
+            if self.database is not None:
+                # Store the retrieved forecast
+                self.database.persist(forecast, subdir=location)
         
         return forecast
 
@@ -86,11 +103,14 @@ class NMM(ForecastModel):
         Dictionary containing the units of the standard variables
         and the model specific variables.
     """
-
-    def __init__(self, name, address, apikey, set_type='best'):
+    def __init__(self, settings, set_type='best'):
         model_type = 'Forecast Model Data'
-        model_name = 'NMM Forecast'
-
+        model_name = 'Nonhydrostatic Meso-Scale Modelling'
+        
+        self.name = settings.get('Meteoblue', 'name'), 
+        self.address = settings.get('Meteoblue', 'address'), 
+        self.apikey = settings.get('Meteoblue', 'apikey')
+        
         self.variables = {
             "time": "Zeitpunkt [ISO8601]", 
             "precipitation": "Niederschlagsmenge [mm]", 
@@ -141,10 +161,6 @@ class NMM(ForecastModel):
             'rain_shower',
             'rain_prob',
             'snow']
-        
-        self.name = name
-        self.address = address
-        self.apikey = apikey
         
         super(NMM, self).__init__(model_type, model_name, set_type)
 
@@ -232,7 +248,6 @@ class NMM(ForecastModel):
         
         return self.data
 
-
     def get_meta(self, location):
         parameters = {
             'name': self.name,
@@ -253,7 +268,7 @@ class NMM(ForecastModel):
         return data.get('metadata')
 
 
-class COSMO_DE(ForecastModel):
+class COSMO(ForecastModel):
     """
     Subclass of the ForecastModel class representing COSMO-DE
     forecast model.
@@ -280,7 +295,6 @@ class COSMO_DE(ForecastModel):
         Dictionary containing the units of the standard variables
         and the model specific variables.
     """
-
     def __init__(self, address, api_key, set_type='best'):
         model_type = 'Forecast Model Data'
         model_name = 'COSMO-DE Forecast'
@@ -318,8 +332,7 @@ class COSMO_DE(ForecastModel):
         self.address = address
         self.apikey = api_key
         
-        super(COSMO_DE, self).__init__(model_type, model_name, set_type)
-
+        super(COSMO, self).__init__(model_type, model_name, set_type)
 
     def process_data(self, data, cloud_cover='total_clouds', **kwargs):
         """
@@ -338,14 +351,13 @@ class COSMO_DE(ForecastModel):
         data: DataFrame
             Processed forecast data.
         """
-        data = super(COSMO_DE, self).process_data(data, **kwargs)
+        data = super(COSMO, self).process_data(data, **kwargs)
         data['temp_air'] = data['t2m']
         data['wind_speed'] = data['windspeed10m']
         irrads = self.cloud_cover_to_irradiance(data[cloud_cover], **kwargs)
         data = data.join(irrads, how='outer')
         
         return data[self.output_variables]
-
 
     def get_data(self, location):
         """
@@ -370,8 +382,8 @@ class COSMO_DE(ForecastModel):
         url = self.address+'solar/'+str(self.longitude)+'/'+str(self.latitude)
         r = json.loads(requests.get(url, headers={'Authorization': 'Basic ' + self.apikey}).text)
         
-        cols = list(dict(r['timesteps'][0]['models']['COSMO_DE']).keys())
-        vals = [[y[w] for w in cols] for y in [x["models"]['COSMO_DE'] for x in r['timesteps']]]
+        cols = list(dict(r['timesteps'][0]['models']['COSMO']).keys())
+        vals = [[y[w] for w in cols] for y in [x["models"]['COSMO'] for x in r['timesteps']]]
         
         self.data = pd.DataFrame(vals, columns=cols)
         self.data['date'] = pd.to_datetime(self.data['date'])

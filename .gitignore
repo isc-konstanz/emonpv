@@ -100,8 +100,10 @@ build/
 # Configurations except for default files
 conf/*
 !conf/settings.default.cfg
-!conf/database.default.cfg
 !conf/logging.default.cfg
+!conf/database.default.cfg
+!conf/system.default.cfg
+!conf/model.default.cfg
 
 # Generated output
 data

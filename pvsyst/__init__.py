@@ -9,8 +9,7 @@
     and can be found on GitHub "https://github.com/pvlib/pvlib-python".
     
 """
-from ._version import __version__
+from pvsyst._version import __version__
 
-from .system import SystemList
-from .database import DatabaseList
-from .weather import Weather
+from pvsyst.system import System
+from pvsyst.weather import Weather

@@ -10,7 +10,7 @@ This tool was originally developed during the course of the European [CoSSMic](h
 
 ## Contact
 
-![ISC logo](https://github.com/isc-konstanz/pvforecast/blob/master/doc/img/ISC_logo.png)
+![ISC logo](doc/img/isc-logo.png)
 
 - [**ISC** Konstanz](http://isc-konstanz.de/) (International Solar Energy Research Center)
 - **Adrian Minde**: adrian.minde@isc-konstanz.de
