@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-    pvpforecast
-    ~~~~~
+    pvsyst
+    ~~~~~~
     
-    PV forecast provides a set of functions to forecast the energy generation of photovoltaic system.
-    To improve the prediction performance, the recursive optimization of hourly efficiency values may be used.
+    PVsyst provides a set of functions to calculate the energy yield of photovoltaic systems.
     It utilizes the independent pvlib-python toolbox, originally developed in MATLAB at Sandia National Laboratories,
     and can be found on GitHub "https://github.com/pvlib/pvlib-python".
     
