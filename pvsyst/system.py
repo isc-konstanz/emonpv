@@ -14,7 +14,7 @@ logger = logging.getLogger('pvsyst.systems')
 import pvlib as pv
 import core
 
-from pvsyst.weather import Weather
+from pvsyst.weather import Weather, TMYWeather
 from pvsyst.database import ModuleDatabase
 
 
@@ -24,12 +24,15 @@ class System(core.System):
         super()._configure(configs, **kwargs)
         
         self.weather = Weather.open(self, **kwargs)
-        self.location = pv.location.Location(float(configs['Location']['latitude']), 
-                                             float(configs['Location']['longitude']), 
-                                             altitude=float(configs['Location']['altitude']), 
-                                             tz=configs['Location']['timezone'] or 'UTC', 
-                                             name=self.name, 
-                                             **kwargs)
+        if isinstance(self.weather, TMYWeather):
+            self.location = pv.location.Location.from_tmy(self.weather.meta)
+        else:
+            self.location = pv.location.Location(float(configs['Location']['latitude']), 
+                                                 float(configs['Location']['longitude']), 
+                                                 altitude=float(configs['Location']['altitude']), 
+                                                 tz=configs['Location']['timezone'] or 'UTC', 
+                                                 name=self.name, 
+                                                 **kwargs)
 
     def _init_component(self, configs, **kwargs):
         return Modules(self, configs, **kwargs)
@@ -44,11 +47,11 @@ class Modules(core.Component, pv.pvsystem.PVSystem):
     def __init__(self, system, configs, **kwargs):
         super().__init__(system, configs, 
                          name = configs['General']['id'], 
-                         surface_tilt = float(configs['Geography']['tilt']), 
-                         surface_azimuth = float(configs['Geography']['azimuth']), 
+                         albedo = configs['General']['albedo'], 
+                         surface_tilt = float(configs['Geometry']['tilt']), 
+                         surface_azimuth = float(configs['Geometry']['azimuth']), 
                          modules_per_string = int(configs['Modules']['count']), 
                          strings_per_inverter = int(configs['Inverter']['strings']), 
-                         albedo = system._configs.getfloat('Location', 'albedo'), 
                          **self._init_parameters(system, configs), 
                          **kwargs)
 

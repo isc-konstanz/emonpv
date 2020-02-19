@@ -20,6 +20,7 @@ import datetime as dt
 from configparser import ConfigParser
 from abc import ABC, abstractmethod
 from core import Database
+from pvlib.iotools import read_tmy2, read_tmy3
 
 
 class Weather(ABC):
@@ -35,6 +36,15 @@ class Weather(ABC):
         self._configs = configs
         self._configure(configs, **kwargs)
         self._open(context, **kwargs)
+
+    def __repr__(self):
+        configs = '[Weather]'
+        for section in self._configs.sections():
+            configs += '\n    [{}]'.format(section) + '\n'
+            for (k, v) in self._configs.items(section):
+                configs += '        {} = {}'.format(k, v) + '\n'
+        
+        return configs
 
     @staticmethod
     def open(system, **kwargs):
@@ -56,6 +66,12 @@ class Weather(ABC):
         if 'General' not in configs.sections():
             raise ValueError('Incomplete weather configuration. Unable to find general section')
         
+        configs.set('General', 'root_dir', system._configs.get('General', 'root_dir'))
+        configs.set('General', 'lib_dir', system._configs.get('General', 'lib_dir'))
+        configs.set('General', 'data_dir', system._configs.get('General', 'data_dir'))
+        configs.set('General', 'config_dir', config_dir)
+        configs.set('General', 'config_file', config_file)
+        
         if 'type' not in configs['General']:
             raise ValueError('Incomplete weather configuration. Unable to find weather type')
         
@@ -64,23 +80,17 @@ class Weather(ABC):
             return HistoricWeather(system, configs, **kwargs)
         
         elif model == 'tmy':
-            return None
+            return TMYWeather(system, configs, **kwargs)
         
         else:
             raise ValueError('Invalid weather type: {}'.format(model))
 
-    def _open(self, system, **_):
+    def _open(self, system, **kwargs):
         pass
 
-    def _configure(self, configs, **_):
+    def _configure(self, configs, **kwargs): #@UnusedVariable
         if logger.isEnabledFor(logging.DEBUG):
-            text = ''
-            for section in configs.sections():
-                text += '\n        [{}]'.format(section) + '\n'
-                for (k, v) in configs.items(section):
-                    text += '            {} = {}'.format(k, v) + '\n'
-            
-            print('    [Weather]{}'.format(text))
+            print(self)
 
     @abstractmethod
     def get(self, **kwargs):
@@ -94,7 +104,7 @@ class HistoricWeather(Weather):
         
         self._database = Database.open(configs, **kwargs)
 
-    def get(self, start=None, stop=None, format='%d.%m.%Y', **kwargs):
+    def get(self, start=None, stop=None, format='%d.%m.%Y', **kwargs): #@ReservedAssignment
         if start is None:
             start = tz.utc.localize(dt.datetime.utcnow())
             start.replace(year=start.year-1, month=1, day=1, hour=0, minute=0, second=0)
@@ -109,4 +119,29 @@ class HistoricWeather(Weather):
         return self._database.get(start=start, 
                                   stop=stop, 
                                   **kwargs)
+
+class TMYWeather(Weather):
+
+    def _configure(self, configs, **_):
+        self.version = int(configs.get('General', 'version', fallback='3'))
+        
+        if 'file' in configs['TMY'] and not os.path.isabs(configs['TMY']['file']):
+            configs['TMY']['file'] = os.path.join(configs['General']['data_dir'], 
+                                                  configs['TMY']['file'])
+        
+        self.file = configs.get('TMY', 'file', fallback=None)
+        self.year = configs.get('TMY', 'year', fallback=None)
+
+    def _open(self, system, **kwargs): #@UnusedVariable
+        if self.version == 3:
+            self.data, self.meta = read_tmy3(filename=self.file, coerce_year=self.year)
+            
+        elif self.version == 2:
+            self.data, self.meta = read_tmy2(self.file)
+        else:
+            raise ValueError('Invalid TMY version: {}'.format(self.version))
+
+    def get(self, **_):
+        # TODO: implement optional slicing
+        return self.data
 
