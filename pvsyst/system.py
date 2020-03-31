@@ -47,7 +47,7 @@ class Modules(core.Component, pv.pvsystem.PVSystem):
     def __init__(self, system, configs, **kwargs):
         super().__init__(system, configs, 
                          name = configs['General']['id'], 
-                         albedo = configs['General']['albedo'], 
+                         albedo = float(configs['General']['albedo']), 
                          surface_tilt = float(configs['Geometry']['tilt']), 
                          surface_azimuth = float(configs['Geometry']['azimuth']), 
                          modules_per_string = int(configs['Modules']['count']), 

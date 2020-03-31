@@ -36,7 +36,8 @@ URL = 'https://github.com/isc-konstanz/pvforecast'
 
 INSTALL_REQUIRES = ['numpy',
                     'pandas',
-                    'pvlib >= 0.3.2']
+                    'pvlib >= 0.3.2',
+                    'core >= 0.1.2']
 
 PACKAGES = ['pvsyst']
 
