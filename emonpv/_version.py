@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-    pvsyst._version
+    emonpv._version
     ~~~~~~~~~~~~~~~
     
     

@@ -1,10 +1,10 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """
-    pvsyst
+    simpv
     ~~~~~~
     
-    To learn how to configure the photovoltaic yield calculation, see "pvsyst --help"
+    To learn how to configure the photovoltaic yield simulation, see "simpv --help"
 
 """
 import logging.config
@@ -25,7 +25,7 @@ from configparser import ConfigParser
 
 
 def main(args):
-    from core.system import Systems
+    from emonpv import System
     
     settings_file = os.path.join(args.config_dir, 'settings.cfg')
     if not os.path.isfile(settings_file):
@@ -34,11 +34,13 @@ def main(args):
     settings = ConfigParser()
     settings.read(settings_file)
     
-    systems = Systems()
-    systems.read(**dict(settings.items('General')), **vars(args), package='pvsyst')
+    kwargs = vars(args)
+    kwargs.update(dict(settings.items('General')))
+    
+    systems = System.read(**kwargs)
     
     start = tz.utc.localize(dt.datetime.strptime(settings['General']['start'], '%d.%m.%Y'))
-    stop = tz.utc.localize(dt.datetime.strptime(settings['General']['stop'], '%d.%m.%Y'))
+    end = tz.utc.localize(dt.datetime.strptime(settings['General']['end'], '%d.%m.%Y'))
     for system in systems:
         system_dir = system._configs['General']['data_dir']
         database = copy.deepcopy(system._database)
@@ -47,7 +49,7 @@ def main(args):
         database.disabled = False
         
         with futures.ThreadPoolExecutor() as executor:
-            future = executor.submit(system._database.get, start, stop)
+            future = executor.submit(system._database.get, start, end)
             
             results = system.run(**dict(settings.items('General')))
             results['p_ref'] = future.result()['pv_power']
@@ -75,7 +77,7 @@ def main(args):
 
 
 def _get_parser(root_dir, config_dir):
-    from pvsyst import __version__
+    from emonpv import __version__
     
     parser = ArgumentParser(description=__doc__, formatter_class=RawTextHelpFormatter)
     parser.add_argument('-v', '--version',

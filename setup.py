@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-    pvsyst
+    emonpv
     ~~~~~~
     
-    PVsyst provides a set of functions to calculate the energy yield of photovoltaic systems.
+    EmonPV provides a set of functions to calculate the energy yield of photovoltaic systems.
     It utilizes the independent pvlib toolbox, originally developed in MATLAB at Sandia National Laboratories,
     and can be found on GitHub "https://github.com/pvlib/pvlib-python".
     
@@ -18,30 +18,30 @@ except ImportError:
 
 here = path.abspath(path.dirname(__file__))
 info = {}
-with open(path.join("pvsyst", "_version.py")) as f: exec(f.read(), info)
+with open(path.join("emonpv", "_version.py")) as f: exec(f.read(), info)
 
 VERSION = info['__version__']
 
-DESCRIPTION = 'PVsyst provides a set of functions to calculate the energy yield of photovoltaic systems.'
+DESCRIPTION = 'EmonPV provides a set of functions to calculate the energy yield of photovoltaic systems.'
 
 # Get the long description from the README file
 with open(path.join(here, 'README.md')) as f:
     README = f.read()
 
-NAME = 'pvsyst'
+NAME = 'emonpv'
 LICENSE = 'GPLv3'
 AUTHOR = 'ISC Konstanz'
 MAINTAINER_EMAIL = 'adrian.minde@isc-konstanz.de'
-URL = 'https://github.com/isc-konstanz/pvforecast'
+URL = 'https://github.com/isc-konstanz/emonpv'
 
 INSTALL_REQUIRES = ['numpy',
                     'pandas',
                     'pvlib >= 0.3.2',
                     'core >= 0.1.2']
 
-PACKAGES = ['pvsyst']
+PACKAGES = ['emonpv']
 
-# SCRIPTS = ['bin/pvsyst']
+# SCRIPTS = ['bin/emonpv']
 
 SETUPTOOLS_KWARGS = {
     'zip_safe': False,

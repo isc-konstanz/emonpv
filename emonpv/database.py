@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-    pvforecast.database
+    emonpv.database
     ~~~~~
     
     
