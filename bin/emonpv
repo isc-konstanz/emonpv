@@ -62,7 +62,7 @@ def schedule_run(system, scheduler, time):
 
 def schedule_time(system):
     interval = system._forecast.interval/3600
-    now = dt.datetime.now(tz.utc)
+    now = dt.datetime.now(system._location.pytz)
     time = now.replace(minute=0, second=0, microsecond=0)
     if now.hour % (interval) != 0:
         time = time + dt.timedelta(hours=interval) - dt.timedelta(hours=now.hour % (interval))

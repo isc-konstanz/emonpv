@@ -18,7 +18,8 @@ from emonpv.database import ModuleDatabase #, InverterDatabase
 
 class System(core.System):
 
-    def _activate(self, *_, **kwargs):
+    def _activate(self, components, **kwargs):
+        super()._activate(components, **kwargs)
         try:
             self._weather = Weather.read(self, **kwargs)
             
