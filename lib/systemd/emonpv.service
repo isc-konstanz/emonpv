@@ -1,11 +1,11 @@
 [Unit]
-Description=pvforecast
+Description=emonpv
 After=network-online.target syslog.target
 
 [Service]
 Type=simple
-WorkingDirectory=/opt/pvforecast
-ExecStart=/usr/bin/python3 /opt/pvforecast/bin/pvforecast start
+WorkingDirectory=/opt/emonpv
+ExecStart=/usr/bin/python3 /opt/emonpv/bin/emonpv start
 StandardOutput=syslog
 StandardError=syslog
 Restart=on-failure

@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-    pvpforecast._version
-    ~~~~~
+    emonpv._version
+    ~~~~~~~~~~~~~~~
     
     
 """
-__version_info__ = ('0', '2', '3')
+__version_info__ = ('0', '4', '0')
 __version__ = '.'.join(__version_info__)

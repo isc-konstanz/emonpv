@@ -97,9 +97,11 @@ gmon.out
 build/
 *.pyc
 
+# Configurations except for default files
+conf/*
+!conf/*.default.cfg
+
 # Generated output
-bin/db
-bin/results
 data
 lib/modules/*.csv
 lib/inverters/*.csv

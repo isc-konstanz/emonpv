@@ -1,0 +1,131 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+"""
+    emonpv
+    ~~~~~~
+    
+    To learn how to configure the photovoltaic yield calculation, see "emonpv --help"
+
+"""
+import logging.config
+
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(sys.argv[0])))
+
+import inspect
+import pytz as tz
+import datetime as dt
+
+from argparse import ArgumentParser, RawTextHelpFormatter
+from configparser import ConfigParser
+
+
+def main(args):
+    from emonpv import System
+    
+    settings_file = os.path.join(args.config_dir, 'settings.cfg')
+    if not os.path.isfile(settings_file):
+        raise ValueError('Unable to open simulation settings: {}'.format(settings_file))
+    
+    settings = ConfigParser()
+    settings.read(settings_file)
+    
+    kwargs = vars(args)
+    kwargs.update(dict(settings.items('General')))
+    
+    systems = System.read(**kwargs)
+    if args.action == 'run':
+        systems.run()
+    
+    elif args.action == 'start':
+        for system in systems:
+            start(system)
+
+def start(system):
+    import sched, time
+    
+    logger.info('Starting emonpv')
+    
+    scheduler = sched.scheduler(time.time, time.sleep)
+    schedule_first, _ = schedule_time(system)
+    schedule_first -= dt.timedelta(seconds=system._forecast.interval)
+    schedule_run(system, scheduler, schedule_first)
+    scheduler.run()
+
+def schedule_run(system, scheduler, time):
+    system.run(time=time)
+    
+    time, delay = schedule_time(system)
+    scheduler.enter(delay, 1, schedule_run,
+                    (system, scheduler, time))
+
+def schedule_time(system):
+    interval = system._forecast.interval/3600
+    now = dt.datetime.now(system._location.pytz)
+    time = now.replace(minute=0, second=0, microsecond=0)
+    if now.hour % (interval) != 0:
+        time = time + dt.timedelta(hours=interval) - dt.timedelta(hours=now.hour % (interval))
+    
+    return time, (time + dt.timedelta(hours=interval) - now).total_seconds() + system._forecast.delay
+
+
+def build(settings, rmlib):
+    from emonpv.database import ModuleDatabase, InverterDatabase
+    
+    logger.info('Starting module library build')
+    modules = ModuleDatabase(settings)
+    if rmlib:
+        modules.clean()
+    modules.build()
+    
+    logger.info('Starting inverter library build')
+    inverters = InverterDatabase(settings)
+    if rmlib:
+        inverters.clean()
+    inverters.build()
+
+
+def _get_parser(root_dir, config_dir):
+    from emonpv import __version__
+    
+    parser = ArgumentParser(description=__doc__, formatter_class=RawTextHelpFormatter)
+    parser.add_argument('-v', '--version',
+                         action='version',
+                         version='%(prog)s {version}'.format(version=__version__))
+    
+    subparsers = parser.add_subparsers(dest='action')
+    subparsers.required = True
+    subparsers.add_parser('run', help='Retrieve weather information and provide the calculated photovoltaic yield')
+    subparsers.add_parser('start', help='Starts the ongoing calculation of photovoltaic yield in a regular interval')
+    
+    parser.add_argument('-r','--root-directory',
+                        dest='root_dir',
+                        help="directory where the package and related libraries are located",
+                        default=root_dir,
+                        metavar='DIR')
+    
+    parser.add_argument('-c','--config-directory',
+                        dest='config_dir',
+                        help="directory to expect configuration files",
+                        default=config_dir,
+                        metavar='DIR')
+    
+    return parser
+
+if __name__ == "__main__":
+    root_dir = os.path.dirname(os.path.abspath(inspect.getsourcefile(main)))
+    if os.path.basename(root_dir) == 'bin':
+        root_dir = os.path.dirname(root_dir)
+    
+    os.chdir(root_dir)
+    
+    config_dir = os.path.join(root_dir, 'conf')
+    
+    # Load the logging configuration
+    loggingfile = os.path.join(config_dir, 'logging.cfg')
+    logging.config.fileConfig(loggingfile)
+    logger = logging.getLogger('emonpv')
+    
+    main(_get_parser(root_dir, config_dir).parse_args())
+
