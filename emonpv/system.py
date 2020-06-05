@@ -8,15 +8,16 @@
 import logging
 logger = logging.getLogger(__name__)
 
-import th_e_core as core
-from th_e_core import Model, Forecast
+from th_e_core import System as S
+from th_e_core import Model, Forecast, ConfigUnavailableException
 from th_e_core.weather import Weather, TMYWeather, EPWWeather
 from th_e_core.pvsystem import PVSystem
 
 from pvlib.location import Location
 from emonpv.database import ModuleDatabase #, InverterDatabase
 
-class System(core.System):
+
+class System(S):
 
     def _activate(self, components, **kwargs):
         super()._activate(components, **kwargs)
@@ -30,7 +31,7 @@ class System(core.System):
             else:
                 self._location = self._location_read(self._configs, **kwargs)
             
-        except core.ConfigUnavailableException:
+        except ConfigUnavailableException:
             self._location = self._location_read(self._configs, **kwargs)
             self._weather = Forecast.read(self, **kwargs)
         
@@ -57,9 +58,9 @@ class System(core.System):
 
     def _component(self, configs, type, **kwargs): #@ReservedAssignment
         if type in ['pv', 'modules']:
-            return Modules(configs, context=self, **kwargs)
+            return Modules(configs, self, **kwargs)
         
-        return super()._component_init(configs, type, **kwargs)
+        return super()._component(configs, type, **kwargs)
 
     def run(self, *args, **kwargs):
         data = self._model.run(self._weather.get(*args, **kwargs), **kwargs)
