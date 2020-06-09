@@ -76,7 +76,7 @@ def main(args):
                 pass
 
 
-def _get_parser(root_dir, config_dir):
+def _get_parser(root_dir):
     from emonpv import __version__
     
     parser = ArgumentParser(description=__doc__, formatter_class=RawTextHelpFormatter)
@@ -93,7 +93,7 @@ def _get_parser(root_dir, config_dir):
     parser.add_argument('-c','--config-directory',
                         dest='config_dir',
                         help="directory to expect configuration files",
-                        default=config_dir,
+                        default='conf',
                         metavar='DIR')
     
     return parser
@@ -105,12 +105,13 @@ if __name__ == "__main__":
     
     os.chdir(root_dir)
     
-    config_dir = os.path.join(root_dir, 'conf')
+    if not os.path.exists('log'):
+        os.makedirs('log')
     
     # Load the logging configuration
-    loggingfile = os.path.join(config_dir, 'logging.cfg')
-    logging.config.fileConfig(loggingfile)
+    logging_file = os.path.join(os.path.join(root_dir, 'conf'), 'logging.cfg')
+    logging.config.fileConfig(logging_file)
     logger = logging.getLogger('pvsim')
     
-    main(_get_parser(root_dir, config_dir).parse_args())
+    main(_get_parser(root_dir).parse_args())
 
