@@ -37,10 +37,10 @@ def main(args):
     kwargs = vars(args)
     kwargs.update(dict(settings.items('General')))
     
-    systems = System.read(**kwargs)
-    
     start = tz.utc.localize(dt.datetime.strptime(settings['General']['start'], '%d.%m.%Y'))
     end = tz.utc.localize(dt.datetime.strptime(settings['General']['end'], '%d.%m.%Y'))
+    
+    systems = System.read(**kwargs)
     for system in systems:
         system_dir = system._configs['General']['data_dir']
         database = copy.deepcopy(system._database)

@@ -8,32 +8,28 @@
 import logging
 logger = logging.getLogger(__name__)
 
-from th_e_core import System as S
-from th_e_core import Model, Forecast, ConfigUnavailableException
+import os
+
+from th_e_core import System as SystemCore
+from th_e_core import Model, Forecast
 from th_e_core.weather import Weather, TMYWeather, EPWWeather
 from th_e_core.pvsystem import PVSystem
 
 from pvlib.location import Location
+from configparser import ConfigParser
 from emonpv.database import ModuleDatabase #, InverterDatabase
 
 
-class System(S):
+class System(SystemCore):
 
-    def _activate(self, components, **kwargs):
-        super()._activate(components, **kwargs)
-        try:
-            self._weather = Weather.read(self, **kwargs)
-            
-            if isinstance(self._weather, TMYWeather):
-                self._location = Location.from_tmy(self._weather.meta)
-            elif isinstance(self._weather, EPWWeather):
-                self._location = Location.from_epw(self._weather.meta)
-            else:
-                self._location = self._location_read(self._configs, **kwargs)
-            
-        except ConfigUnavailableException:
-            self._location = self._location_read(self._configs, **kwargs)
-            self._weather = Forecast.read(self, **kwargs)
+    def _activate(self, components, *args, **kwargs):
+        super()._activate(components, *args, **kwargs)
+        
+        self.weather = Weather.read(self, **kwargs)
+        if isinstance(self.weather, TMYWeather):
+            self.location = Location.from_tmy(self.weather.meta)
+        elif isinstance(self.weather, EPWWeather):
+            self.location = Location.from_epw(self.weather.meta)
         
         self._model = Model.read(self, **kwargs)
 
@@ -47,23 +43,23 @@ class System(S):
 
     @property
     def _forecast(self):
-        if isinstance(self._weather, Forecast):
-            return self._weather
+        if isinstance(self.weather, Forecast):
+            return self.weather
         
         raise AttributeError("System forecast not configured")
 
     @property
     def _component_types(self):
-        return super()._component_types + ['modules']
+        return super()._component_types + ['modules', 'configs']
 
     def _component(self, configs, type, **kwargs): #@ReservedAssignment
-        if type in ['pv', 'modules']:
-            return Modules(configs, self, **kwargs)
+        if type in ['pv', 'modules', 'configs']:
+            return Configurations(configs, self, **kwargs)
         
         return super()._component(configs, type, **kwargs)
 
     def run(self, *args, **kwargs):
-        data = self._model.run(self._weather.get(*args, **kwargs), **kwargs)
+        data = self._model.run(self.weather.get(*args, **kwargs), **kwargs)
         
         if self._database is not None:
             self._database.persist(data, **kwargs)
@@ -71,23 +67,28 @@ class System(S):
         return data
 
 
-class Modules(PVSystem):
+class Configurations(PVSystem):
 
-    def _init_parameters(self, configs, system, *args):
-        if not configs.has_option('Modules', 'type'):
-            return super()._init_parameters(configs, system, *args)
+    def _configure(self, configs, **_):
+        with open(os.path.join(configs['General']['config_dir'], configs['General']['id']+'.d', 'module.cfg')) as f:
+            module_file = '[Module]\n' + f.read()
         
-        modules = ModuleDatabase(system._configs)
-        module = modules.get(configs.get('Modules', 'type'))
+        module_configs = ConfigParser()
+        module_configs.optionxform = str
+        module_configs.read_string(module_file)
         
-        inverter = {}
-        if configs.has_section('Inverter') and 'pdc0' in module:
+        self.module_parameters = {}
+        for key, value in module_configs.items('Module'):
+            try:
+                self.module_parameters[key] = float(value)
+                
+            except ValueError:
+                self.module_parameters[key] = value
+        
+        self.inverter_parameters = {}
+        if configs.has_section('Inverter') and 'pdc0' in self.module_parameters:
             total = configs.getfloat('Inverter', 'strings') \
-                    *configs.getfloat('Modules', 'count') \
-                    *configs.getfloat('General', 'count')
+                  * configs.getfloat('Module', 'count')
             
-            inverter['pdc0'] = module['pdc0']*total
-        
-        return { 'module_parameters': module,
-                 'inverter_parameters': inverter }
+            self.inverter_parameters['pdc0'] = float(self.module_parameters['pdc0'])*total
 
