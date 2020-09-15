@@ -158,7 +158,7 @@ class SolarConfigs {
         if (empty($pitch) || !is_numeric($pitch)) {
             throw new SolarException("The configs row pitch specification is missing or invalid");
         }
-        $pitch = intval($pitch);
+        $pitch = floatval($pitch);
         
         $gap_x = is_numeric($gap_x) ? floatval($gap_x) : null;
         $gap_y = is_numeric($gap_y) ? floatval($gap_y) : null;
