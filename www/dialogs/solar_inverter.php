@@ -8,8 +8,8 @@
         <h3 id="inverter-config-label"></h3>
     </div>
     <div class="modal-body">
-        <div class="alert alert-comment">
-            <?php echo _('Placeholder for the inverter dialog.'); ?>
+        <div class="alert alert-error">
+            <?php echo _('Creating additional inverters is currently not supported.'); ?>
         </div>
     </div>
     <div class="modal-footer">

@@ -19,14 +19,13 @@ class SolarInverter {
     private $redis;
     private $mysqli;
 
-    public $modules;
+    public $configs;
 
-    public function __construct($mysqli, $redis) {
+    public function __construct($mysqli, $redis, $configs) {
         $this->log = new EmonLogger(__FILE__);
         $this->redis = $redis;
         $this->mysqli = $mysqli;
-        
-        $this->modules = new SolarModules($mysqli, $redis);
+        $this->configs = $configs;
     }
 
     private function exist($id) {
@@ -46,7 +45,7 @@ class SolarInverter {
         return false;
     }
 
-    public function create($sysid, $type=null, $settings=null) {
+    public function create($sysid, $type=null) {
         $sysid = intval($sysid);
         
         if (!empty($type)) {
@@ -56,12 +55,9 @@ class SolarInverter {
         else {
             $type = null;
         }
-        if (empty($settings)) {
-            $settings = null;
-        }
         
-        $stmt = $this->mysqli->prepare("INSERT INTO solar_inverter (sysid,type,settings) VALUES (?,?,?)");
-        $stmt->bind_param("iss",$sysid,$type,$settings);
+        $stmt = $this->mysqli->prepare("INSERT INTO solar_inverter (sysid,type) VALUES (?,?)");
+        $stmt->bind_param("is",$sysid,$type);
         $stmt->execute();
         $stmt->close();
         
@@ -72,16 +68,68 @@ class SolarInverter {
         $inverter = array(
             'id' => $id,
             'sysid' => $sysid,
-            'count' => 1,
             'type' => $type,
-            'settings' => empty(!$settings) ? json_encode($settings) : null
+            'count' => 1
         );
         if ($this->redis) {
             $this->add_redis($inverter);
         }
-        //$modules = array($this->modules->create($id));
-        
         return $this->parse($inverter);
+    }
+
+    public function add_configs($invid, $strid, $configs) {
+        $stmt = $this->mysqli->prepare("INSERT INTO solar_inverter_configs (invid,strid,cfgid) VALUES (?,?,?)");
+        $stmt->bind_param("iii", $invid, $strid, $configs['id']);
+        $stmt->execute();
+        $stmt->close();
+        
+        return array_merge(array(
+                'id'=>intval($configs['id']),
+                'invid'=>intval($invid),
+                'strid'=>intval($strid),
+                'count'=>1
+                
+        ), array_slice($configs, 2));
+    }
+
+    public function remove_configs($invid, $cfgid) {
+        $configs = $this->get_configs($invid);
+        if (count($configs) < 1) {
+            return false;
+        }
+        foreach ($configs as $c) {
+            if ($cfgid == $c['id']) {
+                $this->mysqli->query("DELETE FROM solar_inverter_configs WHERE `invid` = '$invid' AND `cfgid` = '$cfgid'");
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private function get_configs($invid) {
+        $configs = array();
+        
+        $results = $this->mysqli->query("SELECT * FROM solar_inverter_configs WHERE invid='$invid'");
+        while ($result = $results->fetch_array()) {
+            $id = $result['cfgid'];
+            $config = $this->configs->get($id);
+            $config = array_merge(array(
+                'id'=>intval($id),
+                'invid'=>intval($invid),
+                'strid'=>intval($result['strid']),
+                'count'=>intval($result['count'])
+                
+            ), array_slice($config, 2));
+            
+            $configs[] = $config;
+        }
+        usort($configs, function($c1, $c2) {
+            if($c1['count'] == $c2['count']) {
+                return strcmp($c1['type'], $c2['type']);
+            }
+            return $c1['count'] - $c2['count'];
+        });
+        return $configs;
     }
 
     public function get_list($sysid) {
@@ -103,9 +151,10 @@ class SolarInverter {
         $sysid = intval($sysid);
         
         $inverters = array();
-        $result = $this->mysqli->query("SELECT * FROM solar_inverter WHERE sysid='$sysid'");
-        while ($inverter = $result->fetch_array()) {
-            $inverters[] = $this->parse($inverter);
+        $results = $this->mysqli->query("SELECT * FROM solar_inverter WHERE sysid='$sysid'");
+        while ($result = $results->fetch_array()) {
+            $inverter = $this->parse($result);
+            $inverters[] = $inverter;
         }
         return $inverters;
     }
@@ -153,35 +202,20 @@ class SolarInverter {
         $this->redis->hMSet("solar:inverter#".$inverter['id'], $inverter);
     }
 
-    private function parse($inverter, $modules=array()) {
-        if ($modules == null) {
-            $modules = $this->modules->get_list($inverter['id']);
-        }
-        return $this->decode($inverter, $modules);
-    }
-
-    private function decode($inverter, $modules) {
-        if (empty($inverter['settings'])) {
-            $settings = null;
-        }
-        else {
-            $settings = json_decode($inverter['settings'], true);
+    private function parse($inverter, $configs=array()) {
+        if ($configs == null) {
+            $configs = $this->get_configs($inverter['id']);
         }
         return array(
-            'id' => $inverter['id'],
-            'sysid' => $inverter['sysid'],
-            'count' => $inverter['count'],
-            'type' => $inverter['type'],
-            'settings' => $settings,
-            'modules' => $modules
+            'id' => intval($inverter['id']),
+            'sysid' => intval($inverter['sysid']),
+            'count' => intval($inverter['count']),
+            'type' => strval($inverter['type']),
+            'configs' => $configs
         );
     }
 
-    public function update($id, $fields) {
-        $id = intval($id);
-        if (!$this->exist($id)) {
-            throw new SolarException("Inverter for id $id does not exist");
-        }
+    public function update($inverter, $fields) {
         $fields = json_decode(stripslashes($fields), true);
         
         if (isset($fields['count'])) {
@@ -191,15 +225,15 @@ class SolarInverter {
                 throw new SolarException("The inverter count is invalid: $count");
             }
             if ($stmt = $this->mysqli->prepare("UPDATE solar_inverter SET count = ? WHERE id = ?")) {
-                $stmt->bind_param("ii", $count, $id);
+                $stmt->bind_param("ii", $count, $inverter['id']);
                 if ($stmt->execute() === false) {
                     $stmt->close();
-                    throw new SolarException("Error while update count of inverter#$id");
+                    throw new SolarException("Error while update count of inverter#".$inverter['id']);
                 }
                 $stmt->close();
                 
                 if ($this->redis) {
-                    $this->redis->hset("solar:inverter#$id", 'count', $count);
+                    $this->redis->hset("solar:inverter#".$inverter['id'], 'count', $count);
                 }
             }
             else {
@@ -209,18 +243,20 @@ class SolarInverter {
         return array('success'=>true, 'message'=>'Inverter successfully updated');
     }
 
-    public function delete($id) {
-        $id = intval($id);
-        if (!$this->exist($id)) {
-            throw new SolarException("Inverter for id $id does not exist");
+    public function delete($inverter, $force_delete=false) {
+        $result = $this->mysqli->query("SELECT `id` FROM solar_inverter WHERE sysid = '".$inverter['sysid']."'");
+        if ($result->num_rows <= 1 && !$force_delete) {
+            return array('success'=>false, 'message'=>'Unable to delete last inverter of system.');
         }
-        foreach($this->modules->get_list($id) as $modules) {
-            $this->modules->delete($modules['id']);
+        // TODO: verify if configs are not used of any system
+        foreach ($this->get_configs($inverter['id']) as $configs) {
+            $this->configs->delete($configs['id']);
         }
+        $this->mysqli->query("DELETE FROM solar_inverter_configs WHERE `invid` = '".$inverter['id']."'");
         
-        $this->mysqli->query("DELETE FROM solar_inverter WHERE `id` = '$id'");
+        $this->mysqli->query("DELETE FROM solar_inverter WHERE `id` = '".$inverter['id']."'");
         if ($this->redis) {
-            $this->delete_redis($id);
+            $this->delete_redis($inverter['id']);
         }
         return array('success'=>true, 'message'=>'Inverter successfully deleted');
     }

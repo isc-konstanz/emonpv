@@ -6,11 +6,13 @@ var solar_system = {
     newConfig: function() {
         solar_system.system = null;
         solar_system.drawConfig();
+        solar_system.adjustConfig();
     },
 
     openConfig: function(system) {
         solar_system.system = system;
         solar_system.drawConfig(system);
+        solar_system.adjustConfig();
     },
 
     drawConfig: function(system = null) {
@@ -20,21 +22,15 @@ var solar_system = {
             $('#system-config-delete').hide();
             $('#system-config-save').prop('disabled', true);
             $('#system-config-save').html('Create');
-
-            $('#system-model').val('').addClass('select-default');
+            
+            //$('#system-model').val('').addClass('select-default');
+            $('#system-model').val('ViewFactor').removeClass('select-default');
             $('#system-model-tooltip').hide();
             $('#system-name').val('');
             $('#system-description').val('').hide();
-            $('#system-latitude').val('');
-            $('#system-longitude').val('');
-            $('#system-altitude').val('');
-            $('#system-albedo').val('');
+            $("#system-description-icon").html('<use xlink:href="#icon-plus" />').data('show', false);
             
-            $("#settings-collapse-icon").html('<use xlink:href="#icon-chevron-down" />');
-            $("#system-location-icon").html('<use xlink:href="#icon-checkmark" />');
-            $("#system-location .advanced").hide();
-            $("#system-location").show();
-            solar_system.drawMap(true);
+            solar_system.drawConfigLocation(system);
         }
         else {
             $('#system-config-label').html('Configure system: <b>'+system.name+'</b>');
@@ -57,25 +53,62 @@ var solar_system = {
                 $("#system-description").val(description).hide();
                 $("#system-description-icon").html('<use xlink:href="#icon-plus" />').data('show', false);
             }
-            
-            $('#system-latitude').val(system.location.latitude);
-            $('#system-longitude').val(system.location.longitude);
-            
-            var altitude = system.location.altitude != null ? system.location.altitude : '';
-            var albedo = system.location.albedo != null ? system.location.albedo : '';
-            $("#system-location .advanced").toggle(altitude != '' || albedo != '');
-            $('#system-altitude').val(altitude);
-            $('#system-albedo').val(albedo);
-            
-            $("#settings-collapse-icon").html('<use xlink:href="#icon-chevron-right" />');
-            $("#system-location-icon").html('<use xlink:href="#icon-cog" />');
-            $("#system-location").hide();
-            solar_system.drawMap(false);
+            solar_system.drawConfigLocation(system);
         }
         $('#system-name-tooltip').tooltip({html:true, container:modal});
         $('#system-location-tooltip').tooltip({html:true, container:modal});
         
         solar_system.registerConfigEvents();
+    },
+
+    drawConfigLocation: function(system) {
+        if (system == null) {
+            $('#system-albedo').val('');
+            $('#system-latitude').val('');
+            $('#system-longitude').val('');
+            $('#system-altitude').val('');
+            
+            $("#system-coordinates-icon").html('<use xlink:href="#icon-plus" />').data('show', false);
+            
+            $("#settings-collapse-icon").html('<use xlink:href="#icon-chevron-down" />');
+            $("#system-location-icon").html('<use xlink:href="#icon-checkmark" />');
+            $("#system-location-icon").data('show', true);
+            $("#system-coordinates .advanced").hide();
+            $("#system-location").show();
+            
+            solar_system.drawMap(true);
+        }
+        else {
+            $('#system-albedo').val(system.location.albedo);
+            $('#system-latitude').val(system.location.latitude);
+            $('#system-longitude').val(system.location.longitude);
+            
+            var altitude = system.location.altitude != null ? system.location.altitude : '';
+            if (altitude != '') {
+                $("#system-coordinates-icon").html('<use xlink:href="#icon-cross" />').data('show', true);
+                $("#system-coordinates .advanced").show();
+                $("#system-altitude").show();
+            }
+            else {
+                $("#system-coordinates-icon").html('<use xlink:href="#icon-plus" />').data('show', false);
+                $("#system-coordinates .advanced").hide();
+                $("#system-altitude").hide();
+            }
+            $('#system-altitude').val(altitude);
+            
+            $("#settings-collapse-icon").html('<use xlink:href="#icon-chevron-right" />');
+            $("#system-location-icon").html('<use xlink:href="#icon-cog" />');
+            $("#system-location-icon").data('show', false);
+            $("#system-location").hide();
+            
+            solar_system.drawMap(false);
+        }
+    },
+
+    adjustConfig: function() {
+        if ($("#system-config-modal").length > 0) {
+            $("#system-config").height($(window).height() - $("#system-config-modal").position().top - 180);
+        }
     },
 
     saveConfig: function() {
@@ -88,33 +121,37 @@ var solar_system = {
         var alt = $('#system-altitude').val();
         var alb = $('#system-albedo').val();
         
+        var invs = true;
+        
         if (solar_system.system == null) {
             var location = {
                     longitude: lng,
                     latitude: lat,
-                    altitude: alt,
                     albedo: alb
             };
-            solar.system.create(model, name, desc, location, solar_system.closeConfig);
+            solar.system.create(model, name, desc, location, invs, solar_system.closeConfig);
         }
         else {
             var fields = {};
-            if (dialog.system.model != model) fields['model'] = model;
-            if (dialog.system.name != name) fields['name'] = name;
-            if (dialog.system.description != desc) fields['description'] = desc;
+            if (solar_system.system.model != model) fields['model'] = model;
+            if (solar_system.system.name != name) fields['name'] = name;
+            if (solar_system.system.description != desc) fields['description'] = desc;
             
-            if (dialog.system.latitude != lat) fields['latitude'] = lat;
-            if (dialog.system.longitude != lng) fields['longitude'] = lng;
-            if (dialog.system.altitude != alt) fields['altitude'] = alt;
-            if (dialog.system.albedo != alb) fields['albedo'] = alb;
+            if (solar_system.system.location.latitude != lat && solar_system.system.location.latitude != null) fields['latitude'] = lat;
+            if (solar_system.system.location.longitude != lng && solar_system.system.location.longitude != null) fields['longitude'] = lng;
+            if (solar_system.system.location.altitude != alt && solar_system.system.location.altitude != null) fields['altitude'] = alt;
+            if (solar_system.system.location.albedo != alb && solar_system.system.location.albedo != null) fields['albedo'] = alb;
             
-            solar.system.set(solar_system.system.id, fields, solar_system.closeConfig);
+            if (Object.keys(fields).length > 0) {
+                solar.system.update(solar_system.system.id, fields, solar_system.closeConfig);
+            }
         }
     },
 
     verifyConfig: function() {
         if ($('#system-model')[0].checkValidity() &&
                 $('#system-name')[0].checkValidity() &&
+                $('#system-albedo')[0].checkValidity() &&
                 $('#system-latitude')[0].checkValidity() &&
                 $('#system-longitude')[0].checkValidity()) {
             
@@ -173,12 +210,12 @@ var solar_system = {
         $("#system-coordinates-icon").off('click').on('click', function() {
             if (!$(this).data('show')) {
                 $("#system-coordinates-icon").html('<use xlink:href="#icon-cross" />');
-                $("#system-location .advanced").animate({width:'toggle'}, 250);
+                $("#system-coordinates .advanced").animate({width:'toggle'}, 250);
                 $(this).data('show', true);
             }
             else {
                 $("#system-coordinates-icon").html('<use xlink:href="#icon-plus" />');
-                $("#system-location .advanced").animate({width:'toggle'}, 250).val("");
+                $("#system-coordinates .advanced").animate({width:'toggle'}, 250).val("");
                 $(this).data('show', false);
             }
         });
@@ -261,13 +298,18 @@ var solar_system = {
                 solar_system.timeout = setTimeout(function() {
                     solar_system.timeout = null;
                     
-                    var latlng = {
-                        lat: $('#system-latitude').val(),
-                        lng: $('#system-longitude').val()
-                    };
-                    solar_system.map.setView(latlng, 12);
-                    solar_system.drawMapMarker(latlng);
-                    
+                    var lat = $('#system-latitude').val();
+                    var lng = $('#system-longitude').val();
+                    if (lat != '' && lat > 0 && 
+                        lng != '' && lng > 0) {
+                        
+                        var latlng = {
+                            lat: $('#system-latitude').val(),
+                            lng: $('#system-longitude').val()
+                        };
+                        solar_system.map.setView(latlng, 12);
+                        solar_system.drawMapMarker(latlng);
+                    }
                 }, 250);
             });
             solar_system.map = map;
@@ -308,15 +350,14 @@ var solar_system = {
         
         // If nothing can be found, use ISC Konstanz as default location
         var location = {
-            lat: $('#system-latitude').val(),
-            lng: $('#system-longitude').val()
+            lat: parseFloat($('#system-latitude').val()),
+            lng: parseFloat($('#system-longitude').val())
         };
-        if (location.lat == '' || location.lng == '') {
+        if (isNaN(location.lat) || isNaN(location.lng)) {
             if (solar_system.system != null 
                     && typeof solar_system.system.location !== 'undefined') {
                 location.lat = solar_system.system.location.latitude;
                 location.lng = solar_system.system.location.longitude;
-                solar_system.drawMapMarker(location);
             }
             else if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(function(position) {
@@ -334,6 +375,7 @@ var solar_system = {
                 location.lng = 9.15179;
             }
         }
+        solar_system.drawMapMarker(location);
         solar_system.map.setView(location, 12);
     },
 

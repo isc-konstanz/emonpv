@@ -1,39 +1,74 @@
 <?php
 
 $schema['solar_system'] = array(
-    'id' => array('type' => 'INT(11)', 'Null'=>false, 'Key'=>'PRI', 'Extra'=>'AUTO_INCREMENT'),
-    'userid' => array('type' => 'INT(11)', 'Null'=>false),
-    'time_cr' => array('type' => 'INT(10)', 'Null'=>false),
-    'time_rn' => array('type' => 'INT(10)'),
-    'forecast' => array('type' => 'TINYINT(1)', 'default'=>0),
-    'model' => array('type' => 'VARCHAR(32)', 'Null'=>false),
-    'name' => array('type' => 'TEXT', 'Null'=>false),
-    'description' => array('type' => 'TEXT'),
-    'latitude' => array('type' => 'DOUBLE(8,5)', 'Null'=>false),
-    'longitude' => array('type' => 'DOUBLE(8,5)', 'Null'=>false),
-    'altitude' => array('type' => 'DOUBLE(5,2)'),
-    'albedo' => array('type' => 'DOUBLE(3,2)')
+    'id' => array('type' => 'int(11)', 'Null'=>false, 'Key'=>'PRI', 'Extra'=>'auto_increment'),
+    'userid' => array('type' => 'int(11)', 'Null'=>false),
+    'locid' => array('type' => 'int(11)', 'Null'=>false),
+    'model' => array('type' => 'varchar(32)', 'Null'=>false),
+    'name' => array('type' => 'text', 'Null'=>false),
+    'description' => array('type' => 'text')
+);
+
+$schema['solar_location'] = array(
+    'id' => array('type' => 'int(11)', 'Null'=>false, 'Key'=>'PRI', 'Extra'=>'auto_increment'),
+    'userid' => array('type' => 'int(11)', 'Null'=>false),
+    'name' => array('type' => 'text', 'Null'=>false),
+    'latitude' => array('type' => 'double(8,5)'),
+    'longitude' => array('type' => 'double(8,5)'),
+    'altitude' => array('type' => 'double(5,2)'),
+    'albedo' => array('type' => 'double(3,2)'),
+    'file' => array('type' => 'text')
+);
+
+$schema['solar_configs'] = array(
+    'id' => array('type' => 'int(11)', 'Null'=>false, 'Key'=>'PRI', 'Extra'=>'auto_increment'),
+    'userid' => array('type' => 'int(11)', 'Null'=>false),
+    'type' => array('type' => 'varchar(64)'),
+    'orientation' => array('type' => 'tinyint(1)')
+);
+
+$schema['solar_rows'] = array(
+    'id' => array('type' => 'int(11)', 'Null'=>false),
+    'count' => array('type' => 'int(11)', 'default'=>1),
+    'pitch' => array('type' => 'double(3,2)'),
+    'modules' => array('type' => 'int(11)', 'default'=>1),
+    'stack' => array('type' => 'int(11)', 'default'=>1),
+    'gap_x' => array('type' => 'double(4,3)'),
+    'gap_y' => array('type' => 'double(4,3)'),
+    'pos_x' => array('type' => 'int(11)'),
+    'pos_y' => array('type' => 'int(11)')
+);
+
+$schema['solar_mounting'] = array(
+    'id' => array('type' => 'int(11)', 'Null'=>false),
+    'tilt' => array('type' => 'double(5,2)'),
+    'azimuth' => array('type' => 'double(5,2)'),
+    'elevation' => array('type' => 'double(5,2)')
+);
+
+$schema['solar_tracking'] = array(
+    'id' => array('type' => 'int(11)', 'Null'=>false),
+    'axis' => array('type' => 'tinyint(1)', 'default'=>1),
+    'axis_height' => array('type' => 'double(5,2)'),
+    'tilt_max' => array('type' => 'double(5,2)'),
+    'backtrack' => array('type' => 'tinyint(1)', 'default'=>0)
 );
 
 $schema['solar_inverter'] = array(
-    'id' => array('type' => 'INT(11)', 'Null'=>false, 'Key'=>'PRI', 'Extra'=>'AUTO_INCREMENT'),
-    'sysid' => array('type' => 'INT(11)', 'Null'=>false),
-    'count' => array('type' => 'INT(11)', 'default'=>1),
-    'type' => array('type' => 'VARCHAR(64)'),
-    'settings' => array('type' => 'TEXT')
+    'id' => array('type' => 'int(11)', 'Null'=>false, 'Key'=>'PRI', 'Extra'=>'auto_increment'),
+    'sysid' => array('type' => 'int(11)', 'Null'=>false),
+    'type' => array('type' => 'varchar(64)'),
+    'count' => array('type' => 'int(11)', 'default'=>1)
 );
 
-$schema['solar_modules'] = array(
-    'id' => array('type' => 'INT(11)', 'Null'=>false, 'Key'=>'PRI', 'Extra'=>'AUTO_INCREMENT'),
-    'invid' => array('type' => 'INT(11)', 'Null'=>false),
-    'strid' => array('type' => 'TINYINT(4)', 'default'=>1),
-    'count' => array('type' => 'INT(11)', 'default'=>1),
-    'pitch' => array('type' => 'DOUBLE(5,2)'),
-    'elevation' => array('type' => 'DOUBLE(5,2)'),
-    'azimuth' => array('type' => 'DOUBLE(5,2)'),
-    'tilt' => array('type' => 'DOUBLE(5,2)'),
-    'type' => array('type' => 'VARCHAR(64)'),
-    'number' => array('type' => 'INT(11)'),
-    'settings' => array('type' => 'TEXT'),
-    'tracking' => array('type' => 'TEXT')
+$schema['solar_inverter_configs'] = array(
+    'invid' => array('type' => 'int(11)', 'Null'=>false),
+    'strid' => array('type' => 'int(11)', 'Null'=>false),
+    'cfgid' => array('type' => 'int(11)', 'Null'=>false),
+    'count' => array('type' => 'int(11)', 'default'=>1)
+);
+
+$schema['solar_system_configs'] = array(
+    'sysid' => array('type' => 'int(11)', 'Null'=>false),
+    'cfgid' => array('type' => 'int(11)', 'Null'=>false)
 );

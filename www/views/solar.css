@@ -66,7 +66,7 @@
     left: 0px;
     right: 0px;
     padding: 15px;
-    height: 100%;
+    height: calc(100% - 30px);
     min-width: 345px;
     overflow-x: hidden;
     overflow-y: auto;
@@ -77,6 +77,9 @@
 }
 .modal-adjust .modal-content .btn-sidebar-open {
     margin-bottom: 5px;
+}
+.modal-adjust .modal-content > div:last-child {
+    margin-bottom: 15px;
 }
 
 .modal-adjust .modal-sidebar {
@@ -276,6 +279,14 @@
     text-align: right;
     cursor: pointer;
 }
+.system-item .action.disabled,
+.system-item .action.disabled,
+.system-item .action.disabled *,
+.inverter-item .action[disabled],
+.inverter-item .action[disabled],
+.inverter-item .action[disabled] * {
+    cursor: not-allowed;
+}
 .system-item .name,
 .inverter-item .name {
     padding-right: 5px;
@@ -318,6 +329,7 @@
     background-color: #0069b4;
 }
 .inverter-item:hover .count > input:not(:hover):not(:focus):not(:active):not(:hover),
+.inverter-item:hover .count > span,
 .inverter-item:hover .name,
 .inverter-item:hover .description,
 .inverter-item:hover .icon-action {
@@ -342,7 +354,7 @@
 .inverter-item:before {
     content: "";
     position: absolute;
-    height: 15px;
+    height: 20px;
     width: 40px;
     margin-top: 10px;
     margin-left: -40px;
@@ -367,19 +379,26 @@
     transition: margin .1s ease-in-out;
 }
 .inverter .count > input:not(:hover):not(:focus):not(:active):not(:hover) {
-	border-color: transparent;
-	background-color: transparent;
+    border-color: transparent;
+    background-color: transparent;
     box-shadow: none;
     -webkit-box-shadow: none;
     -moz-box-shadow: none;
     -ms-box-shadow: none;
-	color: #666;
+    color: #666;
 }
 .inverter-item .count > input:hover, 
 .inverter-item .count > input:focus, 
 .inverter-item .count > input:active {
     margin-left: 5px;
     margin-right: 5px;
+}
+.inverter-item .count > span {
+    margin-left: 5px;
+    margin-right: 10px;
+    font-size: 15px;
+    font-weight: lighter;
+    color: #666;
 }
 
 .inverter .clipart {
@@ -391,15 +410,20 @@
 .inverter .clipart:hover {
     cursor: pointer;
 }
+.inverter .clipart.disabled:hover,
+.inverter .clipart[disabled]:hover {
+    cursor: not-allowed;
+}
 
 .inverter .inverter-body {
     height: 100%;
     width: 100%;
+    padding-left: 40px;
+    padding-right: 40px;
 }
 .inverter .inverter-body > div:first-child {
     display: table;
-    padding-left: 40px;
-    padding-right: 40px;
+    width: 100%;
     padding-top: 7px;
     border-collapse: separate;
     border-spacing: 0 3px;
@@ -407,10 +431,10 @@
 
 .system-menu .dropdown-menu {
     border: 1px solid transparent;
-        border-top-color: transparent;
-        border-right-color: transparent;
-        border-bottom-color: transparent;
-        border-left-color: transparent;
+    border-top-color: transparent;
+    border-right-color: transparent;
+    border-bottom-color: transparent;
+    border-left-color: transparent;
     border-radius: .25rem;
 }
 .system-menu .dropdown-menu > li > a:focus,
@@ -445,14 +469,14 @@
     flex-grow: 1;
     margin-left: 8px;
     margin-right:40px;
-    border-bottom: #ebebeb 1px solid;
+    border-bottom: #ddd 1px solid;
     transition: color .15s ease-in-out,background-color .15s ease-in-out,border-color .15s ease-in-out,box-shadow .15s ease-in-out;
 }
 .inverter-add:hover {
     cursor: pointer;
 }
 .inverter-add:hover .divider {
-    border-bottom: #ddd 1px solid;
+    border-bottom: #d1d1d1 1px solid;
 }
 .inverter-add .btn {
     color: #ddd;
@@ -470,6 +494,10 @@
 .inverter-item.new {
     height: 36px;
     background-color: #f5f5f5;
+}
+.inverter-item.new.disabled *,
+.inverter-item.new[disabled] * {
+    cursor: not-allowed;
 }
 .inverter-item.new:hover {
     background-color: #fcfcfc;
@@ -500,15 +528,19 @@
 .modules-settings > div,
 .modules-info > div {
     white-space: nowrap;
-}
-.modules-info > div {
-    vertical-align: top !important;
+    padding-top: 4px;
 }
 .modules-info > div:first-child {
     padding-left: 18px;
 }
-.modules-info span {
-	padding-top: 20px;
+.modules-info > div span {
+    padding-right: 8px;
+}
+
+.modules-advanced .icon-action {
+    color: #999;
+    margin-left: 2px;
+    vertical-align: -0.15em;
 }
 
 .system-new {
@@ -527,8 +559,9 @@
     background-color: #e6e6e6;
 }
 
-.system-run {
-    margin: 14px 40px 14px 14px;
+.system-run,
+.system-download {
+    margin: 14px;
 }
 
 #system-location .input-small {
@@ -623,9 +656,12 @@ svg.icon-menu {
     height: 1.1em;
 }
 
-.btn-light:hover, 
-.btn-light:focus, 
-.btn-light.active {
+.btn-light:hover,
+.btn-light:focus,
+.btn-light:active,
+.btn-light.active,
+.btn-light.disabled,
+.btn-light[disabled] {
     color: #999;
     background-color: #e6e6e6;
 }
@@ -633,9 +669,12 @@ svg.icon-menu {
     color: #ddd;
     background-color: #f5f5f5;
 }
-.btn-default:hover, 
-.btn-default:focus, 
-.btn-default.active {
+.btn-default:hover,
+.btn-default:focus,
+.btn-default:active,
+.btn-default.active,
+.btn-default.disabled,
+.btn-default[disabled] {
     color: #333;
     background-color: #d9d9d9;
 }
@@ -655,10 +694,10 @@ svg.icon-menu {
     user-select: none;
     background-image: none;
     border: 1px solid transparent;
-        border-top-color: transparent;
-        border-right-color: transparent;
-        border-bottom-color: transparent;
-        border-left-color: transparent;
+    border-top-color: transparent;
+    border-right-color: transparent;
+    border-bottom-color: transparent;
+    border-left-color: transparent;
     padding: .375rem .75rem;
     font-size: 1rem;
     line-height: 1.5;
@@ -680,11 +719,51 @@ svg.icon-menu {
     height: .75em;
     vertical-align: .15em;
 }
+.btn-right-results {
+    margin-right: 40px;
+    margin-left: 0px;
+}
+.btn-right-hide {
+    display: none !important;
+}
 
-/* .btn.disabled,
+.btn.disabled,
 .btn[disabled] {
-  cursor: not-allowed;
-} */
+    cursor: not-allowed;
+}
+
+*::before, *::after {
+    box-sizing: border-box;
+}
+
+/* Chrome */
+@supports (-webkit-appearance:none ) {
+    .checkbox-slider--b-flat {
+        padding: 0px;
+        height: 20px;
+    }
+}
+
+/* IE */
+@media screen and (-ms-high-contrast: active) , ( -ms-high-contrast : none) {
+    .checkbox-slider--b-flat {
+        padding: 0px;
+        height: 20px;
+    }
+}
+
+/* Firefox */
+_:-moz-tree-row(hover), .checkbox-slider--b-flat {
+    padding: 0px;
+    height: 20px;
+    width: 20px;
+    border-radius: 25px;
+    background-color: gainsboro;
+}
+
+.checkbox-slider--b-flat input:focus+:before {
+    outline: none !important;
+}
 
 /* For Firefox */
 input[type='number'] {
@@ -695,6 +774,51 @@ input[type=number]::-webkit-inner-spin-button,
 input[type=number]::-webkit-outer-spin-button {
     -webkit-appearance: none;
     margin: 0;
+}
+
+.results {
+    display: table;
+    width: 100%;
+    padding-top: 10px;
+    padding-bottom: 18px;
+}
+.results > div {
+    display: table-row;
+}
+.results > div > div {
+    display: table-cell;
+    padding-left: 48px;
+    vertical-align: middle;
+    white-space: nowrap;
+    text-align: left;
+}
+.results > div > div:first-child {
+    min-width: 170px;
+    padding-left: 38px;
+}
+.results > div > div:last-child {
+    padding-right: 38px;
+    text-align: right;
+}
+.results > .value > div {
+    line-height: 1.5em;
+}
+.results .title {
+    color: #666;
+    font-size: 18px;
+    font-weight: bold;
+}
+.results .value {
+    padding-top: 8px;
+/*     color: #0069b4; */
+    color: #1480cc;
+    font-size: 30px;
+    font-weight: bold;
+}
+.results .unit {
+    color: #66a2cc;
+    font-size: 24px;
+    font-weight: normal;
 }
 
 .settings {
@@ -709,6 +833,7 @@ input[type=number]::-webkit-outer-spin-button {
     vertical-align: middle;
 }
 
+.results .fill,
 .settings .fill {
     width: 100%;
 }
@@ -718,7 +843,7 @@ input[type=number]::-webkit-outer-spin-button {
     margin-right: 5px;
 }
 .settings .input-small {
-	margin-right: 8px;
+    margin-right: 8px;
     width: 50px;
 }
 
@@ -749,6 +874,7 @@ input[type=number]::-webkit-outer-spin-button {
 .settings-header > * {
     padding-top: 8px;
 }
+.settings .header span,
 .settings-header span {
     text-align: left;
     font-weight: normal;
@@ -761,4 +887,50 @@ input[type=number]::-webkit-outer-spin-button {
     font-weight: bold;
     text-rendering: optimizelegibility;
     color: #555;
+}
+
+.system-progress {
+    background: #f0f0f0;
+    -webkit-border-radius: 0px;
+       -moz-border-radius: 0px;
+            border-radius: 0px;
+}
+
+.progress-default .bar,
+.progress .bar-default {
+    background-color: #dddddd;
+    background-image: -moz-linear-gradient(top, #eeeeee, #cccccc);
+    background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#eeeeee), to(#cccccc));
+    background-image: -webkit-linear-gradient(top, #eeeeee, #cccccc);
+    background-image: -o-linear-gradient(top, #eeeeee, #cccccc);
+    background-image: linear-gradient(to bottom, #eeeeee, #cccccc);
+    background-repeat: repeat-x;
+    filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#ffeeeeee', endColorstr='#ffcccccc', GradientType=0);
+}
+
+.progress-default.progress-striped .bar,
+.progress-striped .bar-default {
+    background-color: #dddddd;
+    background-image: -webkit-gradient(linear, 0 100%, 100% 0, color-stop(0.25, rgba(255, 255, 255, 0.15)), color-stop(0.25, transparent), color-stop(0.5, transparent), color-stop(0.5, rgba(255, 255, 255, 0.15)), color-stop(0.75, rgba(255, 255, 255, 0.15)), color-stop(0.75, transparent), to(transparent));
+    background-image: -webkit-linear-gradient(45deg, rgba(255, 255, 255, 0.15) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, 0.15) 50%, rgba(255, 255, 255, 0.15) 75%, transparent 75%, transparent);
+    background-image: -moz-linear-gradient(45deg, rgba(255, 255, 255, 0.15) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, 0.15) 50%, rgba(255, 255, 255, 0.15) 75%, transparent 75%, transparent);
+    background-image: -o-linear-gradient(45deg, rgba(255, 255, 255, 0.15) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, 0.15) 50%, rgba(255, 255, 255, 0.15) 75%, transparent 75%, transparent);
+    background-image: linear-gradient(45deg, rgba(255, 255, 255, 0.15) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, 0.15) 50%, rgba(255, 255, 255, 0.15) 75%, transparent 75%, transparent);
+}
+
+.slide-enter-active {
+    transition: height .3s ease-in-out;
+}
+.slide-leave-active {
+    transition: height .5s ease-in-out; /*cubic-bezier(1.0, 0.5, 0.8, 1.0);*/
+}
+.slide-enter, .slide-leave-to {
+    height: 0;
+}
+
+.fade-enter-active, .fade-leave-active {
+    transition: opacity .3s;
+}
+.fade-enter, .fade-leave-to {
+    opacity: 0;
 }

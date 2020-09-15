@@ -22,10 +22,11 @@ class SolarException extends Exception {
 function solar_controller() {
     global $mysqli, $redis, $session, $route;
     
-    require_once("Modules/solar/libs/models/solar_modules.php");
+    require_once("Modules/solar/libs/models/solar_configs.php");
     require_once("Modules/solar/libs/models/solar_inverter.php");
     require_once("Modules/solar/libs/models/solar_system.php");
-    $system = new SolarSystem($mysqli, $redis);
+    $configs = new SolarConfigs($mysqli, $redis);
+    $system = new SolarSystem($mysqli, $redis, $configs);
     
     if ($route->format == 'html') {
         if (!$session['read']) {
@@ -33,7 +34,11 @@ function solar_controller() {
             return '';
         }
         else if ($route->action == "view" && $session['write']) {
-            return view("Modules/solar/views/solar_view.php", array('models'=>$system->inverter->modules->get_model_meta()));
+            require_once("Modules/solar/libs/models/solar_module.php");
+            $module = new SolarModule();
+            $modules = $module->get_list_meta();
+            
+            return view("Modules/solar/views/solar_view.php", array('modules'=>$modules));
         }
         else if ($route->action == 'api' && $session['write']) {
             return view("Modules/solar/views/solar_api.php", array());
@@ -41,8 +46,11 @@ function solar_controller() {
     }
     else if ($route->format == 'json' && $session['userid'] > 0) {
         try {
-            if ($route->action == "modules") {
-                return modules_controller($system);
+            if ($route->action == "module") {
+                return module_controller();
+            }
+            if ($route->action == "configs") {
+                return configs_controller($system, $configs);
             }
             if ($route->action == "inverter") {
                 return inverter_controller($system);
@@ -56,97 +64,136 @@ function solar_controller() {
     return array('content'=>EMPTY_ROUTE);
 }
 
-function system_controller($system) {
+function system_controller(SolarSystem $system) {
     global $session, $route;
     
     if ($route->action == "create" && $session['write']) {
-        return $system->create($session['userid'], get('model'), get('name'), get('description'), get('location'));
+        return $system->create($session['userid'], prop('model'), prop('name'), prop('description'), prop('location'), prop('inverters'));
     }
     else if ($route->action == 'list' && $session['read']) {
         return $system->get_list($session['userid']);
     }
-    else if ($session['read']) {
-        $sysid = get('id');
-        if (!empty($sysid)) {
-            $sys = $system->get($sysid);
+    else {
+        $id = prop('id');
+        if (!empty($id)) {
+            $sys = $system->get($id);
             if ($sys['userid'] != $session['userid']) {
                 return array('success'=>false, 'message'=>'Invalid permissions to access this system');
             }
-            
-            if ($route->action == "get") {
-                return $sys;
+            if ($session['read']) {
+                if ($route->action == "get") {
+                    return $sys;
+                }
+                if ($route->action == "download") {
+                    return $system->export_results($sys);
+                }
             }
-            else if ($route->action == "delete" && $session['write']) {
-                return $system->delete($sysid);
+            if ($session['write']) {
+                if ($route->action == "run") {
+                    return $system->run($sys);
+                }
+                else if ($route->action == "update") {
+                    return $system->update($sys, prop('fields'));
+                }
+                else if ($route->action == "delete") {
+                    return $system->delete($sys);
+                }
             }
         }
     }
     return array('content'=>EMPTY_ROUTE);
 }
 
-function inverter_controller($system) {
+function inverter_controller(SolarSystem $system) {
     global $session, $route;
     
-    $sysid = get('sysid');
-    if (!empty($sysid)) {
-        $sys = $system->get($sysid);
+    $id = prop('id');
+    if (!empty($id)) {
+        $inv = $system->inverter->get($id);
+        $sys = $system->get($inv['sysid']);
         if ($sys['userid'] != $session['userid']) {
             return array('success'=>false, 'message'=>'Invalid permissions to access this inverter');
         }
-        
-        if ($route->subaction == "create" && $session['write']) {
-            return $system->inverter->create($sysid);
-        }
-        else if ($session['read']) {
+        if ($session['read']) {
             if ($route->subaction == "get") {
-                return $system->inverter->get(get('id'));
+                return $inv;
+            }
+        }
+        if ($session['write']) {
+            if ($route->subaction == "create") {
+                return $system->inverter->create($sys['id']);
             }
             else if ($route->subaction == "update") {
-                return $system->inverter->update(get('id'), get('fields'));
+                return $system->inverter->update($inv, prop('fields'));
             }
-            else if ($route->subaction == "delete" && $session['write']) {
-                return $system->inverter->delete(get('id'));
+            else if ($route->subaction == "delete") {
+                return $system->inverter->delete($inv);
+            }
+            else if ($route->subaction == "configs") {
+                if ($route->subaction2 == "create") {
+                    $configs = $system->configs->create($session['userid'], prop('type'), prop('orientation'), 
+                        prop('rows'), prop('mounting'), prop('tracking'));
+                    
+                    return $system->inverter->add_configs($id, prop('strid'), $configs);
+                }
+                else if ($route->subaction2 == "remove" ||
+                        $route->subaction2 == "delete") {
+                    
+                    $result = $system->inverter->remove_configs($id, prop('cfgid'));
+                    if (!$result) {
+                        return array('success'=>false, 'message'=>'Unable to remove configuration for this inverter');
+                    }
+                    if ($route->subaction2 == "delete") {
+                        return $system->configs->delete(prop('cfgid'));
+                    }
+                }
             }
         }
     }
     return array('content'=>EMPTY_ROUTE);
 }
 
-function modules_controller($system) {
+function configs_controller(SolarSystem $system, SolarConfigs $configs) {
     global $session, $route;
     
-    if ($route->subaction == 'model' && $session['read']) {
-        if ($route->subaction2 == 'list') {
-            return $system->inverter->modules->get_model_meta();
+    $id = prop('id');
+    if (!empty($id)) {
+        $config = $configs->get($id);
+        if ($config['userid'] != $session['userid']) {
+            return array('success'=>false, 'message'=>'Invalid permissions to access these configurations');
         }
-        else if ($route->subaction2 == 'get') {
-            return $system->inverter->modules->get_model(get('type'));
+        if ($session['read']) {
+            if ($route->subaction == "get") {
+                return $config;
+            }
+            else if ($route->subaction == "download") {
+                $sysid = get('sysid');
+                if (!empty($sysid)) {
+                    return $system->export_configs($sysid, $config);
+                }
+            }
+        }
+        if ($session['write']) {
+            if ($route->subaction == "update") {
+                return $configs->update($config, prop('fields'));
+            }
         }
     }
-    else {
-        $invid = get('invid');
-        if (!empty($invid)) {
-            $inv = $system->inverter->get($invid);
-            $sys = $system->get($inv['sysid']);
-            if ($sys['userid'] != $session['userid']) {
-                return array('success'=>false, 'message'=>'Invalid permissions to access these modules');
-            }
-            
-            if ($route->subaction == "create" && $session['write']) {
-                return $system->inverter->modules->create($invid, get('strid'), get('count'), get('geometry'), get('tracking'),
-                    get('type'), get('number'), get('settings'));
-            }
-            else if ($session['read']) {
-                if ($route->subaction == "get") {
-                    return $system->inverter->modules->get(get('id'));
-                }
-                else if ($route->subaction == "update") {
-                    return $system->inverter->modules->update(get('id'), get('fields'));
-                }
-                else if ($route->subaction == "delete" && $session['write']) {
-                    return $system->inverter->modules->delete(get('id'));
-                }
-            }
+    return array('content'=>EMPTY_ROUTE);
+}
+
+function module_controller() {
+    global $session, $route;
+    
+    require_once("Modules/solar/libs/models/solar_module.php");
+    $module = new SolarModule();
+    
+    if ($session['read']) {
+        if ($route->subaction == 'list') {
+            return $module->get_list_meta();
+        }
+        else if ($route->subaction == 'get') {
+            return $module->get('type');
         }
     }
     return array('content'=>EMPTY_ROUTE);

@@ -47,7 +47,7 @@ foreach ($svgs as $svg) {
                                     <use xlink:href="#icon-dots-vertical" />
                                 </svg>
                                 <ul class="dropdown-menu pull-right">
-                                    <li><a @click.prevent.stop="solar_system.openExport(system)" disabled><?php echo _("Export results"); ?></a></li>
+                                    <!--  li><a @click.prevent.stop="solar_system.openExport(system)"><?php echo _("Export results"); ?></a></li -->
                                     <li><a @click.prevent.stop="solar_inverter.newConfig(system)"><?php echo _("Add Inverter"); ?></a></li>
                                     <li><a @click.prevent.stop="solar_system.openConfig(system)"><?php echo _("Edit System"); ?></a></li>
                                     <li><a @click.prevent.stop="solar_system.openDeletion(system)"><?php echo _("Delete System"); ?></a></li>
@@ -56,46 +56,62 @@ foreach ($svgs as $svg) {
                         </div>
                     </div>
                     <div :id="'system'+sysid" class="system-body collapse" :class="{ 'in': !isCollapsed(sysid) }">
-                        <div class="inverter system-item" v-for="inverter in system.inverters" :data-id="inverter.id">
-                            <div class="count">
-                                <input  :style="'width:'+(1+inverter.count.length)+'ch;'" type="number" min="1" step="1" required
-                                        :value="inverter.count" v-on:input="setCount($event, system, inverter, 'inverter')"></input>
+                        <transition name="slide">
+                            <div v-if="system.results.progressBarShow" class="system-progress progress progress-striped" :class="system.results.progressBarClass">
+                                <div class="bar" :style="{ width: system.results.progressBarWidth }"></div>
                             </div>
-                            <div class="clipart" title="<?php echo _("Edit inverter"); ?>" @click="solar_inverter.openConfig(system, inverter.id)">
+                        </transition>
+                        <div class="inverter system-item" v-for="inverter in system.inverters" :data-id="inverter.id">
+                            <!--  div class="count">
+                                <input :style="'width:'+(1+inverter.count.length)+'ch;'" type="number" min="1" step="1" required disabled
+                                       :value="inverter.count" v-on:input="setCount($event, inverter, 'inverter')"></input>
+                            </div -->
+                            <div style="min-width: 24px;"></div>
+                            <div class="clipart" title="<?php echo _("Edit inverter"); ?>" @click="!hasConfigs(inverter) ? solar_inverter.openConfig(system, inverter.id) : null" :disabled="hasConfigs(inverter) ? 'disabled' : null">
                                 <img src="<?php echo $path; ?>Modules/solar/images/inverter-mono.png"></img>
                             </div>
                             <div class="inverter-body">
                                 <div>
-                                    <div class="modules inverter-item" v-for="module in inverter.modules" :data-id="module.id">
-                                        <div class="count">
-                                            <input :style="'width:'+(1+module.count.length)+'ch;'" style="margin-left:0!important" type="number" min="1" step="1" required 
-                                                   :value="module.count" v-on:input="setCount($event, inverter, module, 'modules')"></input>
+                                    <div class="modules inverter-item" v-for="configs in inverter.configs" :data-id="configs.id">
+                                        <!-- div class="count">
+                                            <input :style="'width:'+(1+configs.rows.count.length)+'ch;'" style="margin-left:0!important" type="number" min="1" step="1" required 
+                                                   :value="configs.rows.count" v-on:input="setCount($event, configs, 'configs')"></input>
                                         </div>
                                         <div class="description"><span>x</span></div>
                                         <div class="count">
-                                            <input :style="'width:'+(1+module.number.length)+'ch;'" type="number" min="1" step="1" required 
-                                                   :value="module.number" v-on:input="setCount($event, inverter, module, 'modules', 'number')"></input>
-                                        </div>
-                                        <div class="name"><span>{{getModel(module.type).Manufacturer}}</span></div>
-                                        <div class="description"><span>{{getModel(module.type).Name}}</span></div>
+                                            <input :style="'width:'+(1+configs.rows.modules.length)+'ch;'" type="number" min="1" step="1" required 
+                                                   :value="configs.rows.modules" v-on:input="setCount($event, configs, 'configs')"></input>
+                                        </div -->
+                                        <div class="count"><span>{{configs.rows.stack*configs.rows.count*configs.rows.modules}}</span></div>
+                                        <div class="name"><span>{{getModule(configs.type).Manufacturer}}</span></div>
+                                        <div class="description"><span>{{getModule(configs.type).Name}}</span></div>
                                         <div class="grow"></div>
-                                        <div class="action" @click="solar_modules.openDeletion(inverter, module.id)">
+                                        <div class="action" @click="solar_configs.openDeletion(inverter, configs.id)">
                                             <svg class="icon icon-action">
+                                                <title><?php echo _("Delete configurations"); ?></title>
                                                 <use xlink:href="#icon-bin" />
                                             </svg>
                                         </div>
-                                        <div class="action">
+                                        <div class="action" v-if="isSuccess(system)" @click="solar.configs.download(system.id, configs.id)">
                                             <svg class="icon icon-action">
+                                                <title><?php echo _("Download results"); ?></title>
+                                                <use xlink:href="#icon-download-small"></use>
+                                            </svg>
+                                        </div>
+                                        <div class="action" disabled>
+                                            <svg class="icon icon-action">
+                                                <title><?php echo _("Duplicate configurations"); ?></title>
                                                 <use xlink:href="#icon-content_copy" />
                                             </svg>
                                         </div>
-                                        <div class="action" @click="solar_modules.openConfig(inverter, module.id, module.type)">
+                                        <div class="action" @click="solar_configs.openConfig(inverter, configs.id, configs.type)">
                                             <svg class="icon icon-action">
+                                                <title><?php echo _("Edit configurations"); ?></title>
                                                 <use xlink:href="#icon-wrench" />
                                             </svg>
                                         </div>
                                     </div>
-                                    <div class="inverter-item new" title="<?php echo _("Add modules"); ?>" @click="solar_modules.newConfig(inverter)">
+                                    <div class="inverter-item new" title="<?php echo _("Add configurations"); ?>" @click="!hasConfigs(inverter) ? solar_configs.newConfig(inverter) : null" :disabled="hasConfigs(inverter) ? 'disabled' : null">
                                         <div>
                                             <button type="button" class="btn btn-plain btn-small btn-circle">
                                                 <svg class="icon">
@@ -103,7 +119,15 @@ foreach ($svgs as $svg) {
                                                 </svg>
                                             </button>
                                         </div>
-                                        <div></div><div></div><div></div><div></div><div></div><div class="grow"></div><div></div><div></div>
+                                        <!-- div></div>
+                                        <div></div -->
+                                        <div></div>
+                                        <div></div>
+                                        <div class="grow"></div>
+                                        <div></div>
+                                        <div v-if="isSuccess(system)"></div>
+                                        <div></div>
+                                        <div></div>
                                     </div>
                                 </div>
                             </div>
@@ -116,15 +140,39 @@ foreach ($svgs as $svg) {
                             </button>
                             <div class="divider"></div>
                         </div>
-                        <div :id="'system'+sysid+'-results'" class="alert alert-comment" style="display:none; margin: 10px 38px 0px;">
-                            <?php echo _('Placeholder for the simulation results and visualization.'); ?>
-                        </div>
-                        <button :id="'system'+sysid+'-run'" class="system-run btn btn-primary btn-plain pull-right" @click="run(system)"><?php echo _('Start'); ?></button>
+                        <transition name="fade">
+                            <div v-if="isSuccess(system)" class="results">
+                                <div class="title">
+                                    <div><span><?php echo "Energy yield";?></span>&nbsp;<span style="color:#c6c6c6; font-weight:normal">(DC)</span></div>
+                                    <div><span><?php echo "Specific yield";?></span>&nbsp;<span style="color:#c6c6c6; font-weight:normal">(DC)</span></div>
+                                    <div class="fill"></div>
+                                    <div><span><?php echo "Bifacial gain";?></span></div>
+                                </div>
+                                <div class="value">
+                                    <div><span>{{getEnergy(system.results.yield_energy)}}</span>&nbsp;<span class="unit">{{getEnergyUnit(system.results.yield_energy)}}</span></div>
+                                    <div><span>{{getNumber(system.results.yield_specific)}}</span>&nbsp;<span class="unit"><?php echo "kWh/kWp";?></span></div>
+                                    <div class="fill"></div>
+                                    <div><span>{{getNumber(system.results.gain_bifacial, 1)}}</span>&nbsp;<span class="unit"><?php echo "%";?></span></div>
+                                </div>
+                            </div>
+                        </transition>
+                        <button :id="'system'+sysid+'-download'" title="Download results" :disabled="!isSuccess(system)" @click="solar.system.download(system.id)"
+                                 class="system-download btn btn-plain btn-primary btn-right-results pull-right" :class="{ 'btn-right-hide' : isNew(system) }">
+                            <svg class="icon">
+                                <use xlink:href="#icon-download"></use>
+                            </svg>&nbsp;
+                            <?php echo _('Download'); ?>
+                        </button>
+                        <button :id="'system'+sysid+'-run'" class="system-run btn btn-plain pull-right" 
+                                :class="[ isNew(system) ? 'btn-primary btn-right-results' : 'btn-default' ]" :disabled="!isConfigured(system) || isRunning(system) ? 'disabled' : null" 
+                                @click="run(system)">
+                            <?php echo _('Start'); ?>
+                        </button>
                     </div>
                 </div>
             </template>
             <div class="alert" v-else>
-                <h3 class="alert-heading mt-0"><?php echo _('No inputs created'); ?></h3>
+                <h3 class="alert-heading mt-0"><?php echo _('No systems created'); ?></h3>
                 <p>
                     <?php echo _('This is a placeholder to explain what this is and what to do.'); ?><br>
                     <?php echo _('You may want the next link as a guide for generating your request: '); ?><a href="api"><?php echo _('Solar system API helper'); ?></a>
@@ -148,10 +196,10 @@ foreach ($svgs as $svg) {
 
 <?php require "Modules/solar/dialogs/solar_system.php"; ?>
 <?php require "Modules/solar/dialogs/solar_inverter.php"; ?>
-<?php require "Modules/solar/dialogs/solar_modules.php"; ?>
+<?php require "Modules/solar/dialogs/solar_configs.php"; ?>
 
 <script>
-var models = <?php echo json_encode($models); ?>;
+var modules = <?php echo json_encode($modules); ?>;
 </script>
 <script src="<?php echo $path; ?>Lib/moment.min.js"></script>
 <script src="<?php echo $path; ?>Lib/misc/gettext.js?v=<?php echo $v; ?>"></script>

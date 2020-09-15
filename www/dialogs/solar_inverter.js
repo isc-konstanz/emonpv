@@ -20,8 +20,7 @@ var solar_inverter = {
         if (inverter == null) {
             $('#inverter-config-label').html('Create inverter');
             $('#inverter-config-delete').hide();
-            //$('#inverter-config-save').prop('disabled', true);
-            $('#inverter-config-save').prop('disabled', false);
+            $('#inverter-config-save').prop('disabled', true);
             $('#inverter-config-save').html('Create');
         }
         else {
@@ -86,7 +85,7 @@ var solar_inverter = {
         $("#inverter-delete-confirm").off('click').on('click', function() {
             $('#inverter-delete-loader').show();
             
-            solar.inverter.remove(solar_inverter.system, solar_inverter.id, function(result) {
+            solar.inverter.remove(solar_inverter.id, function(result) {
                 $('#inverter-delete-loader').hide();
                 
                 if (typeof result.success !== 'undefined' && !result.success) {

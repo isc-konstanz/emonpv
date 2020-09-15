@@ -11,13 +11,13 @@
  */
 
 abstract class SimulationModel {
-    const PVLIB = "pvlib";
-    const MOBIDIG = "mobidig";
+    const VIEW_FACTOR = "ViewFactor";
+    const RAY_TRACING = "RayTracing";
 
     static public function get_all () {
         return array(
-            SimulationModel::PVLIB,
-            SimulationModel::MOBIDIG
+            SimulationModel::VIEW_FACTOR,
+            SimulationModel::RAY_TRACING
         );
     }
 
