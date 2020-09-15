@@ -50,7 +50,7 @@
                         <div><span><?php echo _('Tilt maximum'); ?></span></div>
                     </div>
                     <div>
-                        <div><input id="module-axis-height" class="input-small" type="number" step="0.01" min="0" placeholder="[m]" /></div>
+                        <div><input id="module-axis-height" class="input-small" type="number" step="0.01" min="0" placeholder="[m]" required /></div>
                         <div><input id="module-tilt-max" class="input-small" type="number" step="0.1" min="0" max="359.9" placeholder="[ &deg; ]" required /></div>
                     </div>
                 </div>
@@ -63,7 +63,7 @@
                         <div><span><?php echo _('Tilt'); ?></span></div>
                     </div>
                     <div>
-                        <div><input id="module-elevation" class="input-small" type="number" step="0.01" min="0" placeholder="[m]" /></div>
+                        <div><input id="module-elevation" class="input-small" type="number" step="0.01" min="0" placeholder="[m]" required /></div>
                         <div><input id="module-azimuth" class="input-small" type="number" step="0.1" min="0" max="359.9" placeholder="[ &deg; ]" required /></div>
                         <div><input id="module-tilt" class="input-small" type="number" step="0.1" min="0" max="90" placeholder="[ &deg; ]" required /></div>
                     </div>
@@ -87,7 +87,7 @@
                 </div>
                 <div>
                     <div><input id="module-rows" class="input-small" type="number" step="1" min="1" placeholder="1" required /></div>
-                    <div><input id="module-pitch" class="input-small" type="number" step="0.01" min="0" placeholder="[m]" /></div>
+                    <div><input id="module-pitch" class="input-small" type="number" step="0.01" min="0.01" placeholder="[m]" required /></div>
                 </div>
             </div>
             <div id="module-row-settings" class="settings">

@@ -36,8 +36,8 @@ URL = 'https://github.com/isc-konstanz/emonpv'
 
 INSTALL_REQUIRES = ['numpy',
                     'pandas',
-                    'pvlib >= 0.3.2',
-                    'core >= 0.1.2']
+                    'pvlib',
+                    'core >= 0.1.3']
 
 PACKAGES = ['emonpv']
 

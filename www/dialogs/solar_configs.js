@@ -25,8 +25,7 @@ var solar_configs = {
         if (configs == null) {
             $('#module-config-label').html('Create configurations');
             $('#module-config-delete').hide();
-            $('#module-config-save').prop('disabled', false);
-            $('#module-config-save').html('Create');
+            $('#module-config-save').html('Create').prop('disabled', true);
             $('#module-config').addClass('sidebar');
             
             $('#module-rows').val('');
@@ -60,8 +59,7 @@ var solar_configs = {
         else {
             $('#module-config-label').html('Configurations');
             $('#module-config-delete').show();
-            $('#module-config-save').prop('disabled', false);
-            $('#module-config-save').html('Save');
+            $('#module-config-save').html('Save').prop('disabled', false);
             $('#module-config').removeClass('sidebar');
             
             var tracking = configs.tracking !== false;
@@ -121,7 +119,7 @@ var solar_configs = {
         $('#module-rows-tooltip').tooltip({html:true, container:modal});
         $('#module-row-tooltip').tooltip({html:true, container:modal});
         $('#module-settings-tooltip').tooltip({html:true, container:modal});
-
+        
         $('#module-tracking input').off('change').on('change', function(e) {
             var tracking = $(this).prop('checked');
             if (tracking) {
@@ -135,7 +133,7 @@ var solar_configs = {
                 $('#module-mounting-settings').collapse('show');
             }
         });
-
+        
         $("#module-row-icon").off('click').on('click', function() {
             if (!$(this).data('show')) {
                 $("#module-row-settings .advanced").animate({width:'toggle'}, 250);
@@ -146,14 +144,14 @@ var solar_configs = {
                 $(this).html('<use xlink:href="#icon-plus" />').data('show', false);
             }
         });
-
+        
         $('#module-model-menu').off('click').on('click', function(e) {
             if ($(this).data('toggle') != 'dropdown') {
                 e.stopPropagation();
                 solar_configs.hideSidebar();
             }
         });
-
+        
         $("#module-sidebar-modules").off('click').on('click', '.module-model', function() {
             var type = $(this).data("type");
             
@@ -178,13 +176,24 @@ var solar_configs = {
                 $('#module-model-manufacturer').text('Select a module type');
             }
         });
-
+        
+        $("#module-config-modal").off('input').on('input', 'input[required]', function() {
+            if (solar_configs.timeout != null) {
+                clearTimeout(solar_configs.timeout);
+            }
+            solar_configs.timeout = setTimeout(function() {
+                solar_configs.timeout = null;
+                solar_configs.verifyConfig();
+                
+            }, 250);
+        });
+        
         $("#module-config-delete").off('click').on('click', function() {
             $('#module-config-modal').modal('hide');
             
             solar_configs.openDeletion(solar_configs.inverter, solar_configs.id);
         });
-
+        
         $("#module-config-save").off('click').on('click', function() {
             solar_configs.saveConfig();
         });
@@ -313,6 +322,28 @@ var solar_configs = {
     },
 
     verifyConfig: function() {
+        if ($('#module-rows')[0].checkValidity() &&
+                $('#module-pitch')[0].checkValidity() &&
+                $('#module-count')[0].checkValidity() &&
+                $('#module-stack')[0].checkValidity()) {
+            
+            if ($('#module-tracking input').is(':checked') &&
+                    $('#module-elevation')[0].checkValidity() &&
+                    $('#module-azimuth')[0].checkValidity() &&
+                    $('#module-tilt')[0].checkValidity()) {
+                
+                $('#module-config-save').prop("disabled", false);
+                return true;
+            }
+            else if ($('#module-axis-height')[0].checkValidity() &&
+                    $('#module-tilt-max')[0].checkValidity()) {
+                
+                $('#module-config-save').prop("disabled", false);
+                return true;
+            }
+        }
+        $('#module-config-save').prop("disabled", true);
+        return false;
     },
 
     verifyResult: function(result) {
