@@ -175,6 +175,7 @@ var solar_configs = {
                 $('#module-model-description').text('');
                 $('#module-model-manufacturer').text('Select a module type');
             }
+            solar_configs.verifyConfig();
         });
         
         $("#module-config-modal").off('input').on('input', 'input[required]', function() {
@@ -322,21 +323,22 @@ var solar_configs = {
     },
 
     verifyConfig: function() {
-        if ($('#module-rows')[0].checkValidity() &&
+        if (solar_configs.type != null &&
+                $('#module-rows')[0].checkValidity() &&
                 $('#module-pitch')[0].checkValidity() &&
                 $('#module-count')[0].checkValidity() &&
                 $('#module-stack')[0].checkValidity()) {
             
             if ($('#module-tracking input').is(':checked') &&
-                    $('#module-elevation')[0].checkValidity() &&
-                    $('#module-azimuth')[0].checkValidity() &&
-                    $('#module-tilt')[0].checkValidity()) {
+                    $('#module-axis-height')[0].checkValidity() &&
+                    $('#module-tilt-max')[0].checkValidity()) {
                 
                 $('#module-config-save').prop("disabled", false);
                 return true;
             }
-            else if ($('#module-axis-height')[0].checkValidity() &&
-                    $('#module-tilt-max')[0].checkValidity()) {
+            else if ($('#module-elevation')[0].checkValidity() &&
+                    $('#module-azimuth')[0].checkValidity() &&
+                    $('#module-tilt')[0].checkValidity()) {
                 
                 $('#module-config-save').prop("disabled", false);
                 return true;
