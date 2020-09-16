@@ -144,7 +144,7 @@ class SolarSystem {
         $system_configs = str_replace('latitude = <lat>', 'latitude = '.$system['location']['latitude'], $system_configs);
         $system_configs = str_replace('longitude = <lon>', 'longitude = '.$system['location']['longitude'], $system_configs);
         if (!empty($system['location']['altitude'])) {
-            $system_configs = str_replace('altitude = <alt>', 'altitude = '.$system['location']['altitude'], $system_configs);
+            $system_configs = str_replace(';altitude = <alt>', 'altitude = '.$system['location']['altitude'], $system_configs);
         }
         
         file_put_contents($system_dir.'/conf/system.cfg', $system_configs);

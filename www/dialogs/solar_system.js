@@ -342,12 +342,15 @@ var solar_system = {
     drawMapLocation: function() {
         solar_system.map.invalidateSize();
         
-        // If nothing can be found, use ISC Konstanz as default location
         var location = {
             lat: parseFloat($('#system-latitude').val()),
             lng: parseFloat($('#system-longitude').val())
         };
         if (isNaN(location.lat) || isNaN(location.lng)) {
+            // If nothing can be found, use ISC Konstanz as default location
+            location.lat = 47.67158;
+            location.lng = 9.15179;
+            
             if (solar_system.system != null 
                     && typeof solar_system.system.location !== 'undefined') {
                 location.lat = solar_system.system.location.latitude;
@@ -357,16 +360,18 @@ var solar_system = {
                 navigator.geolocation.getCurrentPosition(function(position) {
                     location.lat = position.coords.latitude;
                     location.lng = position.coords.longitude;
-                    location.al = position.coords.altitude;
+                    location.alt = position.coords.altitude;
                     
                     solar_system.map.setView(location, 12);
+                },
+                function() {
+                    solar_system.map.setView(location, 12);
                 });
+                
+                if (solar_system.mapMarker != null) {
+                    solar_system.map.removeLayer(solar_system.mapMarker);
+                }
                 return;
-            }
-            else {
-                // If nothing can be found, use ISC Konstanz as default location
-                location.lat = 47.67158;
-                location.lng = 9.15179;
             }
         }
         solar_system.drawMapMarker(location);
