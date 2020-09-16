@@ -29,10 +29,10 @@ $schema['solar_configs'] = array(
 
 $schema['solar_rows'] = array(
     'id' => array('type' => 'int(11)', 'Null'=>false),
-    'count' => array('type' => 'int(11)', 'default'=>1),
-    'pitch' => array('type' => 'double(3,2)'),
-    'modules' => array('type' => 'int(11)', 'default'=>1),
-    'stack' => array('type' => 'int(11)', 'default'=>1),
+    'count' => array('type' => 'int(11)', 'Null'=>false),
+    'pitch' => array('type' => 'double(3,2)', 'Null'=>false),
+    'modules' => array('type' => 'int(11)', 'Null'=>false),
+    'stack' => array('type' => 'int(11)'),
     'gap_x' => array('type' => 'double(4,3)'),
     'gap_y' => array('type' => 'double(4,3)'),
     'pos_x' => array('type' => 'int(11)'),
@@ -48,24 +48,24 @@ $schema['solar_mounting'] = array(
 
 $schema['solar_tracking'] = array(
     'id' => array('type' => 'int(11)', 'Null'=>false),
-    'axis' => array('type' => 'tinyint(1)', 'default'=>1),
+    'axis' => array('type' => 'tinyint(1)'),
     'axis_height' => array('type' => 'double(5,2)'),
     'tilt_max' => array('type' => 'double(5,2)'),
-    'backtrack' => array('type' => 'tinyint(1)', 'default'=>0)
+    'backtrack' => array('type' => 'tinyint(1)')
 );
 
 $schema['solar_inverter'] = array(
     'id' => array('type' => 'int(11)', 'Null'=>false, 'Key'=>'PRI', 'Extra'=>'auto_increment'),
     'sysid' => array('type' => 'int(11)', 'Null'=>false),
     'type' => array('type' => 'varchar(64)'),
-    'count' => array('type' => 'int(11)', 'default'=>1)
+    'count' => array('type' => 'int(11)')
 );
 
 $schema['solar_inverter_configs'] = array(
     'invid' => array('type' => 'int(11)', 'Null'=>false),
     'strid' => array('type' => 'int(11)', 'Null'=>false),
     'cfgid' => array('type' => 'int(11)', 'Null'=>false),
-    'count' => array('type' => 'int(11)', 'default'=>1)
+    'count' => array('type' => 'int(11)')
 );
 
 $schema['solar_system_configs'] = array(

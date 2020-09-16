@@ -183,10 +183,11 @@ var solar_system = {
         var name = $('#system-name').val();
         var description = $('#system-description').val();
         
-        var longitude = $('#system-longitude').val();
-        var latitude = $('#system-latitude').val();
-        var altitude = $('#system-altitude').val();
-        var albedo = $('#system-albedo').val();
+        var longitude = parseFloat($('#system-longitude').val());
+        var latitude = parseFloat($('#system-latitude').val());
+        var albedo = parseFloat($('#system-albedo').val());
+
+        var altitude = $('#system-altitude').val() ? parseFloat($('#system-altitude').val()) : null;
         
         var invs = true;
         
@@ -196,7 +197,7 @@ var solar_system = {
                     'latitude': latitude,
                     'albedo': albedo
             };
-            if (altitude != '') {
+            if (altitude) {
                 location['altitude'] = altitude;
             }
             solar.system.create(model, name, description, location, invs, solar_system.closeConfig);
@@ -205,15 +206,19 @@ var solar_system = {
             var fields = {};
             if (solar_system.system.model != model) fields['model'] = model;
             if (solar_system.system.name != name) fields['name'] = name;
-            if (solar_system.system.description != description) fields['description'] = desc;
+            if (solar_system.system.description != description) fields['description'] = description;
             
-            if (solar_system.system.location.latitude != latitude && solar_system.system.location.latitude != null) fields['latitude'] = latitude;
-            if (solar_system.system.location.longitude != longitude && solar_system.system.location.longitude != null) fields['longitude'] = longitude;
-            if (solar_system.system.location.altitude != altitude && solar_system.system.location.altitude != null) fields['altitude'] = altitude;
-            if (solar_system.system.location.albedo != albedo && solar_system.system.location.albedo != null) fields['albedo'] = albedo;
+            if (solar_system.system.location.latitude != latitude) fields['latitude'] = latitude;
+            if (solar_system.system.location.longitude != longitude) fields['longitude'] = longitude;
+            if (solar_system.system.location.albedo != albedo) fields['albedo'] = albedo;
+            
+            if (solar_system.system.location.altitude != altitude) fields['altitude'] = altitude;
             
             if (Object.keys(fields).length > 0) {
                 solar.system.update(solar_system.system.id, fields, solar_system.closeConfig);
+            }
+            else {
+                $('#system-config-modal').modal('hide');
             }
         }
     },

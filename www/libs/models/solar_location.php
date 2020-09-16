@@ -248,19 +248,15 @@ class SolarLocation {
     }
 
     private function update_numeric($id, $fields, $field) {
-        if (isset($fields[$field])) {
-            if ($fields[$field] != '') {
-                $value = $fields[$field];
-                
-                if (!is_numeric($value)) {
-                    throw new SolarException("Location $field has to be numeric");
-                }
-            }
-            else {
-                $value = null;
-            }
-            $this->update_field($id, 'd', $field, $value);
+        if (!array_key_exists($field, $fields)) {
+            return;
         }
+        $value = $fields[$field];
+        
+        if ($value && !is_numeric($value)) {
+            throw new SolarException("Location $field has to be numeric");
+        }
+        $this->update_field($id, 'd', $field, $value);
     }
 
     private function update_field($id, $type, $field, $value) {

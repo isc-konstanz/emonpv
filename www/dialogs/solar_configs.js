@@ -31,8 +31,8 @@ var solar_configs = {
             $('#module-rows').val('');
             $('#module-pitch').val('');
             $('#module-count').val('');
-            $('#module-stack').val(1);
-            $('#module-gap').val('');
+            $('#module-stack').val('');
+            $('#module-stack-gap').val('');
             $("#module-row-icon").html('<use xlink:href="#icon-plus" />').data('show', false);
             $("#module-row-settings .advanced").hide();
             
@@ -94,16 +94,18 @@ var solar_configs = {
             $('#module-rows').val(configs.rows.count);
             $('#module-pitch').val(configs.rows.pitch);
             $('#module-count').val(configs.rows.modules);
-            $('#module-stack').val(configs.rows.stack);
             
+            var stack = configs.rows.stack != null ? configs.rows.stack : '';
             var gap = configs.rows.gap_y != null ? configs.rows.gap_y : '';
-            if (gap !== '') {
-                $("#module-gap").val(gap).show();
+            if (gap !== '' || stack !== '') {
+                $('#module-stack').val(stack).show();
+                $("#module-stack-gap").val(gap).show();
                 $("#module-row-settings .advanced").show();
                 $("#module-row-icon").html('<use xlink:href="#icon-cross" />').data('show', true);
             }
             else {
-                $("#module-gap").val(gap).hide();
+                $('#module-stack').val(stack).hide();
+                $("#module-stack-gap").val(gap).hide();
                 $("#module-row-settings .advanced").hide();
                 $("#module-row-icon").html('<use xlink:href="#icon-plus" />').data('show', false);
             }
@@ -211,8 +213,10 @@ var solar_configs = {
     saveConfig: function() {
         var rowCount = parseInt($('#module-rows').val());
         var rowModules = parseInt($('#module-count').val());
-        var rowStack = parseInt($('#module-stack').val());
         var rowPitch = parseFloat($('#module-pitch').val());
+        
+        var stackCount = $('#module-stack').val() ? parseFloat($('#module-stack').val()) : null;
+        var stackGap = $('#module-stack-gap').val() ? parseFloat($('#module-stack-gap').val()) : null;
         
         var orientation = $('#module-orientation').val();
         
@@ -220,12 +224,11 @@ var solar_configs = {
             var rows = {
                 'count': rowCount,
                 'modules': rowModules,
-                'stack': rowStack,
                 'pitch': rowPitch
             };
-            if ($('#module-gap').val() != '') {
-                rows['gap_y'] = parseFloat($('#module-gap').val());
-            }
+            if (stackCount) rows['stack'] = stackCount;
+            if (stackGap) rows['gap_y'] = stackGap;
+            
             var mounting = false;
             var tracking = false;
             
@@ -255,13 +258,10 @@ var solar_configs = {
             var rows = {};
             if (configs.rows.count != rowCount) rows['count'] = rowCount;
             if (configs.rows.modules != rowModules) rows['modules'] = rowModules;
-            if (configs.rows.stack != rowStack) rows['stack'] = rowStack;
             if (configs.rows.pitch != rowPitch) rows['pitch'] = rowPitch;
             
-            if ($('#module-gap').val() != '') {
-                var gapStack = parseFloat($('#module-gap').val());
-                if (configs.rows.gap_y != gapStack) rows['gap_y'] = gapStack;
-            }
+            if (configs.rows.stack != stackCount) rows['stack'] = stackCount;
+            if (configs.rows.gap_y != stackGap) rows['gap_y'] = stackGap;
             
             if (Object.keys(rows).length > 0) {
                 fields['rows'] = rows;
@@ -318,6 +318,9 @@ var solar_configs = {
             
             if (Object.keys(fields).length > 0) {
                 solar.configs.update(solar_configs.id, fields, solar_configs.verifyResult);
+            }
+            else {
+                $('#module-config-modal').modal('hide');
             }
         }
         $('#module-config-loader').show();

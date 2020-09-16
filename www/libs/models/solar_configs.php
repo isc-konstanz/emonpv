@@ -67,7 +67,7 @@ class SolarConfigs {
         if (!isset($rows['count']) || !is_numeric($rows['count']) ||
             !isset($rows['pitch']) || !is_numeric($rows['pitch'])||
             !isset($rows['modules']) || !is_numeric($rows['modules']) ||
-            !isset($rows['stack']) || !is_numeric($rows['stack']) ||
+            (isset($rows['stack']) && !is_numeric($rows['stack'])) ||
             (isset($rows['gap_x']) && !is_numeric($rows['gap_x'])) ||
             (isset($rows['gap_y']) && !is_numeric($rows['gap_y'])) ||
             (isset($rows['pos_x']) && !is_numeric($rows['pos_x'])) ||
@@ -78,6 +78,8 @@ class SolarConfigs {
         else {
             // TODO: verify parameter boundaries
         }
+        $rows['stack'] = isset($rows['stack']) ? $rows['stack'] : null;
+        
         $rows['gap_x'] = isset($rows['gap_x']) ? $rows['gap_x'] : null;
         $rows['gap_y'] = isset($rows['gap_y']) ? $rows['gap_y'] : null;
         $rows['pos_x'] = isset($rows['pos_x']) ? $rows['pos_x'] : null;
@@ -151,7 +153,6 @@ class SolarConfigs {
     }
 
     private function create_rows($id, $count, $pitch, $modules, $stack, $gap_x, $gap_y, $pos_x, $pos_y) {
-        $stack = intval($stack);
         $count = intval($count);
         $modules = intval($modules);
         
@@ -160,8 +161,11 @@ class SolarConfigs {
         }
         $pitch = floatval($pitch);
         
+        $stack = is_numeric($stack) ? intval($stack) : null;
+        
         $gap_x = is_numeric($gap_x) ? floatval($gap_x) : null;
         $gap_y = is_numeric($gap_y) ? floatval($gap_y) : null;
+        
         $pos_x = is_numeric($pos_x) ? floatval($pos_x) : null;
         $pos_y = is_numeric($pos_y) ? floatval($pos_y) : null;
         
@@ -249,7 +253,7 @@ class SolarConfigs {
             "count" => intval($rows['count']),
             "pitch" => floatval($rows['pitch']),
             "modules" => intval($rows['modules']),
-            "stack" => intval($rows['stack']),
+            "stack" => isset($rows['stack']) ? intval($rows['stack']) : null,
             "gap_x" => isset($rows['gap_x']) ? floatval($rows['gap_x']) : null,
             "gap_y" => isset($rows['gap_y']) ? floatval($rows['gap_y']) : null,
             "pos_x" => isset($rows['pos_x']) ? floatval($rows['pos_x']) : null,
@@ -402,24 +406,23 @@ class SolarConfigs {
     }
 
     private function update_number($id, $database, $fields, $field, $min, $max, $type) {
-        if (!isset($fields[$field])) {
+        if (!array_key_exists($field, $fields)) {
             return;
         }
         $value = $fields[$field];
-        if ($value == 'null') {
-            $value = null;
-        }
-        else if (!is_numeric($value) || $value < $min || $value > $max) {
+        
+        if ($value && (!is_numeric($value) || $value < $min || $value > $max)) {
             throw new SolarException("The configs $field is invalid: $value");
         }
         $this->update_database($id, $database, $field, $value, $type);
     }
 
     private function update_string($id, $database, $fields, $field, $json=false) {
-        if (!isset($fields[$field])) {
+        if (!array_key_exists($field, $fields)) {
             return;
         }
         $value = $fields[$field];
+        
         if ($json) {
             $value = json_encode($value);
         }

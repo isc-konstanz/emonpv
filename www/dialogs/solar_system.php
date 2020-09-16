@@ -111,7 +111,7 @@
                         </div>
                         <div>
                             <span class="advanced" style="display: none;"><?php echo _('Altitude'); ?></span>
-                            <span class="unit">[m]</span>
+                            <span class="advanced unit">[m]</span>
                         </div>
                         <div></div>
                     </div>

@@ -615,24 +615,13 @@ class SolarSystem {
         }
         
         // TODO: Remove this when locations are managed on their own
-        if (isset($fields['latitude']) || isset($fields['longitude']) ||
-            isset($fields['altitude']) || isset($fields['albedo'])) {
+        if (isset($fields['latitude']) || isset($fields['longitude']) || isset($fields['albedo']) ||
+                array_key_exists('altitude', $fields)) {
             
             $this->location->update(
                 $this->location->get($system['location']['id']), $fields);
         }
         return array('success'=>true, 'message'=>'System successfully updated');
-    }
-
-    private function update_numeric($id, $fields, $field) {
-        if (!empty($fields[$field])) {
-            $value = $fields[$field];
-            
-            if (!is_numeric($value)) {
-                throw new SolarException("System $field has to be numeric");
-            }
-            $this->update_field($id, 'd', $field, $value);
-        }
     }
 
     private function update_field($id, $type, $field, $value) {

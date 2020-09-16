@@ -116,7 +116,7 @@
                 </div>
                 <div class="settings-header">
                     <div>
-                        <span><?php echo _('Count'); ?></span><span class="required asterisk">&ast;</span>
+                        <span><?php echo _('Number'); ?><span style="font-size: 12px"><?php echo _(' of rows'); ?></span><span class="required asterisk">&ast;</span>
                     </div>
                     <div>
                         <span><?php echo _('Pitch'); ?></span><span class="required asterisk">&ast;</span>
@@ -124,27 +124,27 @@
                     </div>
                 </div>
                 <div>
-                    <div><input id="module-rows" class="input-small" type="number" step="1" min="1" placeholder="1" required /></div>
+                    <div><input id="module-rows" class="input-small" type="number" step="1" min="1" required /></div>
                     <div><input id="module-pitch" class="input-small" type="number" step="0.01" min="0.01" placeholder="[m]" required /></div>
                 </div>
             </div>
             <div id="module-row-settings" class="settings">
                 <div class="settings-header">
                     <div>
-                        <span><?php echo _('Modules'); ?></span><span class="required asterisk">&ast;</span>
+                        <span><?php echo _('Modules'); ?><span style="font-size: 12px"><?php echo _(' per row'); ?></span><span class="required asterisk">&ast;</span></span>
                     </div>
                     <div>
-                        <span><?php echo _('Stack'); ?></span><span class="required asterisk">&ast;</span>
+                        <span class="advanced" style="display: none;"><?php echo _('Stacked'); ?><span style="font-size: 12px"><?php echo _(' modules'); ?></span></span>
                     </div>
                     <div>
-                        <span class="advanced" style="display: none;"><?php echo _('Gap'); ?></span>
+                        <span class="advanced" style="display: none;"><?php echo _('Stack gap'); ?></span>
                     </div>
                     <div></div>
                 </div>
                 <div>
-                    <div><input id="module-count" class="input-small" type="number" step="1" min="1" placeholder="1" required /></div>
-                    <div><input id="module-stack" class="input-small" type="number" step="1" min="1" max="9" required /></div>
-                    <div><input id="module-gap" class="input-small advanced" type="number" min="0" step="0.1" placeholder="[m]" style="display: none;"></div>
+                    <div><input id="module-count" class="input-small" type="number" step="1" min="1" required /></div>
+                    <div><input id="module-stack" class="input-small advanced" type="number" step="1" min="1" max="9" style="display: none;" /></div>
+                    <div><input id="module-stack-gap" class="input-small advanced" type="number" min="0" step="0.1" placeholder="[m]" style="display: none;"></div>
                     <div class="fill">
                         <svg id="module-row-icon" class="icon icon-action" title="<?php echo _('Edit module stack gap'); ?>">
                             <use xlink:href="#icon-plus" />
