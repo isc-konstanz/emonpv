@@ -533,7 +533,7 @@
 .modules-info > div:first-child {
     padding-left: 18px;
 }
-.modules-info > div span {
+.modules-info > .header {
     padding-right: 8px;
 }
 
@@ -562,10 +562,6 @@
 .system-run,
 .system-download {
     margin: 14px;
-}
-
-#system-location .input-small {
-    width: 95px;
 }
 
 .system-map {
@@ -844,7 +840,8 @@ input[type=number]::-webkit-outer-spin-button {
 }
 .settings .input-small {
     margin-right: 8px;
-    width: 50px;
+    /* width: 90px;
+    text-align: right; */
 }
 
 .settings select.select-default {
@@ -878,7 +875,7 @@ input[type=number]::-webkit-outer-spin-button {
 .settings-header span {
     text-align: left;
     font-weight: normal;
-    color: #999;
+    color: #777;
 }
 .settings-title span[type="text"] {
     line-height: 20px;
@@ -887,6 +884,25 @@ input[type=number]::-webkit-outer-spin-button {
     font-weight: bold;
     text-rendering: optimizelegibility;
     color: #555;
+}
+.settings .unit {
+    margin-right: 8px;
+    font-size: 14px;
+    font-weight: normal;
+    text-align: center;
+    color: #c6c6c6;
+}
+.settings .required.asterisk,
+.modal-footer .required .asterisk {
+    color: #0069b4;
+}
+.modal-footer .required .description {
+    font-size: 14px;
+    color: #a6a6a6;
+}
+.modal-footer .required {
+	margin-top: -10px;
+    margin-left: 12px;
 }
 
 .system-progress {

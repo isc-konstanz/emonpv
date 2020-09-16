@@ -14,27 +14,10 @@
             <p id="system-config-description" class="description">
                 <?php echo _('Placeholder for a short description of this dialog and what to do here.'); ?>
             </p>
-            
-            <div class="settings" style="margin-top: 10px;">
-                <div>
-                    <div>
-                        <select id="system-model" class="select-large select-default" type="text" required>
-                            <!--  option value='' hidden='true' selected><?php echo _('Select simulation model'); ?></option -->
-                            <option value='ViewFactor'>View Factor</option>
-                            <option value='RayTracing' disabled>Ray Tracing</option>
-                        </select>
-                    </div>
-                    <div id="system-model-tooltip" style="display: none;" data-toggle="tooltip" data-placement="bottom">
-                        <svg class="icon icon-info">
-                            <use xlink:href="#icon-question" />
-                        </svg>
-                    </div>
-                </div>
-            </div>
             <div class="settings">
                 <div class="settings-header">
                     <div>
-                        <span class="title"><?php echo _('Name'); ?></span>
+                        <span class="title"><?php echo _('Name'); ?></span><span class="required asterisk">&ast;</span>
                         <span id="system-name-tooltip" data-toggle="tooltip" data-placement="right"
                                 title="The name should work as a unique identifier for the system to be able to distinguish different systems. 
                                         Additionally, an optional description may be added to provide descriptive comments regarding the specific system.">
@@ -56,6 +39,25 @@
                     <div>
                         <svg id="system-description-icon" class="icon icon-action" title="<?php echo _('Add description'); ?>">
                             <use xlink:href="#icon-plus" />
+                        </svg>
+                    </div>
+                </div>
+            </div>
+            <div class="settings" style="margin-top: 10px;">
+                <div class="settings-header">
+                    <div> <span class="title"><?php echo _('Model'); ?></span><span class="required asterisk">&ast;</span></div>
+                </div>
+                <div>
+                    <div>
+                        <select id="system-model" class="select-large select-default" type="text" required>
+                            <!--  option value='' hidden='true' selected><?php echo _('Select simulation model'); ?></option -->
+                            <option value='ViewFactor'>View Factor</option>
+                            <option value='RayTracing' disabled>Ray Tracing</option>
+                        </select>
+                    </div>
+                    <div id="system-model-tooltip" style="display: none;" data-toggle="tooltip" data-placement="bottom">
+                        <svg class="icon icon-info">
+                            <use xlink:href="#icon-question" />
                         </svg>
                     </div>
                 </div>
@@ -88,17 +90,29 @@
             <div id="system-location" style="display: none;">
                 <div class="settings">
                     <div class="settings-header">
-                        <div><span><?php echo _('Albedo'); ?></span></div>
+                        <div>
+                            <span><?php echo _('Albedo'); ?></span><span class="required asterisk">&ast;</span>
+                            <span class="unit" style="letter-spacing:1px">[0,1]</span>
+                        </div>
                     </div>
                     <div>
-                        <div><input id="system-albedo" class="input-small" type="number" step="0.01" placeholder=0.2 required></div>
+                        <div><input id="system-albedo" class="input-small" type="number" min="0" max="1" step="0.01" required></div>
                     </div>
                 </div>
                 <div id="system-coordinates" class="settings">
                     <div class="settings-header">
-                        <div><span><?php echo _('Latitude'); ?></span></div>
-                        <div><span><?php echo _('Longitude'); ?></span></div>
-                        <div><span class="advanced" style="display: none;"><?php echo _('Altitude'); ?></span></div>
+                        <div>
+                            <span><?php echo _('Latitude'); ?></span><span class="required asterisk">&ast;</span>
+                            <span class="unit" style="letter-spacing:2px">[&deg;]</span>
+                        </div>
+                        <div>
+                            <span><?php echo _('Longitude'); ?></span><span class="required asterisk">&ast;</span>
+                            <span class="unit" style="letter-spacing:2px">[&deg;]</span>
+                        </div>
+                        <div>
+                            <span class="advanced" style="display: none;"><?php echo _('Altitude'); ?></span>
+                            <span class="unit">[m]</span>
+                        </div>
                         <div></div>
                     </div>
                     <div>
@@ -117,6 +131,7 @@
         </div>
     </div>
     <div class="modal-footer">
+        <span class="required pull-left"><span class="asterisk">&ast;</span><span class="description"><?php echo _('Required fields'); ?></span></span>
         <button id="system-config-cancel" class="btn btn-plain btn-default" data-dismiss="modal" aria-hidden="true"><?php echo _('Cancel'); ?></button>
         <button id="system-config-delete" class="btn btn-plain btn-danger" style="display: none; cursor: pointer;"><i class="icon-trash icon-white"></i> <?php echo _('Delete'); ?></button>
         <button id="system-config-save" class="btn btn-plain btn-primary" disabled><?php echo _('Save'); ?></button>
@@ -150,6 +165,6 @@
 <script type="text/javascript" src="<?php echo $path; ?>Modules/solar/dialogs/solar_system.js"></script>
 <script>
     $(window).resize(function() {
-    	solar_system.adjustConfig();
+        solar_system.adjustConfig();
     });
 </script>

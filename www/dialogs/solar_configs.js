@@ -116,8 +116,10 @@ var solar_configs = {
             $('#module-model-manufacturer').html('<b>'+module.Manufacturer+'</b>');
             $('#module-model-menu').html('<use xlink:href="#icon-dots-vertical" />').data('toggle', 'dropdown');
         }
+        $('#module-tracking-tooltip').tooltip({html:true, container:modal});
+        $('#module-mounting-tooltip').tooltip({html:true, container:modal});
         $('#module-rows-tooltip').tooltip({html:true, container:modal});
-        $('#module-row-tooltip').tooltip({html:true, container:modal});
+        
         $('#module-settings-tooltip').tooltip({html:true, container:modal});
         
         $('#module-tracking input').off('change').on('change', function(e) {
