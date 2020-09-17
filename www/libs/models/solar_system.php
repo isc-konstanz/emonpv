@@ -203,9 +203,15 @@ class SolarSystem {
                 $rows_count = $rows['count'];
                 $rows_modules = $rows['modules'];
                 
-                $configs_configs = preg_replace('/'.preg_quote(';count = <count>', '/').'/', 'count = '.$rows_count*$rows_modules*$rows['stack'], $configs_configs, 1);
+                $configs_count = $rows_count
+                               * $rows_modules;
+                if (!empty($rows['stack'])) {
+                    $configs_count *= $rows['stack'];
+                    
+                    $configs_configs = str_replace(';stack = <count>', 'stack = '.$rows['stack'], $configs_configs);
+                }
                 $configs_configs = str_replace('pitch = <pitch>', 'pitch = '.$rows['pitch'], $configs_configs);
-                $configs_configs = str_replace(';stack = <count>', 'stack = '.$rows['stack'], $configs_configs);
+                $configs_configs = preg_replace('/'.preg_quote(';count = <count>', '/').'/', 'count = '.$configs_count, $configs_configs, 1);
                 
                 if (isset($rows['gap_x'])) {
                     $configs_configs = str_replace(';gap_x = <gap>', 'gap_x = '.$rows['gap_x'], $configs_configs);

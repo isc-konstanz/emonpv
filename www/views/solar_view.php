@@ -82,7 +82,7 @@ foreach ($svgs as $svg) {
                                             <input :style="'width:'+(1+configs.rows.modules.length)+'ch;'" type="number" min="1" step="1" required 
                                                    :value="configs.rows.modules" v-on:input="setCount($event, configs, 'configs')"></input>
                                         </div -->
-                                        <div class="count"><span>{{configs.rows.stack*configs.rows.count*configs.rows.modules}}</span></div>
+                                        <div class="count"><span>{{getCount(configs)}}</span></div>
                                         <div class="name"><span>{{getModule(configs.type).Manufacturer}}</span></div>
                                         <div class="description"><span>{{getModule(configs.type).Name}}</span></div>
                                         <div class="grow"></div>

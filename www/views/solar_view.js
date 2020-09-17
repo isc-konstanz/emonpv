@@ -118,6 +118,16 @@ var view = new Vue({
         hasConfigs: function(inverter) {
             return Object.keys(inverter.configs).length > 0;
         },
+        getCount: function(configs) {
+            let rows = configs.rows;
+            let count = rows.count
+                      * rows.modules;
+            
+            if (rows.stack != null) {
+                count *= rows.stack;
+            }
+            return count;
+        },
         setCount: function(event, element, type, field='count') {
             let input = $(event.currentTarget);
             let value = input.val();
