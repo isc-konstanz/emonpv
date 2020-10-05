@@ -31,13 +31,14 @@ class SolarLocation {
             if ($this->redis->exists("solar:location#$id")) {
                 return true;
             }
-            return false;
         }
-        $result = $this->mysqli->query("SELECT id FROM solar_location WHERE id = '$id'");
+        $result = $this->mysqli->query("SELECT * FROM solar_location WHERE id = '$id'");
         if ($result->num_rows>0) {
-//             if ($this->redis) {
-//                 $this->cache($location);
-//             }
+            if ($this->redis) {
+                while ($location = $result->fetch_array()) {
+                    $this->add_redis($location);
+                }
+            }
             return true;
         }
         return false;

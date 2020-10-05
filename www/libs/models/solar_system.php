@@ -49,11 +49,13 @@ class SolarSystem {
             }
             return false;
         }
-        $result = $this->mysqli->query("SELECT id FROM solar_system WHERE id = '$id'");
+        $result = $this->mysqli->query("SELECT * FROM solar_system WHERE id = '$id'");
         if ($result->num_rows>0) {
-//             if ($this->redis) {
-//                 $this->cache($system);
-//             }
+            if ($this->redis) {
+                while ($system = $result->fetch_array()) {
+                    $this->add_redis($system);
+                }
+            }
             return true;
         }
         return false;
