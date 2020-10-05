@@ -69,6 +69,9 @@ var view = new Vue({
             }
             return false
         },
+        isError: function(system) {
+            return system.results.status == 'error';
+        },
         isSuccess: function(system) {
             return system.results.status == 'success';
         },
@@ -280,7 +283,7 @@ function decodeResults(system) {
     }
     else if (results.status == 'error') {
         show = true;
-        type = 'warning';
+        type = 'danger';
         progress = 100;
     }
     else if (results.status == 'running') {

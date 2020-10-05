@@ -155,6 +155,12 @@ foreach ($svgs as $svg) {
                                     <div><span>{{getNumber(system.results.gain_bifacial, 1)}}</span>&nbsp;<span class="unit"><?php echo "%";?></span></div>
                                 </div>
                             </div>
+                            <div v-else-if="isError(system)" class="alert alert-error results-error">
+                                <div class="message" data-toggle="collapse" data-target="#results-trace">
+                                    <span><?php echo "Error: ";?></span><span>{{system.results.message}}</span>
+                                </div>
+                                <div id="results-trace" class="collapse trace" v-html="system.results.trace"></div>
+                            </div>
                         </transition>
                         <button :id="'system'+sysid+'-download'" title="Download results" :disabled="!isSuccess(system)" @click="solar.system.download(system.id)"
                                  class="system-download btn btn-plain btn-primary btn-right-results pull-right" :class="{ 'btn-right-hide' : isNew(system) }">

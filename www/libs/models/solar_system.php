@@ -75,6 +75,7 @@ class SolarSystem {
 
     public function create($userid, $model, $name, $description, $location, $inverters) {
         $userid = intval($userid);
+        $name = trim($name);
         
         require_once("Modules/solar/libs/sim_model.php");
         if (!SimulationModel::is_valid($model)) {
@@ -90,7 +91,10 @@ class SolarSystem {
         if (!isset($description)) {
             $description = '';
         }
-        else if (preg_replace('/[^\p{N}\p{L}\-\_\.\s]/u', '', $description) != $description) {
+        else {
+            $description = trim($description);
+        }
+        if (preg_replace('/[^\p{N}\p{L}\-\_\.\s]/u', '', $description) != $description) {
             throw new SolarException("System description only contain a-z A-Z 0-9 - _ . and space or language specific characters");
         }
         
@@ -396,11 +400,18 @@ class SolarSystem {
         
         //TODO: fetch run informations and check status
         if (file_exists($results_json)) {
-            $results = json_decode(file_get_contents($results_json));
+            $results = json_decode(file_get_contents($results_json), true);
             
             if (json_last_error() != 0) {
                 $results['status'] = 'error';
                 $results['message'] = "Error reading $results_json: ".json_last_error_msg();
+            }
+            else if (isset($results['trace'])) {
+                $trace = $results['trace'];
+                $trace = str_replace("\n", "<br>", $trace);
+                $trace = str_replace(" ", "&nbsp", $trace);
+                
+                $results['trace'] = $trace;
             }
         }
         else if (file_exists($results_dir)) {
@@ -601,7 +612,7 @@ class SolarSystem {
         }
         
         if (isset($fields['name'])) {
-            $name = $fields['name'];
+            $name = trim($fields['name']);
             
             if (preg_replace('/[^\p{N}\p{L}\-\_\.\s]/u', '', $name) != $name) {
                 throw new SolarException("System name only contain a-z A-Z 0-9 - _ . and space or language specific characters");
@@ -612,7 +623,7 @@ class SolarSystem {
             $this->update_field($id, 's', 'name', $name);
         }
         if (isset($fields['description'])) {
-            $description = $fields['description'];
+            $description = trim($fields['description']);
             
             if (preg_replace('/[^\p{N}\p{L}\-\_\.\s]/u', '', $description) != $description) {
                 throw new SolarException("System description only contain a-z A-Z 0-9 - _ . and space or language specific characters");

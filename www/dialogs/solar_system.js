@@ -122,6 +122,12 @@ var solar_system = {
                 
             }, 250);
         });
+		
+        $("#system-config-delete").off('click').on('click', function () {
+            $('#system-config-modal').modal('hide');
+            
+            solar_system.openDeletion(solar_system.system);
+        });
         
         $("#system-config-save").off('click').on('click', function() {
             solar_system.saveConfig();
@@ -263,9 +269,7 @@ var solar_system = {
                     alert('Unable to delete system:\n'+result.message);
                     return false;
                 }
-                let systems = view.systems;
-                delete systems[solar_system.system.id];
-                draw(systems);
+                view.$delete(view.systems, solar_system.system.id);
                 $('#system-delete-modal').modal('hide');
             });
         });
