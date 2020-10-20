@@ -78,34 +78,24 @@ class SolarLocation {
         if (empty($location['name'])) {
             throw new SolarException("Location name is missing");
         }
+        // TODO: implement, as soon as the name is manually configured via UI
+        //else if ($this->exists_name($userid, $location['name'])) {
+        //    throw new SolarException("Location name already exists: ".$location['name']);
+        //}
         if (preg_replace('/[^\p{N}\p{L}\-\_\.\s]/u', '', $location['name']) != $location['name']) {
             throw new SolarException("Location name only contain a-z A-Z 0-9 - _ . and space or language specific characters");
         }
-        else if ($this->exists_name($userid, $location['name'])) {
-            throw new SolarException("Location name already exists: ".$location['name']);
-        }
         
-        if ((!isset($location['latitude']) && !is_numeric($location['latitude'])) || 
+        if ((!isset($location['latitude']) && !is_numeric($location['latitude'])) ||
             (!isset($location['longitude']) && !is_numeric($location['longitude']))) {
             
             throw new SolarException("Locations longitude and latitude specification is incomplete or invalid");
         }
-        else if (!isset($location['latitude']) && !isset($location['longitude']) &&
-            !isset($location['file'])) {
-                
-            throw new SolarException("Locations weather file not specified");
-        }
-        //TODO: implement this, when manual location creation exists
+        
+        // TODO: implement this, when manual location creation exists
         //else if ($this->exists_location($userid, $location['latitude'], $location['longitude'])) {
         //    throw new SolarException("Locations longitude and latitude already exist");
         //}
-        
-        if (isset($location['file'])) {
-            $file = $location['file'];
-        }
-        else {
-            $file = str_replace(' ', '_', $location['name']).".csv";
-        }
         
         if (!isset($location['altitude']) || $location['altitude'] == '') {
             $location['altitude'] = null;
@@ -120,8 +110,8 @@ class SolarLocation {
             throw new SolarException("Locations albedo has to be a number between 0 and 1");
         }
         
-        $stmt = $this->mysqli->prepare("INSERT INTO solar_location (userid,name,latitude,longitude,altitude,albedo,file) VALUES (?,?,?,?,?,?,?)");
-        $stmt->bind_param("isdddds",$userid,$location['name'],$location['latitude'],$location['longitude'],$location['altitude'],$location['albedo'], $file);
+        $stmt = $this->mysqli->prepare("INSERT INTO solar_location (userid,name,albedo,latitude,longitude,altitude) VALUES (?,?,?,?,?,?)");
+        $stmt->bind_param("isdddd",$userid,$location['name'],$location['albedo'],$location['latitude'],$location['longitude'],$location['altitude']);
         $stmt->execute();
         $stmt->close();
         
@@ -133,11 +123,10 @@ class SolarLocation {
             'id' => $id,
             'userid' => $userid,
             'name' => $location['name'],
+            'albedo' => $location['albedo'],
             'latitude' => $location['latitude'],
             'longitude' => $location['longitude'],
-            'altitude' => $location['altitude'],
-            'albedo' => $location['albedo'],
-            'file' => $file
+            'altitude' => $location['altitude']
         );
         if ($this->redis) {
             $this->add_redis($location);
@@ -213,11 +202,10 @@ class SolarLocation {
         return array(
             'id' => intval($location['id']),
             'name' => $location['name'],
-            'latitude' => isset($location['latitude']) ? floatval($location['latitude']) : null,
-            'longitude' => isset($location['longitude']) ? floatval($location['longitude']) : null,
-            'altitude' => isset($location['altitude']) ? floatval($location['altitude']) : null,
-            'albedo' => isset($location['albedo']) ? floatval($location['albedo']) : null,
-            'file' => $location['file']
+            'albedo' => floatval($location['albedo']),
+            'latitude' => floatval($location['latitude']),
+            'longitude' => floatval($location['longitude']),
+            'altitude' => isset($location['altitude']) ? floatval($location['altitude']) : null
         );
     }
 
@@ -231,19 +219,16 @@ class SolarLocation {
             if (preg_replace('/[^\p{N}\p{L}\-\_\.\s]/u', '', $name) != $name) {
                 throw new SolarException("Location name only contain a-z A-Z 0-9 - _ . and space or language specific characters");
             }
-            else if ($this->exists_name($location['userid'], $name)) {
-                throw new SolarException("Location name already exists: $name");
-            }
+            // TODO: implement, as soon as the name is manually configured via UI
+            //else if ($this->exists_name($location['userid'], $name)) {
+            //    throw new SolarException("Location name already exists: $name");
+            //}
             $this->update_field($id, 's', 'name', $name);
         }
-        if (isset($fields['file'])) {
-            $file = $fields['file'];
-            $this->update_field($id, 's', 'file', $file);
-        }
+        $this->update_numeric($id, $fields, 'albedo');
         $this->update_numeric($id, $fields, 'latitude');
         $this->update_numeric($id, $fields, 'longitude');
         $this->update_numeric($id, $fields, 'altitude');
-        $this->update_numeric($id, $fields, 'albedo');
         
         return array('success'=>true, 'message'=>'Location successfully updated');
     }

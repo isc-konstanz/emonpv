@@ -68,7 +68,7 @@
             <div class="settings" style="padding-left: 0;">
                 <div class="settings-collapse">
                     <div class="settings-title fill">
-                        <svg id="settings-collapse-icon" class="icon icon-collapse">
+                        <svg id="system-collapse-icon" class="icon icon-collapse">
                             <use xlink:href="#icon-chevron-right" />
                         </svg>
                         <span type="text"><?php echo _('Location'); ?></span>
@@ -81,25 +81,39 @@
                         </span>
                     </div>
                     <div>
-                        <svg id="system-location-icon" class="icon icon-advanced">
-                            <use xlink:href="#icon-cog" />
-                        </svg>
+                        <span class="description" type="text" style="margin-right:12px;"><?php echo _('Coordinates'); ?></span>
+                    </div>
+                    <div id="system-coordinates-mode" class="checkbox checkbox-slider--b-flat checkbox-slider-info">
+                        <label style="margin:0px"><input type="checkbox"><span></span></input></label>
                     </div>
                 </div>
             </div>
-            <div id="system-location" style="display: none;">
-                <div class="settings">
-                    <div class="settings-header">
-                        <div>
-                            <span><?php echo _('Albedo'); ?></span><span class="required asterisk">&ast;</span>
-                            <span class="unit" style="letter-spacing:1px">[0,1]</span>
-                        </div>
-                    </div>
+            <div class="settings">
+                <div class="settings-header">
                     <div>
-                        <div><input id="system-albedo" class="input-small" type="number" min="0" max="1" step="0.01" required></div>
+                        <span><?php echo _('Albedo'); ?></span><span class="required asterisk">&ast;</span>
+                        <span class="unit" style="letter-spacing:1px">[0,1]</span>
                     </div>
                 </div>
-                <div id="system-coordinates" class="settings">
+                <div>
+                    <div><input id="system-albedo" class="input-small form-control" type="number" min="0" max="1" step="0.01" required></div>
+                </div>
+            </div>
+            <div id="system-file" class="settings">
+                <div class="settings-header">
+                    <div><span><?php echo _('Weather file'); ?></span><span class="required asterisk">&ast;</span></div>
+                </div>
+                <div class="input-append">
+                    <input id="system-file-name" type="text" class="input-large" placeholder="Upload TMY3 CSV file" required readonly>
+                    <div>
+                        <label class="btn btn-plain btn-default">Browse
+                        	<input id="system-file-input" type="file" accept=".csv" style="display:none;">
+                    	</label>
+                    </div>
+                </div>
+            </div>
+            <div id="system-coordinates" style="display: none;">
+                <div class="settings">
                     <div class="settings-header">
                         <div>
                             <span><?php echo _('Latitude'); ?></span><span class="required asterisk">&ast;</span>

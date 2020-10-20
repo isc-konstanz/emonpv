@@ -82,20 +82,27 @@ var solar_system = {
             }
         });
         
-        $("#system-location-icon").off('click').on('click', function() {
-            if (!$(this).data('show')) {
-                $("#settings-collapse-icon").html('<use xlink:href="#icon-chevron-down" />');
-                $("#system-location-icon").html('<use xlink:href="#icon-checkmark" />');
-                $("#system-location").animate({height:'toggle'}, 250);
+        $("#system-file-input").off('change').on('change', function() {
+            if (this.files.length > 0) {
+                var file = this.files[0].name;
+                $("#system-file-name").width(file.length+'ch').val(file);
+                
+                solar_system.verifyConfig();
+            }
+        });
+        
+        $("#system-coordinates-mode").off('input').on('input', function() {
+            if ($(this).find('input').is(':checked')) {
+                $("#system-collapse-icon").html('<use xlink:href="#icon-chevron-down" />');
+                $("#system-coordinates").show();
+                $("#system-file").hide();
                 solar_system.drawMap(true);
-                $(this).data('show', true);
             }
             else {
-                $("#settings-collapse-icon").html('<use xlink:href="#icon-chevron-right" />');
-                $("#system-location-icon").html('<use xlink:href="#icon-cog" />');
-                $("#system-location").animate({height:'toggle'}, 250).val("");
+                $("#system-collapse-icon").html('<use xlink:href="#icon-chevron-right" />');
+                $("#system-coordinates").hide();
+                $("#system-file").show();
                 solar_system.drawMap(false);
-                $(this).data('show', false);
             }
         });
         
@@ -122,7 +129,7 @@ var solar_system = {
                 
             }, 250);
         });
-		
+        
         $("#system-config-delete").off('click').on('click', function () {
             $('#system-config-modal').modal('hide');
             
@@ -142,14 +149,7 @@ var solar_system = {
             $('#system-altitude').val('');
             
             $("#system-coordinates-icon").html('<use xlink:href="#icon-plus" />').data('show', false);
-            
-            $("#settings-collapse-icon").html('<use xlink:href="#icon-chevron-down" />');
-            $("#system-location-icon").html('<use xlink:href="#icon-checkmark" />');
-            $("#system-location-icon").data('show', true);
             $("#system-coordinates .advanced").hide();
-            $("#system-location").show();
-            
-            solar_system.drawMap(true);
         }
         else {
             $('#system-albedo').val(system.location.albedo);
@@ -168,14 +168,15 @@ var solar_system = {
                 $("#system-altitude").hide();
             }
             $('#system-altitude').val(altitude);
-            
-            $("#settings-collapse-icon").html('<use xlink:href="#icon-chevron-right" />');
-            $("#system-location-icon").html('<use xlink:href="#icon-cog" />');
-            $("#system-location-icon").data('show', false);
-            $("#system-location").hide();
-            
-            solar_system.drawMap(false);
         }
+        $("#system-collapse-icon").html('<use xlink:href="#icon-chevron-right" />');
+        $("#system-coordinates-mode input").prop('checked', false);
+        $("#system-coordinates").hide();
+        $("#system-file").show();
+        $("#system-file-input").val('')
+        $("#system-file-name").val('').width('210px');
+        
+        solar_system.drawMap(false);
     },
 
     adjustConfig: function() {
@@ -189,22 +190,26 @@ var solar_system = {
         var name = $('#system-name').val();
         var description = $('#system-description').val();
         
-        var longitude = parseFloat($('#system-longitude').val());
-        var latitude = parseFloat($('#system-latitude').val());
         var albedo = parseFloat($('#system-albedo').val());
-
-        var altitude = $('#system-altitude').val() ? parseFloat($('#system-altitude').val()) : null;
-        
         var invs = true;
         
         if (solar_system.system == null) {
             var location = {
-                    'longitude': longitude,
-                    'latitude': latitude,
                     'albedo': albedo
             };
-            if (altitude) {
-                location['altitude'] = altitude;
+            if ($('#system-coordinates-mode').find('input').is(':checked')) {
+                var longitude = parseFloat($('#system-longitude').val());
+                var latitude = parseFloat($('#system-latitude').val());
+                var altitude = $('#system-altitude').val() ? parseFloat($('#system-altitude').val()) : null;
+                
+                location['longitude'] = longitude;
+                location['latitude'] = latitude;
+                if (altitude) {
+                    location['altitude'] = altitude;
+                }
+            }
+            else {
+                location['file'] = 'TMY3'; //$('#system-file-name').val();
             }
             solar.system.create(model, name, description, location, invs, solar_system.closeConfig);
         }
@@ -214,12 +219,20 @@ var solar_system = {
             if (solar_system.system.name != name) fields['name'] = name;
             if (solar_system.system.description != description) fields['description'] = description;
             
-            if (solar_system.system.location.latitude != latitude) fields['latitude'] = latitude;
-            if (solar_system.system.location.longitude != longitude) fields['longitude'] = longitude;
             if (solar_system.system.location.albedo != albedo) fields['albedo'] = albedo;
             
-            if (solar_system.system.location.altitude != altitude) fields['altitude'] = altitude;
-            
+            if ($('#system-coordinates-mode').find('input').is(':checked')) {
+                var longitude = parseFloat($('#system-longitude').val());
+                var latitude = parseFloat($('#system-latitude').val());
+                var altitude = $('#system-altitude').val() ? parseFloat($('#system-altitude').val()) : null;
+                
+                if (solar_system.system.location.latitude != latitude) fields['latitude'] = latitude;
+                if (solar_system.system.location.longitude != longitude) fields['longitude'] = longitude;
+                if (solar_system.system.location.altitude != altitude) fields['altitude'] = altitude;
+            }
+            else {
+                fields['file'] = 'TMY3';
+            }
             if (Object.keys(fields).length > 0) {
                 solar.system.update(solar_system.system.id, fields, solar_system.closeConfig);
             }
@@ -230,17 +243,23 @@ var solar_system = {
     },
 
     verifyConfig: function() {
-        if ($('#system-model')[0].checkValidity() &&
-                $('#system-name')[0].checkValidity() &&
-                $('#system-albedo')[0].checkValidity() &&
-                $('#system-latitude')[0].checkValidity() &&
-                $('#system-longitude')[0].checkValidity()) {
+        let result = false;
+        
+        if (document.getElementById('system-model').checkValidity() &&
+                document.getElementById('system-name').checkValidity() &&
+                document.getElementById('system-albedo').checkValidity()) {
             
-            $('#system-config-save').prop("disabled", false);
-            return true;
+            if (($('#system-coordinates-mode').find('input').is(':checked') &&
+                    document.getElementById('system-latitude').checkValidity() &&
+                    document.getElementById('system-longitude').checkValidity()) ||
+                    (document.getElementById('system-file-input').files.length > 0 ||
+                    solar_system.system != null)) {
+                
+                result = true;
+            }
         }
-        $('#system-config-save').prop("disabled", true);
-        return false;
+        $('#system-config-save').prop("disabled", !result);
+        return result;
     },
 
     closeConfig: function(result) {
@@ -295,11 +314,11 @@ var solar_system = {
             }));
             
             $("#system-latitude, #system-longitude").off('keyup').on('keyup', function(e) {
-                if (solar_system.timeout != null) {
-                    clearTimeout(solar_system.timeout);
+                if (solar_system.mapTimeout != null) {
+                    clearTimeout(solar_system.mapTimeout);
                 }
-                solar_system.timeout = setTimeout(function() {
-                    solar_system.timeout = null;
+                solar_system.mapTimeout = setTimeout(function() {
+                    solar_system.mapTimeout = null;
                     
                     var lat = $('#system-latitude').val();
                     var lng = $('#system-longitude').val();

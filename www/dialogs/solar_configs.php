@@ -160,9 +160,7 @@
                         <svg id="module-advanced-icon" class="icon icon-collapse">
                             <use xlink:href="#icon-chevron-right" />
                         </svg>
-                        <span type="text">
-                            <?php echo _('Module'); ?>
-                        </span>
+                        <span type="text"><?php echo _('Module'); ?></span>
                         <span id="module-settings-tooltip" data-toggle="tooltip" data-placement="right"
                                 title="Placeholder">
                             <svg class="icon icon-info">

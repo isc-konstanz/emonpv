@@ -2,31 +2,48 @@ var solar = {
 
     system: {
         create:function(model, name, description, location, inverters, callback) {
-            return solar.request(callback, "solar/create.json", 
-                    "model="+model+
+            let route = "solar/create.json";
+            let params = "model="+model+
                     "&name="+name+
                     "&description="+description+
                     "&inverters="+inverters+
-                    "&location="+JSON.stringify(location));
+                    "&location="+JSON.stringify(location);
+            
+            if (typeof location.file !== "undefined") {
+                let file = document.getElementById("system-file-input").files[0];
+                let data = new FormData();
+                data.append(location.file, file);
+                
+                return solar.fetch(callback, "POST", route+'?'+params, data);
+            }
+            return solar.post(callback, route, params);
         },
         run:function(id, callback) {
-            return solar.request(callback, "solar/run.json", "id="+id);
+            return solar.post(callback, "solar/run.json", "id="+id);
         },
         list:function(callback) {
-            return solar.request(callback, "solar/list.json");
+            return solar.get(callback, "solar/list.json");
         },
         get:function(id, callback) {
-            return solar.request(callback, "solar/get.json", "id="+id);
+            return solar.get(callback, "solar/get.json", "id="+id);
         },
         download:function(id) {
-        	window.open(path+"solar/download.json?id="+id);
+            window.open(path+"solar/download.json?id="+id);
         },
         update:function(id, fields, callback) {
-            return solar.request(callback, "solar/update.json", "id="+id+
-                    "&fields="+JSON.stringify(fields));
+            let route = "solar/update.json?id="+id+"&fields="+JSON.stringify(fields);
+            
+            if (typeof fields.file !== "undefined") {
+                let file = document.getElementById("system-file-input").files[0];
+                let data = new FormData();
+                data.append(fields.file, file);
+                
+                return solar.fetch(callback, "POST", route, data);
+            }
+            return solar.put(callback, route);
         },
         remove:function(id, callback) {
-            return solar.request(callback, "solar/delete.json", "id="+id);
+            return solar.delete(callback, "solar/delete.json?id="+id);
         },
         configs: {
             download:function(id, cfgid) {
@@ -37,14 +54,14 @@ var solar = {
 
     inverter: {
         create:function(system, callback) {
-            return solar.request(callback, "solar/inverter/create.json", "sysid="+system.id);
+            return solar.post(callback, "solar/inverter/create.json", "sysid="+system.id);
         },
         update:function(id, fields, callback) {
-            return solar.request(callback, "solar/inverter/update.json", "id="+id+
+            return solar.put(callback, "solar/inverter/update.json", "id="+id+
                     "&fields="+JSON.stringify(fields));
         },
         remove:function(id, callback) {
-            return solar.request(callback, "solar/inverter/delete.json", "id="+id);
+            return solar.delete(callback, "solar/inverter/delete.json?id="+id);
         },
         configs: {
             create:function(inverter, strid, type, orientation, rows, mounting, tracking, callback) {
@@ -54,7 +71,7 @@ var solar = {
                 if (tracking !== false) {
                     tracking = JSON.stringify(tracking);
                 }
-                return solar.request(callback, "solar/inverter/configs/create.json", 
+                return solar.post(callback, "solar/inverter/configs/create.json", 
                         "id="+inverter.id+
                         "&strid="+strid+
                         "&type="+type+
@@ -64,7 +81,7 @@ var solar = {
                         "&tracking="+tracking);
             },
             remove:function(inverter, cfgid, callback) {
-                return solar.request(callback, "solar/inverter/configs/delete.json", "id="+inverter.id+"&cfgid="+cfgid);
+                return solar.delete(callback, "solar/inverter/configs/delete.json?id="+inverter.id+"&cfgid="+cfgid);
             }
         }
     },
@@ -74,45 +91,85 @@ var solar = {
             window.open(path+"solar/configs/download.json?sysid="+sysid+"&id="+id);
         },
         update:function(id, fields, callback) {
-            return solar.request(callback, "solar/configs/update.json", "id="+id+
+            return solar.put(callback, "solar/configs/update.json", "id="+id+
                     "&fields="+JSON.stringify(fields));
         }
     },
 
-    request:function(callback, action, data) {
+    get:function(callback, route, data) {
+        return $.ajax(solar.request(callback, 'GET', route, data));
+    },
+
+    post:function(callback, route, data) {
+        return $.ajax(solar.request(callback, 'POST', route, data));
+    },
+
+    put:function(callback, route, data) {
+        return $.ajax(solar.request(callback, 'PUT', route, data));
+    },
+
+    delete:function(callback, route, data) {
+        return $.ajax(solar.request(callback, 'DELETE', route, data));
+    },
+
+    request:function(callback, method, route, data) {
         var request = {
-            'url': path+action,
+            'url': path+route,
+            'method': method,
             'dataType': 'json',
             'async': true,
             'success': callback,
-            'error': function(error) {
-                var message = "Failed to request server";
-                if (typeof error !== 'undefined') {
-                    message += ": ";
-                    
-                    if (typeof error.responseText !== 'undefined') {
-                        message += error.responseText;
-                    }
-                    else if (typeof error !== 'string') {
-                        message += JSON.stringify(error);
-                    }
-                    else {
-                        message += error;
-                    }
-                }
-                console.warn(message);
-                if (typeof callback === 'function') {
-                    callback({
-                        'success': false,
-                        'message': message
-                    });
-                }
-//                return solar.request(callback, action, data);
-            }
+            'error': function(error) { solar.error(callback, error); }
         }
         if (typeof data !== 'undefined') {
             request['data'] = data;
         }
-        return $.ajax(request);
+        return request;
+    },
+
+    fetch:function(callback, method, route, data) {
+        let options = {
+            method: method
+        };
+        if (typeof data !== 'undefined') {
+            options['body'] = data;
+        }
+        return fetch(path+route, options)
+                .then(response => response.text())
+                .then(function(result) {
+					try {
+						callback(JSON.parse(result));
+					} catch(error) {
+						solar.error(callback, result);
+					}
+                })
+                .catch(function(error) { solar.error(callback, error); });
+    },
+
+    error:function(callback, error) {
+        var message = "Failed to request server";
+        if (typeof error !== 'undefined') {
+            message += ": ";
+            
+            if (typeof error.responseText !== 'undefined') {
+                message += error.responseText;
+            }
+            else if (typeof error.message !== 'undefined') {
+                message += error.message;
+            }
+            else if (typeof error !== 'string') {
+                message += JSON.stringify(error);
+            }
+            else {
+                message += error;
+            }
+        }
+        console.warn(message);
+        if (typeof callback === 'function') {
+            callback({
+                'success': false,
+                'message': message
+            });
+        }
     }
 }

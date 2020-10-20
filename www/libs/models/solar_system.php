@@ -103,10 +103,16 @@ class SolarSystem {
         if (empty($location)) {
             throw new SolarException("The locations location needs to be specified");
         }
+        $location_file = false;
         $location = json_decode(stripslashes($location), true);
         
-        //TODO: configure location name from frontend
-        $location['name'] = $name;
+        if (!empty($location['file'])) {
+            $location_file = $this->get_meteo_file($location);
+        }
+        else {
+            //TODO: configure location name from frontend
+            $location['name'] = $name;
+        }
         $location = $this->location->create($userid, $location);
         $locid = $location['id'];
         
@@ -130,6 +136,12 @@ class SolarSystem {
         if ($this->redis) {
             $this->add_redis($system);
         }
+        $system_dir = $this->create_system_dirs($system);
+        
+        if ($location_file) {
+            $location_name = str_replace(' ', '_', $location['name']);
+            move_uploaded_file($location_file["tmp_name"], "$system_dir/weather/$location_name.csv");
+        }
         
         $inverters = (is_string($inverters) && !is_numeric($inverters) && $inverters === 'true') || boolval($inverters);
         if ($inverters) {
@@ -137,6 +149,31 @@ class SolarSystem {
             $inverters[] = $this->inverter->create($id);
         }
         return $this->parse($system, $location, $inverters);
+    }
+
+    private function create_system_dirs($system) {
+        $user_dir = $this->get_user_dir($system['userid']);
+        if (!file_exists($user_dir)) {
+            mkdir($user_dir);
+        }
+        if (!file_exists($user_dir."/systems")) {
+            mkdir($user_dir."/systems");
+        }
+        if (!file_exists($user_dir."/weather")) {
+            mkdir($user_dir."/weather");
+            chmod($user_dir."/weather", 0775);
+        }
+        
+        $system_dir = $this->get_system_dir($system, $user_dir);
+        if (!file_exists($system_dir)) {
+            mkdir($system_dir);
+            chmod($system_dir, 0775);
+        }
+        if (!file_exists($system_dir."/weather")) {
+            mkdir($system_dir."/weather");
+            chmod($system_dir."/weather", 0775);
+        }
+        return $system_dir;
     }
 
     private function create_system_config($system, $system_dir) {
@@ -299,9 +336,14 @@ class SolarSystem {
         $weather_configs = str_replace(';year = <year>', 'year = '.(date('Y')+1), $weather_configs);
         
         $weather_name = str_replace(' ', '_', $system['location']['name']);
-        $weather_file = str_replace('\\', '/', $this->get_user_dir($system['userid']))."/weather/$weather_name";
-        $weather_configs = str_replace('file = weather.epw', "file = $weather_file.epw", $weather_configs);
+        $weather_file = str_replace('\\', '/', "weather/$weather_name");
+        //$weather_file = str_replace('\\', '/', $this->get_user_dir($system['userid']))."/weather/$weather_name";
+        
+        if (file_exists("$system_dir/$weather_file.csv")) {
+            $weather_configs = str_replace('type = EPW', 'type = TMY', $weather_configs);
+        }
         $weather_configs = str_replace('file = weather.csv', "file = $weather_file.csv", $weather_configs);
+        $weather_configs = str_replace('file = weather.epw', "file = $weather_file.epw", $weather_configs);
         
         file_put_contents($system_dir.'/conf/weather.cfg', $weather_configs);
     }
@@ -320,24 +362,32 @@ class SolarSystem {
         return $config_dir."conf";
     }
 
-    public function run($system) {
-        $user_dir = $this->get_user_dir($system['userid']);
-        if (!file_exists($user_dir)) {
-            mkdir($user_dir);
+    private function get_meteo_file(&$location) {
+        if (empty($_FILES['TMY3'])) {
+            throw new SolarException("Location meteorological data file not submitted");
         }
-        if (!file_exists($user_dir."/systems")) {
-            mkdir($user_dir."/systems");
+        $location_file = $_FILES['TMY3'];
+        if (pathinfo($location_file['name'], PATHINFO_EXTENSION) !== 'csv') {
+            throw new SolarException("Location meteorological data file type invalid");
         }
-        if (!file_exists($user_dir."/weather")) {
-            mkdir($user_dir."/weather");
-            chmod($user_dir."/weather", 0775);
-        }
+        $tmy = fopen($location_file['tmp_name'], 'r');
+        $tmy_header = explode(',', fgets($tmy)); fclose($tmy);
         
-        $system_dir = $this->get_system_dir($system, $user_dir);
-        if (!file_exists($system_dir)) {
-            mkdir($system_dir);
-            chmod($system_dir, 0775);
+        if (count($tmy_header) < 7 || !is_string($tmy_header[1]) ||
+            !is_numeric($tmy_header[4])|| !is_numeric($tmy_header[5])|| !is_numeric($tmy_header[6])) {
+            
+            throw new SolarException("Location meteorological data file format invalid");
         }
+        $location['name'] = $tmy_header[1];
+        $location['latitude'] = $tmy_header[4];
+        $location['longitude'] = $tmy_header[5];
+        $location['altitude'] = $tmy_header[6];
+        
+        return $location_file;
+    }
+
+    public function run($system) {
+        $system_dir = $this->create_system_dirs($system);
         if (!file_exists($system_dir."/conf")) {
             mkdir($system_dir."/conf");
         }
@@ -415,10 +465,6 @@ class SolarSystem {
                 
                 $results['trace'] = $trace;
             }
-        }
-        else if (file_exists($results_dir)) {
-            $results['status'] = 'running';
-            $results['progress'] = 0;
         }
         else {
             $results['status'] = 'created';
@@ -634,11 +680,22 @@ class SolarSystem {
         }
         
         // TODO: Remove this when locations are managed on their own
-        if (isset($fields['latitude']) || isset($fields['longitude']) || isset($fields['albedo']) ||
-                array_key_exists('altitude', $fields)) {
+        if (isset($fields['albedo']) || isset($fields['latitude']) || isset($fields['longitude']) || isset($fields['altitude']) ||
+                !empty($fields['file'])) {
             
-            $this->location->update(
-                $this->location->get($system['location']['id']), $fields);
+            $system_dir = $this->get_system_dir($system);
+            
+            $location = $this->location->get($system['location']['id']);
+            $location_name = str_replace(' ', '_', $location['name']);
+            $location_path = "$system_dir/weather/$location_name.csv";
+            if (file_exists($location_path)) {
+                unlink($location_path);
+            }
+            if (!empty($fields['file'])) {
+                $location_file = $this->get_meteo_file($fields);
+                move_uploaded_file($location_file["tmp_name"], $location_path);
+            }
+            $this->location->update($location, $fields);
         }
         return array('success'=>true, 'message'=>'System successfully updated');
     }
@@ -671,7 +728,31 @@ class SolarSystem {
         if ($this->redis) {
             $this->delete_redis($system['id']);
         }
+        $this->delete_dir($system);
+        
         return array('success'=>true, 'message'=>'System successfully deleted');
+    }
+
+    private function delete_dir($system) {
+        $dir = $this->get_system_dir($system);
+        $it = new RecursiveDirectoryIterator($dir, RecursiveDirectoryIterator::SKIP_DOTS);
+        $files = new RecursiveIteratorIterator($it, RecursiveIteratorIterator::CHILD_FIRST);
+        $empty = true;
+        foreach($files as $file) {
+            if ($file->isWritable()) {
+                if ($file->isDir()){
+                    rmdir($file->getRealPath());
+                } else {
+                    unlink($file->getRealPath());
+                }
+            }
+            else {
+                $empty = false;
+            }
+        }
+        if ($empty) {
+            rmdir($dir);
+        }
     }
 
     private function delete_redis($id) {

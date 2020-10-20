@@ -13,11 +13,10 @@ $schema['solar_location'] = array(
     'id' => array('type' => 'int(11)', 'Null'=>false, 'Key'=>'PRI', 'Extra'=>'auto_increment'),
     'userid' => array('type' => 'int(11)', 'Null'=>false),
     'name' => array('type' => 'text', 'Null'=>false),
-    'latitude' => array('type' => 'double(8,5)'),
-    'longitude' => array('type' => 'double(8,5)'),
-    'altitude' => array('type' => 'double(5,2)'),
-    'albedo' => array('type' => 'double(3,2)'),
-    'file' => array('type' => 'text')
+    'albedo' => array('type' => 'double(3,2)', 'Null'=>false),
+    'latitude' => array('type' => 'double(8,5)', 'Null'=>false),
+    'longitude' => array('type' => 'double(8,5)', 'Null'=>false),
+    'altitude' => array('type' => 'double(5,2)')
 );
 
 $schema['solar_configs'] = array(
