@@ -126,7 +126,7 @@ foreach ($svgs as $svg) {
                                         <div></div>
                                         <div class="grow"></div>
                                         <div></div>
-                                        <div v-if="isSuccess(system)"></div>
+                                        <div></div>
                                         <div></div>
                                         <div></div>
                                     </div>
@@ -158,7 +158,7 @@ foreach ($svgs as $svg) {
                             </div>
                             <div v-else-if="isError(system)" class="alert alert-error results-error">
                                 <div class="message" data-toggle="collapse" data-target="#results-trace">
-                                    <span><?php echo "Error: ";?></span><span>{{system.results.message}}</span>
+                                    <span>{{system.results.error}}: </span><span>{{system.results.message}}</span>
                                 </div>
                                 <div id="results-trace" class="collapse trace" v-html="system.results.trace"></div>
                             </div>

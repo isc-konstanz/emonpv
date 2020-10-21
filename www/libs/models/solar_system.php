@@ -198,20 +198,6 @@ class SolarSystem {
         if (!file_exists($configs_defaults)) {
             throw new SolarException("Modules default configs do not exist: ".$configs_defaults);
         }
-        foreach (glob("$system_dir/conf/configs*") as $configs_file) {
-            if (is_dir($configs_file)) {
-                foreach (glob("$configs_file/*") as $configs_override) {
-                    if (is_file($configs_override)) {
-                        unlink($configs_override);
-                    }
-                }
-                rmdir($configs_file);
-            }
-            else if (is_file($configs_file)) {
-                unlink($configs_file);
-            }
-        }
-        
         foreach ($system['inverters'] as $inverter) {
             $configs_ids = array();
             $inverter_strings = array();
@@ -367,24 +353,36 @@ class SolarSystem {
         ), array_slice($configs, 2));
     }
 
-    public function remove_configs($id, $cfgid) {
-        $result = $this->mysqli->query("SELECT cfgid FROM solar_refs WHERE `sysid` = '$id' AND `cfgid` = '$cfgid'");
-        if ($result->num_rows>0) {
-            $this->mysqli->query("DELETE FROM solar_refs WHERE `sysid` = '$id' AND `cfgid` = '$cfgid'");
-            $this->reorder_configs($id);
+    public function remove_configs($system, $cfgid) {
+        $system_name = str_replace(' ', '_', $system['name']);
+        $system_dir = $this->get_system_dir($system);
+        
+        $results = $this->mysqli->query("SELECT `order` FROM solar_refs WHERE `sysid` = '".$system['id']."' AND `cfgid` = '".$cfgid."'");
+        while ($result = $results->fetch_array()) {
+            $order = $result['order'];
+            $this->mysqli->query("DELETE FROM solar_refs WHERE `sysid` = '".$system['id']."' AND `cfgid` = '".$cfgid."'");
+            $this->delete_file("$system_dir/results/$system_name"."_$order.csv");
+            $this->delete_file("$system_dir/results/$system_name.csv");
+            $this->delete_file("$system_dir/results.csv");
+            $this->delete_file("$system_dir/results.csv");
+            $this->delete_file("$system_dir/conf/configs$order.cfg");
+            $this->delete_file("$system_dir/conf/configs$order.d");
+            
+            $this->reorder_configs($system);
             return true;
         }
         return false;
     }
 
-    public function reorder_configs($id) {
-        $configs = $this->get_configs($id);
+    public function reorder_configs($system) {
+        $configs = $this->get_configs($system['id']);
         if (count($configs) < 1) {
             return;
         }
         $count = 1;
         foreach ($configs as $cfg) {
-            if ($count != $cfg['order']) {
+            $order = $cfg['order'];
+            if ($order != $count) {
                 if ($stmt = $this->mysqli->prepare("UPDATE solar_refs SET `order` = ? WHERE `cfgid` = ?")) {
                     $stmt->bind_param("ii", $count, $cfg['id']);
                     if ($stmt->execute() === false) {
@@ -393,7 +391,25 @@ class SolarSystem {
                     }
                     $stmt->close();
                 }
+                $this->rename_configs($system, $order, $count);
             }
+            $count += 1;
+        }
+    }
+
+    private function rename_configs($system, $old, $new) {
+        $system_name = str_replace(' ', '_', $system['name']);
+        $system_dir = $this->get_system_dir($system);
+        
+        if (file_exists("$system_dir/conf/configs$old.cfg")) {
+            rename("$system_dir/conf/configs$old.cfg", "$system_dir/conf/configs$new.cfg");
+        }
+        if (file_exists("$system_dir/conf/configs$old.d")) {
+            rename("$system_dir/conf/configs$old.d", "$system_dir/conf/configs$new.d");
+        }
+        if (file_exists("$system_dir/results/$system_name"."_$old.csv")) {
+            rename("$system_dir/results/$system_name"."_$old.csv",
+                   "$system_dir/results/$system_name"."_$new.csv");
         }
     }
 
@@ -492,13 +508,14 @@ class SolarSystem {
             }
             $script = $root_dir."bin/".$script;
         }
-        $this->delete_dir("$system_dir/results");
+        $this->delete_file("$system_dir/results");
         $this->delete_file("$system_dir/results.csv");
         
         if (!$this->redis) {
             file_put_contents($results_json, json_encode(array(
                 'status'=>'error', 
-                'message'=>'Unable to start simulation on this system'
+                'message'=>'Unable to start simulation on this system2', 
+                'error'=>'Error'
             )));
             throw new SolarException("Unable to start simulation on this system");
         }
@@ -817,35 +834,37 @@ class SolarSystem {
         if ($this->redis) {
             $this->delete_redis($system['id']);
         }
-        $this->delete_dir($this->get_system_dir($system));
+        $this->delete_file($this->get_system_dir($system));
         
         return array('success'=>true, 'message'=>'System successfully deleted');
     }
 
-    private function delete_dir($dir) {
-        $it = new RecursiveDirectoryIterator($dir, RecursiveDirectoryIterator::SKIP_DOTS);
-        $files = new RecursiveIteratorIterator($it, RecursiveIteratorIterator::CHILD_FIRST);
-        $empty = true;
-        foreach($files as $file) {
-            if ($file->isWritable()) {
-                if ($file->isDir()){
-                    rmdir($file->getRealPath());
-                } else {
-                    unlink($file->getRealPath());
+    private function delete_file($path) {
+        if (!file_exists($path)) {
+            return;
+        }
+        if (is_file($path)) {
+            unlink($path);
+        }
+        else if (is_dir($path)) {
+            $it = new RecursiveDirectoryIterator($path, RecursiveDirectoryIterator::SKIP_DOTS);
+            $files = new RecursiveIteratorIterator($it, RecursiveIteratorIterator::CHILD_FIRST);
+            $empty = true;
+            foreach($files as $file) {
+                if ($file->isWritable()) {
+                    if ($file->isDir()){
+                        rmdir($file->getRealPath());
+                    } else {
+                        unlink($file->getRealPath());
+                    }
+                }
+                else {
+                    $empty = false;
                 }
             }
-            else {
-                $empty = false;
+            if ($empty) {
+                rmdir($path);
             }
-        }
-        if ($empty) {
-            rmdir($dir);
-        }
-    }
-
-    private function delete_file($file) {
-        if (file_exists($file)) {
-            unlink($file);
         }
     }
 

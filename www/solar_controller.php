@@ -186,7 +186,7 @@ function configs_controller(SolarSystem $system, SolarConfigs $configs) {
                 if ($route->subaction == "remove" ||
                     $route->subaction == "delete") {
                     
-                    $result = $system->remove_configs($sysid, $id);
+                    $result = $system->remove_configs($sys, $id);
                     if (!$result) {
                         return array('success'=>false, 'message'=>'Unable to remove configuration for this system');
                     }
