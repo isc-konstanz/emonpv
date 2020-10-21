@@ -84,6 +84,9 @@ function system_controller(SolarSystem $system) {
                 if ($route->action == "get") {
                     return $sys;
                 }
+                if ($route->action == "export") {
+                    return $system->export($sys);
+                }
                 if ($route->action == "download") {
                     return $system->export_results($sys);
                 }
@@ -92,10 +95,10 @@ function system_controller(SolarSystem $system) {
                 if ($route->action == "run") {
                     return $system->run($sys);
                 }
-                else if ($route->action == "update") {
+                if ($route->action == "update") {
                     return $system->update($sys, prop('fields'));
                 }
-                else if ($route->action == "delete") {
+                if ($route->action == "delete") {
                     return $system->delete($sys);
                 }
             }
@@ -123,10 +126,10 @@ function inverter_controller(SolarSystem $system) {
             if ($route->subaction == "create") {
                 return $system->inverter->create($sys['id']);
             }
-            else if ($route->subaction == "update") {
+            if ($route->subaction == "update") {
                 return $system->inverter->update($inv, prop('fields'));
             }
-            else if ($route->subaction == "delete") {
+            if ($route->subaction == "delete") {
                 return $system->inverter->delete($inv);
             }
         }

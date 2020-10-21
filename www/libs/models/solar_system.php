@@ -570,12 +570,39 @@ class SolarSystem {
         }
         //TODO: Think about creating this dir with salted hash?
         
-        return $user_dir."user$userid";
+        return str_replace('\\', '/', $user_dir)."user$userid";
+    }
+
+    public function export($system) {
+        $system_dir = $this->get_system_dir($system);
+        $system_name = str_replace(' ', '_', $system['name']);
+        $system_zip = "$system_dir/$system_name.zip";
+        
+        $this->delete_file($system_zip);
+        
+        $zip = new ZipArchive();
+        if (!$zip->open($system_zip, ZIPARCHIVE::CREATE)) {
+            throw new SolarException("Unable to create ZIP Archive");
+        }
+        $it = new RecursiveDirectoryIterator($system_dir, RecursiveDirectoryIterator::SKIP_DOTS);
+        $files = new RecursiveIteratorIterator($it, RecursiveIteratorIterator::CHILD_FIRST);
+        foreach ($files as $file) {
+            $path = str_replace('\\', '/', $file->getRealPath());
+            if ($file->isDir()) {
+                $zip->addEmptyDir(str_replace($system_dir.'/', '', $path).'/');
+            }
+            else if (pathinfo($path, PATHINFO_EXTENSION) != 'zip') {
+                $zip->addFromString(str_replace($system_dir.'/', '', $path), file_get_contents($path));
+            }
+        }
+        $zip->close();
+        
+        $this->export_file($system_zip);
     }
 
     public static function export_file($file, $file_name=null) {
         if (!file_exists($file)) {
-            throw new SolarException("Unable to find results CSV: ".$file);
+            throw new SolarException("Unable to find file: ".$file);
         }
         if (empty($file_name)) {
             $file_name = basename($file);

@@ -27,6 +27,9 @@ var solar = {
         get:function(id, callback) {
             return solar.get(callback, "solar/get.json", "id="+id);
         },
+        export:function(id) {
+            window.open(path+"solar/export.json?id="+id);
+        },
         download:function(id) {
             window.open(path+"solar/download.json?id="+id);
         },
