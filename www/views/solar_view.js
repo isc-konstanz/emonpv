@@ -69,17 +69,24 @@ var view = new Vue({
             }
             return false
         },
+        isNew: function(system) {
+            return system.results.status == 'created';
+        },
+        isRunning: function(system) {
+            return system.results.status == 'running';
+        },
         isError: function(system) {
             return system.results.status == 'error';
         },
         isSuccess: function(system) {
             return system.results.status == 'success';
         },
-        isRunning: function(system) {
-            return system.results.status == 'running';
-        },
-        isNew: function(system) {
-            return system.results.status == 'created';
+        hasResults: function(system, configs) {
+			if (view.isSuccess(system)) {
+				let resultsFile = system.name.replace(' ', '_') + "_" + configs.order + ".csv";
+				return system.results.files.indexOf(resultsFile) > -1;
+			}
+			return false;
         },
         getEnergyUnit: function(value) {
             let unit;

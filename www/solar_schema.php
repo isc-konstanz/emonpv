@@ -26,6 +26,15 @@ $schema['solar_configs'] = array(
     'orientation' => array('type' => 'tinyint(1)')
 );
 
+$schema['solar_refs'] = array(
+    'sysid' => array('type' => 'int(11)', 'Null'=>false),
+    'invid' => array('type' => 'int(11)'),
+    'strid' => array('type' => 'int(11)'),
+    'cfgid' => array('type' => 'int(11)', 'Null'=>false),
+    'order' => array('type' => 'int(11)', 'Null'=>false),
+    'count' => array('type' => 'int(11)')
+);
+
 $schema['solar_rows'] = array(
     'id' => array('type' => 'int(11)', 'Null'=>false),
     'count' => array('type' => 'int(11)', 'Null'=>false),
@@ -58,16 +67,4 @@ $schema['solar_inverter'] = array(
     'sysid' => array('type' => 'int(11)', 'Null'=>false),
     'type' => array('type' => 'varchar(64)'),
     'count' => array('type' => 'int(11)')
-);
-
-$schema['solar_inverter_configs'] = array(
-    'invid' => array('type' => 'int(11)', 'Null'=>false),
-    'strid' => array('type' => 'int(11)', 'Null'=>false),
-    'cfgid' => array('type' => 'int(11)', 'Null'=>false),
-    'count' => array('type' => 'int(11)')
-);
-
-$schema['solar_system_configs'] = array(
-    'sysid' => array('type' => 'int(11)', 'Null'=>false),
-    'cfgid' => array('type' => 'int(11)', 'Null'=>false)
 );

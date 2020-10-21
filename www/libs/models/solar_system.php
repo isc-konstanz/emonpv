@@ -225,8 +225,8 @@ class SolarSystem {
             $configs_id_min = min($configs_ids);
             
             foreach ($inverter['configs'] as $configs) {
-                $configs_id = $configs['id']; //- $configs_id_min + 1;
-                $configs_file = $system_dir."/conf/configs$configs_id.cfg";
+                $order = $configs['order'];
+                $configs_file = $system_dir."/conf/configs$order.cfg";
                 $configs_configs = file_get_contents($configs_defaults);
                 
                 if (!empty($system['location']['albedo'])) {
@@ -286,7 +286,7 @@ class SolarSystem {
                 
                 file_put_contents($configs_file, $configs_configs);
                 
-                $configs_dir = $system_dir."/conf/configs$configs_id.d";
+                $configs_dir = $system_dir."/conf/configs$order.d";
                 if (!file_exists($configs_dir)) {
                     mkdir($configs_dir);
                 }
@@ -346,6 +346,75 @@ class SolarSystem {
         $weather_configs = str_replace('file = weather.epw', "file = $weather_file.epw", $weather_configs);
         
         file_put_contents($system_dir.'/conf/weather.cfg', $weather_configs);
+    }
+
+    public function add_configs($system, $inverter, $string, $configs) {
+        $order = count($this->get_configs($system['id']))+1;
+        
+        $stmt = $this->mysqli->prepare("INSERT INTO solar_refs (`sysid`,`invid`,`strid`,`cfgid`,`order`) VALUES (?,?,?,?,?)");
+        $stmt->bind_param("iiiii", $system['id'], $inverter['id'], $string, $configs['id'], $order);
+        $stmt->execute();
+        $stmt->close();
+        
+        return array_merge(array(
+            'id'=>intval($configs['id']),
+            'sysid'=>intval($system['id']),
+            'invid'=>intval($inverter['id']),
+            'strid'=>intval($string),
+            'order'=>intval($order),
+            'count'=>1
+            
+        ), array_slice($configs, 2));
+    }
+
+    public function remove_configs($id, $cfgid) {
+        $result = $this->mysqli->query("SELECT cfgid FROM solar_refs WHERE `sysid` = '$id' AND `cfgid` = '$cfgid'");
+        if ($result->num_rows>0) {
+            $this->mysqli->query("DELETE FROM solar_refs WHERE `sysid` = '$id' AND `cfgid` = '$cfgid'");
+            $this->reorder_configs($id);
+            return true;
+        }
+        return false;
+    }
+
+    public function reorder_configs($id) {
+        $configs = $this->get_configs($id);
+        if (count($configs) < 1) {
+            return;
+        }
+        $count = 1;
+        foreach ($configs as $cfg) {
+            if ($count != $cfg['order']) {
+                if ($stmt = $this->mysqli->prepare("UPDATE solar_refs SET `order` = ? WHERE `cfgid` = ?")) {
+                    $stmt->bind_param("ii", $count, $cfg['id']);
+                    if ($stmt->execute() === false) {
+                        $stmt->close();
+                        throw new SolarException("Error while updating configuration order of system$id");
+                    }
+                    $stmt->close();
+                }
+            }
+        }
+    }
+
+    public function get_configs($id) {
+        $configs = array();
+        
+        $results = $this->mysqli->query("SELECT * FROM solar_refs WHERE `sysid` = '$id' ORDER BY `order` ASC");
+        while ($result = $results->fetch_array()) {
+            $cfgid = $result['cfgid'];
+            $config = $this->configs->get($cfgid);
+            $config = array_merge(array(
+                'id'=>intval($cfgid),
+                'sysid'=>intval($id),
+                'order'=>intval($result['order']),
+                'count'=>intval($result['count'])
+                
+            ), array_slice($config, 2));
+            
+            $configs[] = $config;
+        }
+        return $configs;
     }
 
     private function get_config_dir() {
@@ -423,6 +492,8 @@ class SolarSystem {
             }
             $script = $root_dir."bin/".$script;
         }
+        $this->delete_dir("$system_dir/results");
+        $this->delete_file("$system_dir/results.csv");
         
         if (!$this->redis) {
             file_put_contents($results_json, json_encode(array(
@@ -468,6 +539,13 @@ class SolarSystem {
         }
         else {
             $results['status'] = 'created';
+        }
+        if ($results['status'] == 'success') {
+            $files = array();
+            foreach (glob("$results_dir/results/*.csv", GLOB_BRACE) as $file) {
+                $files[] = basename($file);
+            }
+            $results['files'] = $files;
         }
         return $results;
     }
@@ -520,33 +598,20 @@ class SolarSystem {
     public function export_results($system) {
         $system_dir = $this->get_system_dir($system);
         $system_results = "$system_dir/results.csv";
-        $system_name = str_replace(' ', '_', $system['name']).".csv";
+        $system_file = str_replace(' ', '_', $system['name']).".csv";
         
-        $this->export_file($system_results, $system_name);
+        $this->export_file($system_results, $system_file);
     }
 
-    public function export_configs($id, $configs) {
-        $system = $this->get($id);
-        $system_dir = SolarSystem::get_system_dir($system);
+    public function export_config_results($system, $configs) {
+        $results_name = str_replace(' ', '_', $system['name']);
+        $result = $this->mysqli->query("SELECT `order` FROM solar_refs WHERE `sysid` = '".$system['id']."' AND `cfgid` = '".$configs['id']."'");
+        while ($r = $result->fetch_array()) {
+            $results_name .= '_'.$r['order'];
+        }
+        $results_file = SolarSystem::get_system_dir($system)."/results/$results_name.csv";
         
-        $configs_count = 1;
-        $configs_list = array();
-        if ($system['inverters'] !== false) {
-            foreach ($system['inverters'] as $inverter) {
-                $configs_list = array_merge($inverter['configs'], $configs_list);
-            }
-        }
-        else {
-            $configs_list = $system['configs'];
-        }
-        foreach ($configs_list as $c) {
-            if ($configs['id'] == $c['id']) {
-                break;
-            }
-            $configs_count++;
-        }
-        $configs_results = "$system_dir/results/".str_replace(' ', '_', $system['name'])."_".$configs['id'].".csv";
-        SolarSystem::export_file($configs_results, str_replace(' ', '_', $system['name'])."_$configs_count.csv");
+        SolarSystem::export_file($results_file);
     }
 
     public function get_list($userid) {
@@ -631,14 +696,11 @@ class SolarSystem {
         
         if ($inverters == null) {
             $inverters = $this->inverter->get_list($result['id']);
-            //foreach ($inverters as &$inverter) {
-            //    unset($inverter['sysid']);
-            //}
         }
         $system['inverters'] = $inverters;
         
         if (!$inverters) {
-            // TODO: Add configs
+            // TODO: Add system standalone configs
         }
         $system['results'] = $this->get_results($result);
         
@@ -687,13 +749,13 @@ class SolarSystem {
             
             $location = $this->location->get($system['location']['id']);
             $location_name = str_replace(' ', '_', $location['name']);
-            $location_path = "$system_dir/weather/$location_name.csv";
-            if (file_exists($location_path)) {
-                unlink($location_path);
-            }
+            $location_path = "$system_dir/weather/$location_name";
+            if (file_exists($location_path)) unlink("$location_path.csv");
+            if (file_exists($location_path)) unlink("$location_path.epw");
+            
             if (!empty($fields['file'])) {
                 $location_file = $this->get_meteo_file($fields);
-                move_uploaded_file($location_file["tmp_name"], $location_path);
+                move_uploaded_file($location_file["tmp_name"], "$location_path.csv");
             }
             $this->location->update($location, $fields);
         }
@@ -728,13 +790,12 @@ class SolarSystem {
         if ($this->redis) {
             $this->delete_redis($system['id']);
         }
-        $this->delete_dir($system);
+        $this->delete_dir($this->get_system_dir($system));
         
         return array('success'=>true, 'message'=>'System successfully deleted');
     }
 
-    private function delete_dir($system) {
-        $dir = $this->get_system_dir($system);
+    private function delete_dir($dir) {
         $it = new RecursiveDirectoryIterator($dir, RecursiveDirectoryIterator::SKIP_DOTS);
         $files = new RecursiveIteratorIterator($it, RecursiveIteratorIterator::CHILD_FIRST);
         $empty = true;
@@ -752,6 +813,12 @@ class SolarSystem {
         }
         if ($empty) {
             rmdir($dir);
+        }
+    }
+
+    private function delete_file($file) {
+        if (file_exists($file)) {
+            unlink($file);
         }
     }
 

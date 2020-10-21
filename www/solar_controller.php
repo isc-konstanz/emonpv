@@ -129,25 +129,6 @@ function inverter_controller(SolarSystem $system) {
             else if ($route->subaction == "delete") {
                 return $system->inverter->delete($inv);
             }
-            else if ($route->subaction == "configs") {
-                if ($route->subaction2 == "create") {
-                    $configs = $system->configs->create($session['userid'], prop('type'), prop('orientation'), 
-                        prop('rows'), prop('mounting'), prop('tracking'));
-                    
-                    return $system->inverter->add_configs($id, prop('strid'), $configs);
-                }
-                else if ($route->subaction2 == "remove" ||
-                        $route->subaction2 == "delete") {
-                    
-                    $result = $system->inverter->remove_configs($id, prop('cfgid'));
-                    if (!$result) {
-                        return array('success'=>false, 'message'=>'Unable to remove configuration for this inverter');
-                    }
-                    if ($route->subaction2 == "delete") {
-                        return $system->configs->delete(prop('cfgid'));
-                    }
-                }
-            }
         }
     }
     return array('content'=>EMPTY_ROUTE);
@@ -156,26 +137,60 @@ function inverter_controller(SolarSystem $system) {
 function configs_controller(SolarSystem $system, SolarConfigs $configs) {
     global $session, $route;
     
+    $sysid = prop('sysid');
+    if (!empty($sysid)) {
+        $sys = $system->get($sysid);
+        if ($sys['userid'] != $session['userid']) {
+            return array('success'=>false, 'message'=>'Invalid permissions to access this system');
+        }
+        
+        if ($route->subaction == "create" && $session['write']) {
+            $invid = prop('invid');
+            if (!empty($invid)) {
+                $inv = $system->inverter->get($invid);
+                if ($inv['sysid'] != $sysid) {
+                    return array('success'=>false, 'message'=>'Unable to add configuration for this inverter');
+                }
+                $cfg = $configs->create($session['userid'], prop('type'), prop('orientation'),
+                    prop('rows'), prop('mounting'), prop('tracking'));
+                
+                return $system->add_configs($sys, $inv, prop('strid'), $cfg);
+            }
+        }
+    }
+    
     $id = prop('id');
     if (!empty($id)) {
-        $config = $configs->get($id);
-        if ($config['userid'] != $session['userid']) {
+        $cfg = $configs->get($id);
+        if ($cfg['userid'] != $session['userid']) {
             return array('success'=>false, 'message'=>'Invalid permissions to access these configurations');
         }
         if ($session['read']) {
             if ($route->subaction == "get") {
-                return $config;
+                return $cfg;
             }
-            else if ($route->subaction == "download") {
-                $sysid = get('sysid');
-                if (!empty($sysid)) {
-                    return $system->export_configs($sysid, $config);
+            if (!empty($sysid)) {
+                if ($route->subaction == "download") {
+                    return $system->export_config_results($sys, $cfg);
                 }
             }
         }
         if ($session['write']) {
             if ($route->subaction == "update") {
-                return $configs->update($config, prop('fields'));
+                return $configs->update($cfg, prop('fields'));
+            }
+            if (!empty($sysid)) {
+                if ($route->subaction == "remove" ||
+                    $route->subaction == "delete") {
+                    
+                    $result = $system->remove_configs($sysid, $id);
+                    if (!$result) {
+                        return array('success'=>false, 'message'=>'Unable to remove configuration for this system');
+                    }
+                    if ($route->subaction == "delete") {
+                        return $system->configs->delete($id);
+                    }
+                }
             }
         }
     }

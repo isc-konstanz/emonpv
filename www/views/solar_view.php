@@ -86,18 +86,13 @@ foreach ($svgs as $svg) {
                                         <div class="name"><span>{{getModule(configs.type).Manufacturer}}</span></div>
                                         <div class="description"><span>{{getModule(configs.type).Name}}</span></div>
                                         <div class="grow"></div>
-                                        <div class="action" @click="solar_configs.openDeletion(inverter, configs.id)">
-                                            <svg class="icon icon-action">
-                                                <title><?php echo _("Delete configurations"); ?></title>
-                                                <use xlink:href="#icon-bin" />
-                                            </svg>
-                                        </div>
-                                        <div class="action" v-if="isSuccess(system)" @click="solar.configs.download(system.id, configs.id)">
+                                        <div class="action" v-if="hasResults(system, configs)" @click="solar.configs.download(configs.id, system.id)">
                                             <svg class="icon icon-action">
                                                 <title><?php echo _("Download results"); ?></title>
                                                 <use xlink:href="#icon-download-small"></use>
                                             </svg>
                                         </div>
+                            			<div class="action" v-else></div>
                                         <div class="action" disabled>
                                             <svg class="icon icon-action">
                                                 <title><?php echo _("Duplicate configurations"); ?></title>
@@ -110,8 +105,14 @@ foreach ($svgs as $svg) {
                                                 <use xlink:href="#icon-wrench" />
                                             </svg>
                                         </div>
+                                        <div class="action" @click="solar_configs.openDeletion(inverter, configs.id)">
+                                            <svg class="icon icon-action">
+                                                <title><?php echo _("Delete configurations"); ?></title>
+                                                <use xlink:href="#icon-bin" />
+                                            </svg>
+                                        </div>
                                     </div>
-                                    <div class="inverter-item new" title="<?php echo _("Add configurations"); ?>" @click="!hasConfigs(inverter) ? solar_configs.newConfig(inverter) : null" :disabled="hasConfigs(inverter) ? 'disabled' : null">
+                                    <div class="inverter-item new" title="<?php echo _("Add configurations"); ?>" @click="solar_configs.newConfig(inverter)">
                                         <div>
                                             <button type="button" class="btn btn-plain btn-small btn-circle">
                                                 <svg class="icon">

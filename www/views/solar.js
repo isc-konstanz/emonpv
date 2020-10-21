@@ -44,11 +44,6 @@ var solar = {
         },
         remove:function(id, callback) {
             return solar.delete(callback, "solar/delete.json?id="+id);
-        },
-        configs: {
-            download:function(id, cfgid) {
-                window.open(path+"solar/configs/download.json?id="+id+"&cfgid="+cfgid);
-            }
         }
     },
 
@@ -57,43 +52,42 @@ var solar = {
             return solar.post(callback, "solar/inverter/create.json", "sysid="+system.id);
         },
         update:function(id, fields, callback) {
-            return solar.put(callback, "solar/inverter/update.json", "id="+id+
+            return solar.put(callback, "solar/inverter/update.json?id="+id+
                     "&fields="+JSON.stringify(fields));
         },
         remove:function(id, callback) {
             return solar.delete(callback, "solar/inverter/delete.json?id="+id);
-        },
-        configs: {
-            create:function(inverter, strid, type, orientation, rows, mounting, tracking, callback) {
-                if (mounting !== false) {
-                    mounting = JSON.stringify(mounting);
-                }
-                if (tracking !== false) {
-                    tracking = JSON.stringify(tracking);
-                }
-                return solar.post(callback, "solar/inverter/configs/create.json", 
-                        "id="+inverter.id+
-                        "&strid="+strid+
-                        "&type="+type+
-                        "&orientation="+orientation+
-                        "&rows="+JSON.stringify(rows)+
-                        "&mounting="+mounting+
-                        "&tracking="+tracking);
-            },
-            remove:function(inverter, cfgid, callback) {
-                return solar.delete(callback, "solar/inverter/configs/delete.json?id="+inverter.id+"&cfgid="+cfgid);
-            }
         }
     },
 
     configs: {
-        download:function(sysid, id) {
-            window.open(path+"solar/configs/download.json?sysid="+sysid+"&id="+id);
+		create:function(sysid, invid, strid, type, orientation, rows, mounting, tracking, callback) {
+			if (mounting !== false) {
+				mounting = JSON.stringify(mounting);
+			}
+			if (tracking !== false) {
+				tracking = JSON.stringify(tracking);
+			}
+			return solar.post(callback, "solar/configs/create.json", 
+					"sysid="+sysid+
+					"&invid="+invid+
+					"&strid="+strid+
+					"&type="+type+
+					"&orientation="+orientation+
+					"&rows="+JSON.stringify(rows)+
+					"&mounting="+mounting+
+					"&tracking="+tracking);
+		},
+        download:function(id, sysid) {
+            window.open(path+"solar/configs/download.json?id="+id+"&sysid="+sysid);
         },
         update:function(id, fields, callback) {
-            return solar.put(callback, "solar/configs/update.json", "id="+id+
+            return solar.put(callback, "solar/configs/update.json?id="+id+
                     "&fields="+JSON.stringify(fields));
-        }
+        },
+		remove:function(id, sysid, invid, callback) {
+			return solar.delete(callback, "solar/configs/delete.json?id="+id+"&sysid="+sysid+"&invid="+invid);
+		}
     },
 
     get:function(callback, route, data) {

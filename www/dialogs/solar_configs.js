@@ -246,8 +246,9 @@ var solar_configs = {
                     'elevation': parseFloat($('#module-elevation').val())
                 };
             }
-            solar.inverter.configs.create(solar_configs.inverter, 1, solar_configs.type, orientation, 
-                                          rows, mounting, tracking, solar_configs.verifyResult);
+            solar.configs.create(solar_configs.inverter.sysid, solar_configs.inverter.id, 1, 
+                                 solar_configs.type, orientation, rows, mounting, tracking, 
+                                 solar_configs.verifyResult);
         }
         else {
             var configs = solar_configs.inverter.configs[solar_configs.id];
@@ -439,7 +440,8 @@ var solar_configs = {
         $("#module-delete-confirm").off('click').on('click', function() {
             $('#module-delete-loader').show();
             
-            solar.inverter.configs.remove(solar_configs.inverter, solar_configs.id, function(result) {
+            solar.configs.remove(solar_configs.id, solar_configs.inverter.sysid, solar_configs.inverter.id, 
+                    function(result) {
                 $('#module-delete-loader').hide();
                 
                 if (typeof result.success !== 'undefined' && !result.success) {

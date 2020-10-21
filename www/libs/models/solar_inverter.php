@@ -79,39 +79,10 @@ class SolarInverter {
         return $this->parse($inverter);
     }
 
-    public function add_configs($invid, $strid, $configs) {
-        $stmt = $this->mysqli->prepare("INSERT INTO solar_inverter_configs (invid,strid,cfgid) VALUES (?,?,?)");
-        $stmt->bind_param("iii", $invid, $strid, $configs['id']);
-        $stmt->execute();
-        $stmt->close();
-        
-        return array_merge(array(
-                'id'=>intval($configs['id']),
-                'invid'=>intval($invid),
-                'strid'=>intval($strid),
-                'count'=>1
-                
-        ), array_slice($configs, 2));
-    }
-
-    public function remove_configs($invid, $cfgid) {
-        $configs = $this->get_configs($invid);
-        if (count($configs) < 1) {
-            return false;
-        }
-        foreach ($configs as $c) {
-            if ($cfgid == $c['id']) {
-                $this->mysqli->query("DELETE FROM solar_inverter_configs WHERE `invid` = '$invid' AND `cfgid` = '$cfgid'");
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private function get_configs($invid) {
+    public function get_configs($invid) {
         $configs = array();
         
-        $results = $this->mysqli->query("SELECT * FROM solar_inverter_configs WHERE invid='$invid'");
+        $results = $this->mysqli->query("SELECT * FROM solar_refs WHERE invid='$invid' ORDER BY `order` ASC");
         while ($result = $results->fetch_array()) {
             $id = $result['cfgid'];
             $config = $this->configs->get($id);
@@ -119,18 +90,13 @@ class SolarInverter {
                 'id'=>intval($id),
                 'invid'=>intval($invid),
                 'strid'=>intval($result['strid']),
+                'order'=>intval($result['order']),
                 'count'=>intval($result['count'])
                 
             ), array_slice($config, 2));
             
             $configs[] = $config;
         }
-        usort($configs, function($c1, $c2) {
-            if($c1['count'] == $c2['count']) {
-                return strcmp($c1['type'], $c2['type']);
-            }
-            return $c1['count'] - $c2['count'];
-        });
         return $configs;
     }
 
