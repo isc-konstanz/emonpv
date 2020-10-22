@@ -68,7 +68,7 @@
                     </div>
                 </div>
             </div>
-            <div id="module-mounting-settings" class="collapse">
+            <div id="module-mounting-settings" class="collapse in">
                 <div class="divider"></div>
                 
                 <div class="settings-title" style="padding-left: 18px;">
@@ -99,6 +99,31 @@
                         <div><input id="module-elevation" class="input-small" type="number" step="0.01" min="0" placeholder="[m]" required /></div>
                         <div><input id="module-azimuth" class="input-small" type="number" step="0.1" min="0" max="359.9" placeholder="[ &deg; ]" required /></div>
                         <div><input id="module-tilt" class="input-small" type="number" step="0.1" min="0" max="90" placeholder="[ &deg; ]" required /></div>
+                    </div>
+                </div>
+            </div>
+            <div id="module-losses-settings" class="collapse">
+                <div class="settings-title" style="padding-left: 18px; padding-top: 10px;">
+                    <span type="text"> <?php echo _('Losses'); ?></span>
+                </div>
+                <div class="collapse in">
+                    <div class="settings">
+                        <div class="settings-header">
+                            <div>
+                                <span type="text" style="font-size: 15px"><?php echo _('Constant'); ?></span><br>
+                                <span>&mu;<sub>c</sub></span>
+                                <span class="unit">[W/m<sup>2</sup>*K]</span>
+                            </div>
+                            <div>
+                                <span type="text" style="font-size: 15px"><?php echo _('Wind'); ?></span><br>
+                                <span>&mu;<sub>v</sub></span>
+                                <span class="unit">[W/m<sup>2</sup>*K/m/s]</span>
+                            </div>
+                        </div>
+                        <div>
+                            <div><input id="module-loss-mu-c" class="input-small" type="number" required value="31" /></div>
+                            <div><input id="module-loss-mu-v" class="input-small" type="number" required value="0" /></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -152,11 +177,26 @@
                     </div>
                 </div>
             </div>
+            <div class="settings">
+                <div class="settings-header">
+                    <div>
+                        <span><?php echo _('Orientation'); ?></span><span class="required asterisk">&ast;</span>
+                    </div>
+                </div>
+                <div>
+                    <div>
+                        <select id="module-orientation" class="input-medium" type="text" style="width: 120px;" required>
+                            <option value='PORTRAIT'>Portrait</option>
+                            <option value='LANDSCAPE'>Landscape</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
             <div class="divider"></div>
             
             <div class="module-settings settings" style="padding-left: 0;">
                 <div>
-                    <div class="settings-title" style="margin-right:8px; marign-bottom:20px">
+                    <div class="settings-title fill" style="margin-right:8px; marign-bottom:20px">
                         <svg id="module-advanced-icon" class="icon icon-collapse">
                             <use xlink:href="#icon-chevron-right" />
                         </svg>
@@ -168,50 +208,173 @@
                             </svg>
                         </span>
                     </div>
-                    <div class="fill"></div>
                     <div>
                         <span class="description" type="text" style="margin-right:12px;"><?php echo _('Advanced'); ?></span>
                     </div>
                     <div id="module-advanced-mode" class="checkbox checkbox-slider--b-flat checkbox-slider-info">
-                        <label style="margin:0px"><input type="checkbox" disabled><span style="cursor:not-allowed;"></span></input></label>
+                        <label style="margin:0px"><input type="checkbox"><span></span></input></label>
                     </div>
-                </div>
-                <div class="modules-info">
-                    <div class="header">
-                        <span><?php echo _('Orientation'); ?></span><span class="required asterisk">&ast;</span>
-                    </div>
-                    <div>
-                        <select id="module-orientation" class="input-medium" type="text" style="width: 145px" required>
-                            <option value='PORTRAIT'>Portrait</option>
-                            <option value='LANDSCAPE'>Landscape</option>
-                        </select>
-                    </div>
-                    <div></div>
-                    <div></div>
                 </div>
             </div>
-            <div class="module-advanced settings" style="padding-top: 16px;">
-                <div>
-                    <div class="header" style="padding-right: 52px;">
-                        <span><?php echo _('Type'); ?></span><span class="required asterisk">&ast;</span>
+            <div id="module-param-advanced" class="collapse">
+            	<div class="settings">
+                    <div class="settings-header">
+                        <div>
+                            <span><?php echo _('Height'); ?></span><span class="required asterisk">&ast;</span>
+                            <span class="unit">[m]</span>
+                        </div>
+                        <div>
+                            <span><?php echo _('Width'); ?></span><span class="required asterisk">&ast;</span>
+                            <span class="unit">[m]</span>
+                        </div>
+                        <div>
+                            <span><?php echo _('Cells'); ?><span style="font-size: 12px"><?php echo _(' in series'); ?></span></span>
+                            <span class="required asterisk">&ast;</span>
+                        </div>
                     </div>
                     <div>
-                        <div class="name">
-                            <span id="module-model-manufacturer">
-                                <?php echo _('Select a module type'); ?>
-                            </span>
-                            <svg class="icon icon-action" onclick="solar_configs.showSidebar()">
-                                <title><?php echo _("Edit module type"); ?></title>
-                                <use xlink:href="#icon-cog" />
-                            </svg>
+                        <div><input id="module-param-height" class="input-small" type="number" step="0.001" min="0" placeholder="[m]" required /></div>
+                        <div><input id="module-param-width" class="input-small" type="number" step="0.001" min="0" placeholder="[m]" required /></div>
+                        <div><input id="module-param-cells" class="input-small" type="number" step="1" min="1"required /></div>
+                    </div>
+            	</div>
+                <div class="settings bifaciality">
+                    <div class="settings-header">
+                        <div style="width: 116px">
+                            <span><?php echo _('Bifaciality'); ?></span><span class="required asterisk">&ast;</span></span>
+                        </div>
+                        <div>
+                            <span class="advanced" style="display: none;"><?php echo _('Factor'); ?></span>
+                            <span class="advanced unit" style="display: none; letter-spacing:1px">[0,1]</span>
+                        </div>
+                    </div>
+                    <div>
+                        <div>
+                            <div id="module-bifi-select" class='checkbox checkbox-slider--b-flat checkbox-slider-info'>
+                                <label><input type='checkbox'><span></span></input></label>
+                            </div>
+                        </div>
+                        <div>
+                            <input id="module-bifi-factor" class="input-small advanced" type="number" step="0.01" min="0" max="1" style="display: none;" />
+                        </div>
+                    </div>
+                    <div class="settings-header">
+                        <div class="header">
+                            <span type="text"><?php echo _('Surface'); ?></span><span class="required asterisk">&ast;</span>
+                            <span type="text" class="advanced pull-right" style="display:none; font-size: 14px; padding-right: 8px;">(Front)</span>
+                        </div>
+                        <div>
+                            <select id="module-surface-front" class="input-large" type="text" required>
+                                <option value='Glass-AR' selected>Glass (Anti-reflective)</option>
+                                <option value='Glass'>Glass</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="settings-header advanced" style="display: none;">
+                        <div class="header">
+                            <span type="text" class="advanced pull-right" style="display:none; font-size: 14px; padding-right: 8px;">(Back)</span>
+                        </div>
+                        <div>
+                            <select id="module-surface-back" class="input-large" type="text" required>
+                                <option value='Glass-AR'>Glass (Anti-reflective)</option>
+                                <option value='Glass' selected>Glass</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="settings-header">
+                        <div class="header">
+                            <span><?php echo _('Technology'); ?></span><span class="required asterisk">&ast;</span>
+                        </div>
+                        <div>
+                            <select id="module-technology" class="input-large" type="text" required>
+                                <option value='Mono-c-Si'>Monocrystalline silicon</option>
+                                <option value='Multi-c-Si'>Multicrystalline silicon</option>
+                            </select>
                         </div>
                     </div>
                 </div>
-                <div>
-                    <div></div>
+                <div class="settings-header" style="padding-top: 18px; padding-left: 18px;">
+                    <span type="text" style="font-weight: bold;"><?php echo _('Electrical'); ?></span>
+                    <span type="text" style="font-size: 12px;"><?php echo _(' at STC'); ?></span>
+                    <span id="module-params-tooltip" data-toggle="tooltip" data-placement="right"
+                            title="Placeholder description of STC configurations.">
+                        <svg class="icon icon-info">
+                            <use xlink:href="#icon-question" />
+                        </svg>
+                    </span>
+                </div>
+                <div class="settings">
+                    <div class="settings-header">
+                        <div>
+                            <span>P<sub>mpp</sub></span><span class="required asterisk">&ast;</span>
+                            <span class="unit">[W]</span>
+                        </div>
+                        <div>
+                            <span>V<sub>mpp</sub></span><span class="required asterisk">&ast;</span>
+                            <span class="unit">[V]</span>
+                        </div>
+                        <div>
+                            <span>I<sub>mpp</sub></span><span class="required asterisk">&ast;</span>
+                            <span class="unit">[A]</span>
+                        </div>
+                        <div>
+                            <span>&mu;<sub>mpp</sub></span><span class="required asterisk">&ast;</span>
+                            <span class="unit">[%/&deg;C]</span>
+                        </div>
+                    </div>
                     <div>
-                        <div id="module-model-type" class="name"></div>
-                        <p id="module-model-description" class="description"></p>
+                        <div><input id="module-param-pmpp" class="input-small" type="number" step="0.001" min="0" placeholder="[W]" required /></div>
+                        <div><input id="module-param-vmpp" class="input-small" type="number" step="0.001" min="0" placeholder="[V]" required /></div>
+                        <div><input id="module-param-impp" class="input-small" type="number" step="0.001" min="0" placeholder="[A]" required /></div>
+                        <div><input id="module-param-mu-p" class="input-small" type="number" required /></div>
+                    </div>
+                    <div class="settings-header">
+                        <div></div>
+                        <div>
+                            <span>V<sub>oc</sub></span><span class="required asterisk">&ast;</span>
+                            <span class="unit">[V]</span>
+                        </div>
+                        <div>
+                            <span>I<sub>sc</sub></span><span class="required asterisk">&ast;</span>
+                            <span class="unit">[A]</span>
+                        </div>
+                        <div>
+                            <span>&alpha;<sub>sc</sub></span><span class="required asterisk">&ast;</span>
+                            <span class="unit">[%/&deg;C]</span>
+                        </div>
+                    </div>
+                    <div>
+                        <div></div>
+                        <div><input id="module-param-vmpp" class="input-small" type="number" step="0.001" min="0" placeholder="[V]" required /></div>
+                        <div><input id="module-param-impp" class="input-small" type="number" step="0.001" min="0" placeholder="[A]" required /></div>
+                        <div><input id="module-param-mu-p" class="input-small" type="number" required /></div>
+                    </div>
+                </div>
+            </div>
+            <div id="module-param-settings" class="module-info collapse in">
+                <div class="settings">
+                    <div class="settings-header">
+                        <div class="header" style="padding-right: 30px;">
+                            <span><?php echo _('Type'); ?></span><span class="required asterisk">&ast;</span>
+                        </div>
+                        <div>
+                            <div class="name">
+                                <span id="module-model-manufacturer">
+                                    <?php echo _('Select a module type'); ?>
+                                </span>
+                                <svg class="icon icon-action" onclick="solar_configs.showSidebar()">
+                                    <title><?php echo _("Edit module type"); ?></title>
+                                    <use xlink:href="#icon-cog" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <div></div>
+                        <div>
+                            <div id="module-model-type" class="name"></div>
+                            <p id="module-model-description" class="description"></p>
+                        </div>
                     </div>
                 </div>
             </div>

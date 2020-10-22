@@ -36,8 +36,8 @@ var solar_configs = {
             $("#module-row-icon").html('<use xlink:href="#icon-plus" />').data('show', false);
             $("#module-row-settings .advanced").hide();
             
-            $('#module-mounting-settings').addClass('in');
-            $('#module-tracking-settings').removeClass('in');
+            $('#module-mounting-settings').addClass('in').height('auto');
+            $('#module-tracking-settings').removeClass('in').height(0);
             $('#module-tracking input').prop('checked', false);
             $("#module-tracking-icon").html('<use xlink:href="#icon-chevron-right" />');
             
@@ -48,6 +48,11 @@ var solar_configs = {
             $('#module-tilt').val('');
             $('#module-azimuth').val('');
             $('#module-elevation').val('');
+            
+            $('#module-param-settings').addClass('in').height('auto');
+            $('#module-param-advanced').removeClass('in').height(0);
+            $('#module-losses-settings').removeClass('in').height(0);
+            $('#module-advanced-mode input').prop('checked', false);
             
             $('#module-orientation').val('PORTRAIT');
             
@@ -73,8 +78,8 @@ var solar_configs = {
                 $('#module-elevation').val('');
                 
                 $("#module-tracking-icon").html('<use xlink:href="#icon-chevron-down" />');
-                $('#module-tracking-settings').addClass('in');
-                $('#module-mounting-settings').removeClass('in');
+                $('#module-tracking-settings').addClass('in').height('auto');
+                $('#module-mounting-settings').removeClass('in').height(0);
             }
             else {
                 $('#module-backtrack input').prop('checked', false);
@@ -86,8 +91,8 @@ var solar_configs = {
                 $('#module-elevation').val(configs.mounting.elevation);
                 
                 $("#module-tracking-icon").html('<use xlink:href="#icon-chevron-right" />');
-                $('#module-tracking-settings').removeClass('in');
-                $('#module-mounting-settings').addClass('in');
+                $('#module-tracking-settings').removeClass('in').height(0);
+                $('#module-mounting-settings').addClass('in').height('auto');
             }
             $('#module-tracking input').prop('checked', tracking);
             
@@ -110,6 +115,11 @@ var solar_configs = {
                 $("#module-row-icon").html('<use xlink:href="#icon-plus" />').data('show', false);
             }
             
+            $('#module-param-settings').addClass('in').height('auto');
+            $('#module-param-advanced').removeClass('in').height(0);
+            $('#module-losses-settings').removeClass('in').height(0);
+            $('#module-advanced-mode input').prop('checked', false);
+            
             $('#module-orientation').val(configs.orientation.toUpperCase());
             
             var module = modules[configs.type.split('/')[0]][configs.type];
@@ -118,11 +128,14 @@ var solar_configs = {
             $('#module-model-manufacturer').html('<b>'+module.Manufacturer+'</b>');
             $('#module-model-menu').html('<use xlink:href="#icon-dots-vertical" />').data('toggle', 'dropdown');
         }
+		solar_configs.drawConfigModule(configs);
+		
         $('#module-tracking-tooltip').tooltip({html:true, container:modal});
         $('#module-mounting-tooltip').tooltip({html:true, container:modal});
         $('#module-rows-tooltip').tooltip({html:true, container:modal});
         
         $('#module-settings-tooltip').tooltip({html:true, container:modal});
+        $('#module-params-tooltip').tooltip({html:true, container:modal});
         
         $('#module-tracking input').off('change').on('change', function(e) {
             var tracking = $(this).prop('checked');
@@ -146,6 +159,23 @@ var solar_configs = {
             else {
                 $("#module-row-settings .advanced").animate({width:'toggle'}, 250).val("");
                 $(this).html('<use xlink:href="#icon-plus" />').data('show', false);
+            }
+        });
+        
+        $('#module-advanced-mode input').off('change').on('change', function(e) {
+            if ($(this).prop('checked')) {
+                $("#module-advanced-icon").html('<use xlink:href="#icon-chevron-down" />');
+                $('#module-losses-settings').collapse('show');
+                $('#module-param-advanced').collapse('show');
+                $('#module-param-settings').collapse('hide');
+                solar_configs.hideSidebar();
+            }
+            else {
+                $("#module-advanced-icon").html('<use xlink:href="#icon-chevron-right" />');
+                $('#module-losses-settings').collapse('hide');
+                $('#module-param-advanced').collapse('hide');
+                $('#module-param-settings').collapse('show');
+                solar_configs.showSidebar();
             }
         });
         
@@ -203,6 +233,47 @@ var solar_configs = {
             solar_configs.saveConfig();
         });
     },
+
+    drawConfigModule: function(configs) {
+		// TODO: Check if type is valid or if is advanced mode
+		
+        if (configs == null) {
+            $('#module-param-settings').addClass('in').height('auto');
+            $('#module-param-advanced').removeClass('in').height(0);
+            $('#module-advanced-mode input').prop('checked', false);
+            
+            $('#module-orientation').val('PORTRAIT');
+            
+            $('#module-model-type').text('');
+            $('#module-model-description').text('');
+            $('#module-model-manufacturer').text('Select a module type');
+            $('#module-model-menu').data('toggle', 'none').html('<use xlink:href="#icon-checkmark" />');
+        }
+        else {
+            $('#module-param-settings').addClass('in').height('auto');
+            $('#module-param-advanced').removeClass('in').height(0);
+            $('#module-advanced-mode input').prop('checked', false);
+            
+            $('#module-orientation').val(configs.orientation.toUpperCase());
+            
+            var module = modules[configs.type.split('/')[0]][configs.type];
+            $('#module-model-type').text(module.Name);
+            $('#module-model-description').text(module.Description);
+            $('#module-model-manufacturer').html('<b>'+module.Manufacturer+'</b>');
+            $('#module-model-menu').html('<use xlink:href="#icon-dots-vertical" />').data('toggle', 'dropdown');
+        }
+		$("#module-bifi-select input").prop('checked', false);
+        
+        $("#module-bifi-select input").off('change').on('change', function() {
+            if ($(this).prop('checked')) {
+                $("#module-param-advanced .bifaciality .advanced").animate({width:'toggle'}, 250);
+            }
+            else {
+                $("#module-param-advanced .bifaciality .advanced").animate({width:'toggle'}, 250);
+                $("#module-param-advanced .bifaciality .advanced input").val("");
+            }
+        });
+	},
 
     adjustConfig: function() {
         if ($("#module-config-modal").length > 0) {

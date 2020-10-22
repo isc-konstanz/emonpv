@@ -525,19 +525,11 @@
     background-color: #ddd;
 }
 
-.modules-settings > div,
-.modules-info > div {
+.modules-settings > div {
     white-space: nowrap;
     padding-top: 4px;
 }
-.modules-info > div:first-child {
-    padding-left: 18px;
-}
-.modules-info > .header {
-    padding-right: 8px;
-}
-
-.modules-advanced .icon-action {
+.modules-info .icon-action {
     color: #999;
     margin-left: 2px;
     vertical-align: -0.15em;
