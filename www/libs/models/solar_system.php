@@ -276,15 +276,19 @@ class SolarSystem {
                 if (!file_exists($configs_dir)) {
                     mkdir($configs_dir);
                 }
-                require_once("Modules/solar/libs/models/solar_module.php");
-                $module = new SolarModule();
-                $module_json = $module->get($configs['type']);
-                $module_configs = "";
-                foreach ($module_json as $key=>$val) {
-                    file_put_contents($configs_dir."/module.cfg", "$key = $val".PHP_EOL, FILE_APPEND);
+                if (!empty($configs['type'])) {
+                    require_once("Modules/solar/libs/models/solar_module.php");
+                    $module = new SolarModule();
+                    $module_json = $module->get($configs['type']);
+                    $module_configs = $configs_dir."/module.cfg";
+                    $this->delete_file($module_configs);
+                    foreach ($module_json as $key=>$val) {
+                        file_put_contents($module_configs, "$key = $val".PHP_EOL, FILE_APPEND);
+                    }
                 }
                 
                 $model_file = $configs_dir."/model.cfg";
+                $this->delete_file($model_file);
                 file_put_contents($model_file, "[Optical]".PHP_EOL, FILE_APPEND);
                 file_put_contents($model_file, "rows = $rows_count".PHP_EOL, FILE_APPEND);
                 file_put_contents($model_file, "row_modules = $rows_modules".PHP_EOL, FILE_APPEND);
@@ -852,9 +856,13 @@ class SolarSystem {
             $empty = true;
             foreach($files as $file) {
                 if ($file->isWritable()) {
-                    if ($file->isDir()){
-                        rmdir($file->getRealPath());
-                    } else {
+                    if ($file->isDir()) {
+                        // TODO: Remove this when permissions are fixed
+                        if (iterator_count($it->getChildren()) === 0) {
+                            rmdir($file->getRealPath());
+                        }
+                    }
+                    else {
                         unlink($file->getRealPath());
                     }
                 }
