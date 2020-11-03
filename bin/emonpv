@@ -83,7 +83,7 @@ def build(settings, rmlib):
 
 
 def _get_parser(root_dir):
-    from mobidig import __version__
+    from emonpv import __version__
     
     parser = ArgumentParser(description=__doc__, formatter_class=RawTextHelpFormatter)
     parser.add_argument('-v', '--version',
