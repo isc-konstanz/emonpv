@@ -7,13 +7,9 @@
     To learn how to configure the photovoltaic yield calculation, see "emonpv --help"
 
 """
-import logging.config
-
-import sys
+import logging #@UnusedImport
 import os
-sys.path.insert(0, os.path.dirname(os.path.abspath(sys.argv[0])))
 
-import inspect
 import pytz as tz
 import datetime as dt
 
@@ -86,8 +82,8 @@ def build(settings, rmlib):
     inverters.build()
 
 
-def _get_parser(root_dir, config_dir):
-    from emonpv import __version__
+def _get_parser(root_dir):
+    from mobidig import __version__
     
     parser = ArgumentParser(description=__doc__, formatter_class=RawTextHelpFormatter)
     parser.add_argument('-v', '--version',
@@ -108,24 +104,32 @@ def _get_parser(root_dir, config_dir):
     parser.add_argument('-c','--config-directory',
                         dest='config_dir',
                         help="directory to expect configuration files",
-                        default=config_dir,
+                        default='conf',
+                        metavar='DIR')
+    
+    parser.add_argument('-d','--data-directory',
+                        dest='data_dir',
+                        help="directory to expect and write result files to",
+                        default='data',
                         metavar='DIR')
     
     return parser
 
 if __name__ == "__main__":
-    root_dir = os.path.dirname(os.path.abspath(inspect.getsourcefile(main)))
+    root_dir = os.path.join(os.path.dirname(os.path.abspath(os.path.realpath(__file__))))
     if os.path.basename(root_dir) == 'bin':
         root_dir = os.path.dirname(root_dir)
     
     os.chdir(root_dir)
     
-    config_dir = os.path.join(root_dir, 'conf')
+    if not os.path.exists('log'):
+        os.makedirs('log')
     
     # Load the logging configuration
-    loggingfile = os.path.join(config_dir, 'logging.cfg')
-    logging.config.fileConfig(loggingfile)
+    import logging.config
+    logging_file = os.path.join(os.path.join(root_dir, 'conf'), 'logging.cfg')
+    logging.config.fileConfig(logging_file)
     logger = logging.getLogger('emonpv')
     
-    main(_get_parser(root_dir, config_dir).parse_args())
+    main(_get_parser(root_dir).parse_args())
 
