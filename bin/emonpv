@@ -10,7 +10,6 @@
 import logging #@UnusedImport
 import os
 
-import pytz as tz
 import datetime as dt
 
 from argparse import ArgumentParser, RawTextHelpFormatter
@@ -35,35 +34,39 @@ def main(args):
         systems.run()
     
     elif args.action == 'start':
-        for system in systems:
-            start(system)
+        start(systems, **kwargs)
 
-def start(system):
+def start(systems, interval=1, **kwargs):
     import sched, time
     
     logger.info('Starting emonpv')
     
     scheduler = sched.scheduler(time.time, time.sleep)
-    schedule_first, _ = schedule_time(system)
-    schedule_first -= dt.timedelta(seconds=system._forecast.interval)
-    schedule_run(system, scheduler, schedule_first)
+    schedule_first, _ = schedule_time(interval, **kwargs)
+    schedule_first -= dt.timedelta(seconds=int(interval))
+    schedule_run(systems, scheduler, schedule_first, interval)
     scheduler.run()
 
-def schedule_run(system, scheduler, time):
-    system.run(start=time)
+def schedule_run(systems, scheduler, time, interval, **kwargs):
+    logger.info("Running emonpv for {0} systems".format(len(systems)))
     
-    time, delay = schedule_time(system)
+    for system in systems:
+        system.run(start=time)
+    
+    time, delay = schedule_time(interval, **kwargs)
     scheduler.enter(delay, 1, schedule_run,
-                    (system, scheduler, time))
-
-def schedule_time(system):
-    interval = system._forecast.interval/3600
-    now = dt.datetime.now(tz.timezone(system.location.tz))
-    time = now.replace(minute=0, second=0, microsecond=0)
-    if now.hour % (interval) != 0:
-        time = time + dt.timedelta(hours=interval) - dt.timedelta(hours=now.hour % (interval))
+                    (systems, scheduler, time, interval))
     
-    return time, (time + dt.timedelta(hours=interval) - now).total_seconds() + system._forecast.delay
+    logger.info("Schedule next execution in {0} seconds: {1}".format(round(delay), time))
+
+def schedule_time(interval, delay=0, **_):
+    if isinstance(interval, str) :
+        interval = int(interval)
+    
+    now = dt.datetime.now()
+    time = now + ((dt.datetime.min - now) % dt.timedelta(seconds=interval))
+    
+    return time, (time - now).total_seconds() + int(delay)
 
 
 def build(settings, rmlib):
