@@ -518,7 +518,7 @@ class SolarSystem {
         if (!$this->redis) {
             file_put_contents($results_json, json_encode(array(
                 'status'=>'error', 
-                'message'=>'Unable to start simulation on this system2', 
+                'message'=>'Unable to start simulation on this system', 
                 'error'=>'Error'
             )));
             throw new SolarException("Unable to start simulation on this system");
