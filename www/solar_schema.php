@@ -38,7 +38,7 @@ $schema['solar_refs'] = array(
 $schema['solar_rows'] = array(
     'id' => array('type' => 'int(11)', 'Null'=>false),
     'count' => array('type' => 'int(11)', 'Null'=>false),
-    'pitch' => array('type' => 'double(3,2)', 'Null'=>false),
+    'pitch' => array('type' => 'double(5,2)', 'Null'=>false),
     'modules' => array('type' => 'int(11)', 'Null'=>false),
     'stack' => array('type' => 'int(11)'),
     'gap_x' => array('type' => 'double(4,3)'),
