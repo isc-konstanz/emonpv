@@ -21,8 +21,8 @@ foreach ($svgs as $svg) {
 
 <div class="solar-container position-relative">
     <div id="solar-header" class="d-flex justify-content-between align-items-center">
-        <h3><?php echo _('Solar systems'); ?></h3>
-        <span id="api-help" style="float:right"><a href="api"><?php echo _('Solar system API Help'); ?></a></span>
+        <h3><?php echo _('Solar projects'); ?></h3>
+        <span id="api-help" style="float:right"><a href="api"><?php echo _('Solar projects API Help'); ?></a></span>
     </div>
 
     <div id="solar-view" v-cloak>
@@ -179,9 +179,11 @@ foreach ($svgs as $svg) {
                 </div>
             </template>
             <div class="alert" v-else>
-                <h3 class="alert-heading mt-0"><?php echo _('No systems created'); ?></h3>
+                <h3 class="alert-heading mt-0"><?php echo _('No projects created'); ?></h3>
                 <p>
-                    <?php echo _('This is a placeholder to explain what this is and what to do.'); ?><br>
+                    <?php echo _('Welcome to <em>solar simulations</em>, powered by <b>ISC Konstanz e.V.</b>.'); ?><br>
+                    <?php echo _('Here, you can '); ?><a href="#" @click="solar_system.newConfig">create</a><?php echo _(' several simulation projects and quickly compare summarized results.'); ?><br>
+                    <br>
                     <?php echo _('You may want the next link as a guide for generating your request: '); ?><a href="api"><?php echo _('Solar system API helper'); ?></a>
                 </p>
             </div>

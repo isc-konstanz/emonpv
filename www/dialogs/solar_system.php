@@ -11,16 +11,21 @@
     </div>
     <div id="system-config" class="modal-body">
         <div class="modal-content">
-            <p id="system-config-description" class="description">
-                <?php echo _('Placeholder for a short description of this dialog and what to do here.'); ?>
+            <p class="description" style="margin-bottom: 6px;">
+                <?php echo _('Project sites configure geographic location, including a currently static albedo value. ');?><br>
+                <?php echo _('The sites meteorological data may either be entered via ');?><a href="https://www.nrel.gov/docs/fy08osti/43156.pdf">Typical Meteorological Year (TMY)</a>
+                <?php echo _(' CSV files, or will be automatically downloaded from configured coordinates.');?>
+                <br style="margin-bottom: 6px;">
+                <?php echo _('Each project specifies one or several simulation <em>configuration variants</em>, summarizing results in an overview, allowing quick comparison.');?>
             </p>
             <div class="settings">
                 <div class="settings-header">
                     <div>
                         <span class="title"><?php echo _('Name'); ?></span><span class="required asterisk">&ast;</span>
-                        <span id="system-name-tooltip" data-toggle="tooltip" data-placement="right"
-                                title="The name should work as a unique identifier for the system to be able to distinguish different systems. 
-                                        Additionally, an optional description may be added to provide descriptive comments regarding the specific system.">
+                        <span id="system-name-tooltip" data-toggle="tooltip" data-placement="right" 
+                                title="The <b>name is a unique identifier</b> for the project, to be able to distinguish different projects. 
+                                       Additionally, an <b>optional description</b> may be added to provide descriptive comments regarding the specific project.<br>
+                                       Further, a projects name defines the proposed names for generated output files.">
                             <svg class="icon icon-info">
                                 <use xlink:href="#icon-question" />
                             </svg>
@@ -55,7 +60,9 @@
                             <option value='RayTracing' disabled>Ray Tracing</option>
                         </select>
                     </div>
-                    <div id="system-model-tooltip" style="display: none;" data-toggle="tooltip" data-placement="bottom">
+                    <div id="system-model-tooltip" data-toggle="tooltip" data-placement="bottom"
+                            title="The <b>View Factor</b> model is based on unlimited sheds, accordingly the number rows and modules per row 
+                                   only have impact on electrical output of the array, and not on the POA irradiance.">
                         <svg class="icon icon-info">
                             <use xlink:href="#icon-question" />
                         </svg>
@@ -66,14 +73,14 @@
             <div class="divider"></div>
 
             <div class="settings" style="padding-left: 0;">
-                <div class="settings-collapse">
-                    <div class="settings-title fill">
+                <div id="system-coordinates-header">
+                    <div class="settings-title settings-collapse fill">
                         <svg id="system-collapse-icon" class="icon icon-collapse">
                             <use xlink:href="#icon-chevron-right" />
                         </svg>
                         <span type="text"><?php echo _('Location'); ?></span>
                         <span id="system-location-tooltip" data-toggle="tooltip" data-placement="right"
-                                title="Advanced configurations for the geographic coordinates <b>longitude</b> and <b>latitude</b>. 
+                                title="Configurations for the geographic coordinates <b>longitude</b> and <b>latitude</b>. 
                                         Additionally, the local <b>albedo</b> and the optional altitude of the system may be specified.">
                             <svg class="icon icon-info">
                                 <use xlink:href="#icon-question" />
@@ -107,8 +114,8 @@
                     <input id="system-file-name" type="text" class="input-large" placeholder="Upload TMY3 CSV file" required readonly>
                     <div>
                         <label class="btn btn-plain btn-default">Browse
-                        	<input id="system-file-input" type="file" accept=".csv" style="display:none;">
-                    	</label>
+                            <input id="system-file-input" type="file" accept=".csv" style="display:none;">
+                        </label>
                     </div>
                 </div>
             </div>

@@ -16,12 +16,13 @@
             </div>
         </div>
         <div id="module-config-content" class="modal-content">
-            <p id="module-config-description" class="description">
-                <?php echo _('Placeholder for a short description of this dialog and what to do here.'); ?>
+            <p class="description">
+                <?php echo _('Configuration variants each specify an optical simulation, generating DC power output for a single module.'); ?>
+                <br style="margin-bottom: 6px;">
+                <?php echo _('Each variant revolves around a specified <em>module model</em>, either from a selection of prepared available modules, or entered manually from datasheet values.'); ?>
             </p>
-            
-            <div class="settings" style="padding-left: 0; margin-top: 10px;">
-                <div class="settings-title fill">
+            <div id="module-tracking-header" class="settings" style="padding-left: 0; margin-top: 10px;">
+                <div class="settings-title settings-collapse fill">
                     <svg id="module-tracking-icon" class="icon icon-collapse">
                         <use xlink:href="#icon-chevron-right" />
                     </svg>
@@ -29,7 +30,8 @@
                         <?php echo _('Tracking'); ?>
                     </span>
                     <span id="module-tracking-tooltip" data-toggle="tooltip" data-placement="right"
-                            title="Placeholder description of tracking configurations."
+                            title="Configures the <b>horizontal single axis tracking</b>, with the axis in north-south direction.<br>
+                                   If not enabled, fixed tilt mounting applies."
                             style="margin-right: 18px">
                         <svg class="icon icon-info">
                             <use xlink:href="#icon-question" />
@@ -74,7 +76,8 @@
                 <div class="settings-title" style="padding-left: 18px;">
                     <span type="text"> <?php echo _('Mounting'); ?></span>
                     <span id="module-mounting-tooltip" data-toggle="tooltip" data-placement="right"
-                            title="Placeholder description of mounting configurations.">
+                            title="The <b>fixed tilt</b> mounting, specifyimg the <b>azimuth</b> and <b>elevation</b> from ground up to the lower edge of lower module.<br>
+                                   The azimuth is configured from north, applied for both hemispheres.">
                         <svg class="icon icon-info">
                             <use xlink:href="#icon-question" />
                         </svg>
@@ -103,10 +106,19 @@
                 </div>
             </div>
             <div id="module-losses-settings" class="collapse">
-                <div class="settings-title" style="padding-left: 18px; padding-top: 10px;">
+                <div class="settings-title settings-collapse" style="padding-top: 10px;">
+                    <svg id="module-losses-icon" class="icon icon-collapse" data-show=false>
+                        <use xlink:href="#icon-chevron-right" />
+                    </svg>
                     <span type="text"> <?php echo _('Losses'); ?></span>
+                    <span id="module-losses-tooltip" data-toggle="tooltip" data-placement="right"
+                            title="Thermal loss parameters for the <b>Faiman model</b>.">
+                        <svg class="icon icon-info">
+                            <use xlink:href="#icon-question" />
+                        </svg>
+                    </span>
                 </div>
-                <div class="collapse in">
+                <div id="module-losses" class="collapse">
                     <div class="settings">
                         <div class="settings-header">
                             <div>
@@ -122,7 +134,7 @@
                         </div>
                         <div>
                             <div><input id="module-loss-mu-c" class="input-small" type="number" required value="31" /></div>
-                            <div><input id="module-loss-mu-v" class="input-small" type="number" required value="0" /></div>
+                            <div><input id="module-loss-mu-v" class="input-small" type="number" required value="1" /></div>
                         </div>
                     </div>
                 </div>
@@ -132,19 +144,13 @@
             <div id="module-rows-settings" class="settings">
                 <div class="settings-title">
                     <span type="text"> <?php echo _('Rows'); ?></span>
-                    <span id="module-rows-tooltip" data-toggle="tooltip" data-placement="right"
-                            title="Placeholder description of the row count and pitch in meters.">
-                        <svg class="icon icon-info">
-                            <use xlink:href="#icon-question" />
-                        </svg>
-                    </span>
                 </div>
                 <div class="settings-header">
                     <div>
-                        <span><?php echo _('Number'); ?><span style="font-size: 12px"><?php echo _(' of rows'); ?></span><span class="required asterisk">&ast;</span>
+                        <span><?php echo _('Number'); ?><span style="color: #aaa; font-size: 12px"><?php echo _(' of rows'); ?></span><span class="required asterisk">&ast;</span>
                     </div>
                     <div>
-                        <span><?php echo _('Pitch'); ?></span><span class="required asterisk">&ast;</span>
+                        <span><?php echo _('Pitch'); ?><span style="color: #aaa; font-size: 12px"><?php echo _(' row to row'); ?></span></span><span class="required asterisk">&ast;</span>
                         <span class="unit">[m]</span>
                     </div>
                 </div>
@@ -156,7 +162,7 @@
             <div id="module-row-settings" class="settings">
                 <div class="settings-header">
                     <div>
-                        <span><?php echo _('Modules'); ?><span style="font-size: 12px"><?php echo _(' per row'); ?></span><span class="required asterisk">&ast;</span></span>
+                        <span><?php echo _('Modules'); ?><span style="color: #aaa; font-size: 12px"><?php echo _(' per row'); ?></span><span class="required asterisk">&ast;</span></span>
                     </div>
                     <div>
                         <span class="advanced" style="display: none;"><?php echo _('Stacked'); ?><span style="font-size: 12px"><?php echo _(' modules'); ?></span></span>
@@ -194,15 +200,16 @@
             </div>
             <div class="divider"></div>
             
-            <div class="module-settings settings" style="padding-left: 0;">
+            <div id="module-param-header" class="module-settings settings" style="padding-left: 0;">
                 <div>
-                    <div class="settings-title fill" style="margin-right:8px; marign-bottom:20px">
+                    <div class="settings-title settings-collapse fill" style="margin-right:8px; marign-bottom:20px">
                         <svg id="module-advanced-icon" class="icon icon-collapse">
                             <use xlink:href="#icon-chevron-right" />
                         </svg>
                         <span type="text"><?php echo _('Module'); ?></span>
                         <span id="module-settings-tooltip" data-toggle="tooltip" data-placement="right"
-                                title="Placeholder">
+                                title="Modules represent to concrete models, specified by values as available in manufacturer <b>datasheets</b>.<br>
+                                       By enabling the <b>advanced</b> configurations, parameters may be entered manually.">
                             <svg class="icon icon-info">
                                 <use xlink:href="#icon-question" />
                             </svg>
@@ -297,7 +304,8 @@
                     <span type="text" style="font-weight: bold;"><?php echo _('Electrical'); ?></span>
                     <span type="text" style="font-size: 12px;"><?php echo _(' at STC'); ?></span>
                     <span id="module-params-tooltip" data-toggle="tooltip" data-placement="right"
-                            title="Placeholder description of STC configurations.">
+                            title="<b>I/V parameters</b> measured at STC under front side illumination.<br>
+                                   &mu;<sub>mpp</sub> and &alpha;<sub>sc</sub> are temperature coefficients for P<sub>mpp</sub> and I<sub>sc</sub>">
                         <svg class="icon icon-info">
                             <use xlink:href="#icon-question" />
                         </svg>
@@ -305,10 +313,6 @@
                 </div>
                 <div class="settings">
                     <div class="settings-header">
-                        <div>
-                            <span>P<sub>mpp</sub></span><span class="required asterisk">&ast;</span>
-                            <span class="unit">[W]</span>
-                        </div>
                         <div>
                             <span>V<sub>mpp</sub></span><span class="required asterisk">&ast;</span>
                             <span class="unit">[V]</span>
@@ -323,13 +327,11 @@
                         </div>
                     </div>
                     <div>
-                        <div><input id="module-param-pmpp" class="input-small" type="number" step="0.001" min="0" placeholder="[W]" required /></div>
                         <div><input id="module-param-vmpp" class="input-small" type="number" step="0.001" min="0" placeholder="[V]" required /></div>
                         <div><input id="module-param-impp" class="input-small" type="number" step="0.001" min="0" placeholder="[A]" required /></div>
                         <div><input id="module-param-mu-p" class="input-small" type="number" required /></div>
                     </div>
                     <div class="settings-header">
-                        <div></div>
                         <div>
                             <span>V<sub>oc</sub></span><span class="required asterisk">&ast;</span>
                             <span class="unit">[V]</span>
@@ -344,7 +346,6 @@
                         </div>
                     </div>
                     <div>
-                        <div></div>
                         <div><input id="module-param-vmpp" class="input-small" type="number" step="0.001" min="0" placeholder="[V]" required /></div>
                         <div><input id="module-param-impp" class="input-small" type="number" step="0.001" min="0" placeholder="[A]" required /></div>
                         <div><input id="module-param-mu-p" class="input-small" type="number" required /></div>
@@ -364,7 +365,7 @@
                                 </span>
                                 <svg class="icon icon-action" onclick="solar_configs.showSidebar()">
                                     <title><?php echo _("Edit module type"); ?></title>
-                                    <use xlink:href="#icon-cog" />
+                                    <use xlink:href="#icon-wrench" />
                                 </svg>
                             </div>
                         </div>

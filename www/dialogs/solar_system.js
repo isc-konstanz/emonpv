@@ -18,30 +18,26 @@ var solar_system = {
     drawConfig: function(system = null) {
         var modal = $("#system-config-modal").modal('show');
         if (system == null) {
-            $('#system-config-label').html('Create system');
+            $('#system-config-label').html('Create project site');
             $('#system-config-delete').hide();
             $('#system-config-save').prop('disabled', true);
             $('#system-config-save').html('Create');
             
             //$('#system-model').val('').addClass('select-default');
             $('#system-model').val('ViewFactor').removeClass('select-default');
-            $('#system-model-tooltip').hide();
             $('#system-name').val('');
             $('#system-description').val('').hide();
             $("#system-description-icon").html('<use xlink:href="#icon-plus" />').data('show', false);
             
-            solar_system.drawConfigLocation(system);
+            solar_system.drawCoordinates(system);
         }
         else {
-            $('#system-config-label').html('Configure system: <b>'+system.name+'</b>');
+            $('#system-config-label').html('Configure project site: <b>'+system.name+'</b>');
             $('#system-config-delete').show();
             $('#system-config-save').prop('disabled', false);
             $('#system-config-save').html('Save');
             
             $('#system-model').val(system.model).removeClass('select-default');
-            $('#system-model-tooltip').tooltip({title: "Placeholder description for the <b>"+$('#system-model option:selected', this).text()+"</b> model.", 
-                                                html:true, container:modal}).show();
-            
             $('#system-name').val(system.name);
             
             var description = system.description != null ? system.description : '';
@@ -53,9 +49,10 @@ var solar_system = {
                 $("#system-description").val(description).hide();
                 $("#system-description-icon").html('<use xlink:href="#icon-plus" />').data('show', false);
             }
-            solar_system.drawConfigLocation(system);
+            solar_system.drawCoordinates(system);
         }
         $('#system-name-tooltip').tooltip({html:true, container:modal});
+        $('#system-model-tooltip').tooltip({html:true, container:modal});
         $('#system-location-tooltip').tooltip({html:true, container:modal});
         
         $("#system-model").off('change').on('change', function() {
@@ -91,19 +88,15 @@ var solar_system = {
             }
         });
         
-        $("#system-coordinates-mode").off('input').on('input', function() {
-            if ($(this).find('input').is(':checked')) {
-                $("#system-collapse-icon").html('<use xlink:href="#icon-chevron-down" />');
-                $("#system-coordinates").show();
-                $("#system-file").hide();
-                solar_system.drawMap(true);
-            }
-            else {
-                $("#system-collapse-icon").html('<use xlink:href="#icon-chevron-right" />');
-                $("#system-coordinates").hide();
-                $("#system-file").show();
-                solar_system.drawMap(false);
-            }
+        $("#system-coordinates-header .settings-collapse").off('click').on('click', function() {
+	        var coordinates = $("#system-coordinates-mode input");
+			var coordinatesFlag = !coordinates.is(':checked');
+            coordinates.prop('checked', coordinatesFlag);
+            solar_system.showCoordinates(coordinatesFlag)
+	    });
+        
+        $("#system-coordinates-mode").off('change').on('change', function() {
+	        solar_system.showCoordinates($(this).find('input').is(':checked'));
         });
         
         $("#system-coordinates-icon").off('click').on('click', function() {
@@ -141,7 +134,7 @@ var solar_system = {
         });
     },
 
-    drawConfigLocation: function(system) {
+    drawCoordinates: function(system) {
         if (system == null) {
             $('#system-albedo').val('');
             $('#system-latitude').val('');
@@ -150,6 +143,8 @@ var solar_system = {
             
             $("#system-coordinates-icon").html('<use xlink:href="#icon-plus" />').data('show', false);
             $("#system-coordinates .advanced").hide();
+
+            $("#system-map").hide();
         }
         else {
             $('#system-albedo').val(system.location.albedo);
@@ -168,6 +163,8 @@ var solar_system = {
                 $("#system-altitude").hide();
             }
             $('#system-altitude').val(altitude);
+
+            $("#system-map").show();
         }
         $("#system-collapse-icon").html('<use xlink:href="#icon-chevron-right" />');
         $("#system-coordinates-mode input").prop('checked', false);
@@ -177,6 +174,23 @@ var solar_system = {
         $("#system-file-name").val('').width('210px');
         
         solar_system.drawMap(false);
+    },
+
+    showCoordinates: function(show) {
+        if (show) {
+            $("#system-collapse-icon").html('<use xlink:href="#icon-chevron-down" />');
+            $("#system-coordinates").show();
+            $("#system-file").hide();
+            $("#system-map").show();
+            solar_system.drawMap(true);
+        }
+        else {
+            $("#system-collapse-icon").html('<use xlink:href="#icon-chevron-right" />');
+            $("#system-coordinates").hide();
+            $("#system-file").show();
+            if (solar_system.system == null) $("#system-map").hide();
+            solar_system.drawMap(false);
+        }
     },
 
     adjustConfig: function() {

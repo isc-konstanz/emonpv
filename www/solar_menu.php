@@ -1,7 +1,7 @@
 <?php
 
 $menu['sidebar']['emoncms'][] = array(
-    'text' => _("Solar systems"),
+    'text' => _("Solar projects"),
     'path' => 'solar/view',
     'icon' => 'solar',
     'order' => 'b5'
