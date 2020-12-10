@@ -645,8 +645,8 @@ class SolarSystem {
 
     public function export_results($system) {
         $system_dir = $this->get_system_dir($system);
-        $system_results = "$system_dir/results.csv";
-        $system_file = str_replace(' ', '_', $system['name']).".csv";
+        $system_results = "$system_dir/results.xlsx";
+        $system_file = str_replace(' ', '_', $system['name']).".xlsx";
         
         $this->export_file($system_results, $system_file);
     }

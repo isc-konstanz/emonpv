@@ -133,8 +133,8 @@
                             </div>
                         </div>
                         <div>
-                            <div><input id="module-loss-mu-c" class="input-small" type="number" required value="31" /></div>
-                            <div><input id="module-loss-mu-v" class="input-small" type="number" required value="1" /></div>
+                            <div><input id="module-loss-mu-c" class="input-small" type="number" placeholder="31" /></div>
+                            <div><input id="module-loss-mu-v" class="input-small" type="number" placeholder="1" /></div>
                         </div>
                     </div>
                 </div>
