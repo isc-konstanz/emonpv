@@ -671,14 +671,14 @@ class SolarSystem {
     }
 
     public function export_config_results($system, $configs) {
-        $results_name = str_replace(' ', '_', $system['name']);
+        $results_name = '';
         $result = $this->mysqli->query("SELECT `order` FROM solar_refs WHERE `sysid` = '".$system['id']."' AND `cfgid` = '".$configs['id']."'");
         while ($r = $result->fetch_array()) {
             $results_name .= '_'.$r['order'];
         }
-        $results_file = SolarSystem::get_system_dir($system)."/results/$results_name.csv";
+        $results_file = SolarSystem::get_system_dir($system)."/results/results$results_name.csv";
         
-        SolarSystem::export_file($results_file);
+        SolarSystem::export_file($results_file, str_replace(' ', '_', $system['name'])."$results_name.csv");
     }
 
     public function get_list($userid) {

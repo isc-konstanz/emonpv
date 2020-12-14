@@ -39,7 +39,7 @@ var view = new Vue({
 			var module = configs.module;
 			var power = module.V_mp_ref * module.I_mp_ref;
 			return {
-				'Name': module.Technology+' '+power+'Wp',
+				'Name': module.Technology+' '+power.toFixed(0)+'Wp',
 				'Manufacturer': 'Custom'
 			};
         },
@@ -91,7 +91,7 @@ var view = new Vue({
         },
         hasResults: function(system, configs) {
 			if (view.isSuccess(system)) {
-				let resultsFile = system.name.replace(' ', '_') + "_" + configs.order + ".csv";
+				let resultsFile = "results_" + configs.order + ".csv";
 				return system.results.files.indexOf(resultsFile) > -1;
 			}
 			return false;
