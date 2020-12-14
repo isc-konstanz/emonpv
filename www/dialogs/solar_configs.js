@@ -244,7 +244,14 @@ var solar_configs = {
 
     drawModule: function(configs) {
         if (configs == null) {
-            solar_configs.showAdvanced(false);
+            $('#module-advanced-mode input').prop('checked', false);
+            
+            $("#module-advanced-icon").html('<use xlink:href="#icon-chevron-right" />');
+            $('#module-losses-settings').removeClass('in').height(0);
+            $('#module-param-advanced').removeClass('in').height(0);
+            $('#module-param-settings').addClass('in').height('auto');
+            solar_configs.showSidebar();
+            solar_configs.drawAdvanced(null);
             
             $('#module-orientation').val('PORTRAIT');
             
@@ -312,7 +319,7 @@ var solar_configs = {
     },
 
     drawAdvanced: function(module) {
-        if (typeof module.success !== 'undefined' && !module.success) {
+        if (module != null && typeof module.success !== 'undefined' && !module.success) {
             alert('Solar module could not be configured:\n'+module.message);
             return false;
         }
