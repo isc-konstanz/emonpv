@@ -64,7 +64,7 @@ var solar = {
     },
 
     configs: {
-		create:function(sysid, invid, strid, type, orientation, rows, mounting, tracking, callback) {
+		create:function(sysid, invid, strid, rows, mounting, tracking, losses, orientation, module, callback) {
 			if (mounting !== false) {
 				mounting = JSON.stringify(mounting);
 			}
@@ -75,11 +75,11 @@ var solar = {
 					"sysid="+sysid+
 					"&invid="+invid+
 					"&strid="+strid+
-					"&type="+type+
-					"&orientation="+orientation+
 					"&rows="+JSON.stringify(rows)+
 					"&mounting="+mounting+
-					"&tracking="+tracking);
+					"&tracking="+tracking+
+					"&orientation="+orientation+
+					"&module="+module);
 		},
         download:function(id, sysid) {
             window.open(path+"solar/configs/download.json?id="+id+"&sysid="+sysid);
@@ -91,6 +91,15 @@ var solar = {
 		remove:function(id, sysid, invid, callback) {
 			return solar.delete(callback, "solar/configs/delete.json?id="+id+"&sysid="+sysid+"&invid="+invid);
 		}
+    },
+
+    module: {
+        list:function(callback) {
+            return solar.get(callback, "solar/module/list.json");
+        },
+        get:function(type, callback) {
+            return solar.get(callback, "solar/module/get.json", "type="+type);
+        }
     },
 
     get:function(callback, route, data) {

@@ -133,8 +133,8 @@
                             </div>
                         </div>
                         <div>
-                            <div><input id="module-loss-mu-c" class="input-small" type="number" placeholder="31" /></div>
-                            <div><input id="module-loss-mu-v" class="input-small" type="number" placeholder="1" /></div>
+                            <div><input id="module-loss-constant" class="input-small" type="number" step=any placeholder="31" /></div>
+                            <div><input id="module-loss-wind" class="input-small" type="number" step=any placeholder="1" /></div>
                         </div>
                     </div>
                 </div>
@@ -224,10 +224,10 @@
                 </div>
             </div>
             <div id="module-param-advanced" class="collapse">
-            	<div class="settings">
+                <div class="settings">
                     <div class="settings-header">
                         <div>
-                            <span><?php echo _('Height'); ?></span><span class="required asterisk">&ast;</span>
+                            <span><?php echo _('Length'); ?></span><span class="required asterisk">&ast;</span>
                             <span class="unit">[m]</span>
                         </div>
                         <div>
@@ -240,12 +240,12 @@
                         </div>
                     </div>
                     <div>
-                        <div><input id="module-param-height" class="input-small" type="number" step="0.001" min="0" placeholder="[m]" required /></div>
+                        <div><input id="module-param-length" class="input-small" type="number" step="0.001" min="0" placeholder="[m]" required /></div>
                         <div><input id="module-param-width" class="input-small" type="number" step="0.001" min="0" placeholder="[m]" required /></div>
                         <div><input id="module-param-cells" class="input-small" type="number" step="1" min="1"required /></div>
                     </div>
-            	</div>
-                <div class="settings bifaciality">
+                </div>
+                <div id="module-bifi-settings" class="settings">
                     <div class="settings-header">
                         <div style="width: 116px">
                             <span><?php echo _('Bifaciality'); ?></span><span class="required asterisk">&ast;</span></span>
@@ -288,15 +288,30 @@
                             </select>
                         </div>
                     </div>
+                </div>
+                <div id="module-tech-settings" class="settings">
                     <div class="settings-header">
-                        <div class="header">
+                        <div></div>
+                        <div></div>
+                        <div style="padding-right: 0px;">
+                            <span class="advanced" style="display: none;"><?php echo _('Ideality factor'); ?></span>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="header" style="width: 116px;">
                             <span><?php echo _('Technology'); ?></span><span class="required asterisk">&ast;</span>
                         </div>
                         <div>
-                            <select id="module-technology" class="input-large" type="text" required>
+                            <select id="module-technology" class="input-large" type="text" style="margin-right: 12px;" required>
                                 <option value='Mono-c-Si'>Monocrystalline silicon</option>
                                 <option value='Multi-c-Si'>Multicrystalline silicon</option>
                             </select>
+                        </div>
+                        <div><input id="module-ideality-factor" class="input-small advanced" type="number" step="any" min="0" style="display: none;" /></div>
+                        <div>
+                            <svg id="module-tech-icon" class="icon icon-action" title="<?php echo _('Edit diode ideality factor'); ?>">
+                                <use xlink:href="#icon-plus" />
+                            </svg>
                         </div>
                     </div>
                 </div>
@@ -329,7 +344,7 @@
                     <div>
                         <div><input id="module-param-vmpp" class="input-small" type="number" step="0.001" min="0" placeholder="[V]" required /></div>
                         <div><input id="module-param-impp" class="input-small" type="number" step="0.001" min="0" placeholder="[A]" required /></div>
-                        <div><input id="module-param-mu-p" class="input-small" type="number" required /></div>
+                        <div><input id="module-param-mu-p" class="input-small" type="number" step="any" required /></div>
                     </div>
                     <div class="settings-header">
                         <div>
@@ -346,9 +361,9 @@
                         </div>
                     </div>
                     <div>
-                        <div><input id="module-param-vmpp" class="input-small" type="number" step="0.001" min="0" placeholder="[V]" required /></div>
-                        <div><input id="module-param-impp" class="input-small" type="number" step="0.001" min="0" placeholder="[A]" required /></div>
-                        <div><input id="module-param-mu-p" class="input-small" type="number" required /></div>
+                        <div><input id="module-param-voc" class="input-small" type="number" step="0.001" min="0" placeholder="[V]" required /></div>
+                        <div><input id="module-param-isc" class="input-small" type="number" step="0.001" min="0" placeholder="[A]" required /></div>
+                        <div><input id="module-param-alpha-sc" class="input-small" type="number" step="any" required /></div>
                     </div>
                 </div>
             </div>

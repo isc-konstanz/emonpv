@@ -32,8 +32,16 @@ var view = new Vue({
                 scrolled = window.scrollY > 45;
             }, 100);
         },
-        getModule: function(type) {
-            return modules[type.split('/')[0]][type];
+        getModule: function(configs) {
+			if (configs.type !== 'custom') {
+            	return modules[configs.type.split('/')[0]][type];
+			}
+			var module = configs.module;
+			var power = module.V_mp_ref * module.I_mp_ref;
+			return {
+				'Name': module.Technology+' '+power+'Wp',
+				'Manufacturer': 'Custom'
+			};
         },
         toggleCollapse: function(event, id) {
             window.clearTimeout(timeout);

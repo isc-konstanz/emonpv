@@ -35,7 +35,7 @@ function solar_controller() {
         }
         else if ($route->action == "view" && $session['write']) {
             require_once("Modules/solar/libs/models/solar_module.php");
-            $module = new SolarModule();
+            $module = new SolarModule($mysqli);
             $modules = $module->get_list_meta();
             
             return view("Modules/solar/views/solar_view.php", array('modules'=>$modules));
@@ -154,8 +154,8 @@ function configs_controller(SolarSystem $system, SolarConfigs $configs) {
                 if ($inv['sysid'] != $sysid) {
                     return array('success'=>false, 'message'=>'Unable to add configuration for this inverter');
                 }
-                $cfg = $configs->create($session['userid'], prop('type'), prop('orientation'),
-                    prop('rows'), prop('mounting'), prop('tracking'));
+                $cfg = $configs->create($session['userid'], 
+                        prop('rows'), prop('mounting'), prop('tracking'), prop('losses'), prop('orientation'), prop('module'));
                 
                 return $system->add_configs($sys, $inv, prop('strid'), $cfg);
             }
@@ -201,17 +201,17 @@ function configs_controller(SolarSystem $system, SolarConfigs $configs) {
 }
 
 function module_controller() {
-    global $session, $route;
+    global $mysqli, $session, $route;
     
     require_once("Modules/solar/libs/models/solar_module.php");
-    $module = new SolarModule();
+    $module = new SolarModule($mysqli);
     
     if ($session['read']) {
         if ($route->subaction == 'list') {
             return $module->get_list_meta();
         }
         else if ($route->subaction == 'get') {
-            return $module->get('type');
+            return $module->get(get('type'));
         }
     }
     return array('content'=>EMPTY_ROUTE);

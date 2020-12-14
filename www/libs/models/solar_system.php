@@ -276,9 +276,9 @@ class SolarSystem {
                 if (!file_exists($configs_dir)) {
                     mkdir($configs_dir);
                 }
-                if (!empty($configs['type'])) {
+                if (!empty($configs['type']) && substr($configs['type'], 0, 6) !== 'custom') {
                     require_once("Modules/solar/libs/models/solar_module.php");
-                    $module = new SolarModule();
+                    $module = new SolarModule($this->mysqli);
                     $module_json = $module->get($configs['type']);
                     $module_configs = $configs_dir."/module.cfg";
                     $this->delete_file($module_configs);
@@ -290,14 +290,28 @@ class SolarSystem {
                 $model_file = $configs_dir."/model.cfg";
                 $this->delete_file($model_file);
                 file_put_contents($model_file, "[Optical]".PHP_EOL, FILE_APPEND);
-                file_put_contents($model_file, "rows = $rows_count".PHP_EOL, FILE_APPEND);
-                file_put_contents($model_file, "row_modules = $rows_modules".PHP_EOL, FILE_APPEND);
+                file_put_contents($model_file, "    rows = $rows_count".PHP_EOL, FILE_APPEND);
+                file_put_contents($model_file, "    row_modules = $rows_modules".PHP_EOL, FILE_APPEND);
                 
                 if (isset($row['pos_x'])) {
-                    file_put_contents($model_file, "pos_x = ".$row['pos_x'].PHP_EOL, FILE_APPEND);
+                    file_put_contents($model_file, "    pos_x = ".$row['pos_x'].PHP_EOL, FILE_APPEND);
                 }
                 if (isset($row['pos_y'])) {
-                    file_put_contents($model_file, "pos_y = ".$row['pos_y'].PHP_EOL, FILE_APPEND);
+                    file_put_contents($model_file, "    pos_y = ".$row['pos_y'].PHP_EOL, FILE_APPEND);
+                }
+                
+                // Losses section
+                $losses = $configs['losses'];
+                if ($losses !== false) {
+                    file_put_contents($model_file, PHP_EOL.
+                            "[Losses]".PHP_EOL, FILE_APPEND);
+                    
+                    if (isset($losses['constant'])) {
+                        file_put_contents($model_file, "    mu_c = ".$losses['constant'].PHP_EOL, FILE_APPEND);
+                    }
+                    if (isset($losses['wind'])) {
+                        file_put_contents($model_file, "    mu_v = ".$losses['wind'].PHP_EOL, FILE_APPEND);
+                    }
                 }
             }
         }

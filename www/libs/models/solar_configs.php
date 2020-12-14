@@ -40,7 +40,7 @@ class SolarConfigs {
         return false;
     }
 
-    public function create($userid, $type, $orientation, $rows, $mounting, $tracking) {
+    public function create($userid, $rows, $mounting, $tracking, $losses, $orientation, $module) {
         $userid = intval($userid);
         
         if (!isset($orientation) || !Orientation::is_valid($orientation)) {
@@ -50,12 +50,12 @@ class SolarConfigs {
             $orientation = Orientation::get_code($orientation);
         }
         
-        if (!empty($type)) {
-            $type = preg_replace('/[^\/\|\,\w\s\-\:]/','', $type);
+        if (is_string($module) && !empty($module)) {
+            $type = preg_replace('/[^\/\|\,\w\s\-\:]/','', $module);
             // TODO: check if module exists
         }
         else {
-            $type = null;
+            $type = 'custom';
         }
         
         // TODO: Make row configs optional
@@ -122,6 +122,25 @@ class SolarConfigs {
             $tracking['axis'] = 1;
         }
         
+        if (!empty($losses)) {
+            $tracking = json_decode(stripslashes($tracking), true);
+        }
+        else {
+            $tracking = false;
+        }
+        if ($tracking !== false) {
+            if (!isset($tracking['axis_height']) || !is_numeric($tracking['axis_height']) ||
+                    !isset($tracking['tilt_max']) || !is_numeric($tracking['tilt_max']) ||
+                    !isset($tracking['backtrack'])) {
+                        
+                        throw new SolarException("The tracking configuration is invalid");
+                    }
+                    else {
+                        // TODO: verify parameter boundaries
+                    }
+                    $tracking['axis'] = 1;
+        }
+        
         $stmt = $this->mysqli->prepare("INSERT INTO solar_configs (userid,type,orientation) VALUES (?,?,?)");
         $stmt->bind_param("iss", $userid, $type, $orientation);
         $stmt->execute();
@@ -143,6 +162,9 @@ class SolarConfigs {
         }
         if ($tracking !== false) {
             $tracking = $this->create_tracking($id, $tracking['axis'], $tracking['axis_height'], $tracking['tilt_max'], $tracking['backtrack']);
+        }
+        if ($losses !== false) {
+            $losses = $this->create_tracking($id, $tracking['axis'], $tracking['axis_height'], $tracking['tilt_max'], $tracking['backtrack']);
         }
         $configs = $this->decode($configs);
         $configs['rows'] = $rows;
@@ -234,6 +256,25 @@ class SolarConfigs {
         );
     }
 
+    private function create_losses($id, $constant, $wind) {
+        $constant = floatval($constant);
+        $wind = floatval($wind);
+        
+        $stmt = $this->mysqli->prepare("INSERT INTO solar_losses (id,constant,wind) VALUES (?,?,?)");
+        try {
+            $stmt->bind_param("idd", $id, $constant, $wind);
+            if ($stmt->execute() === false) {
+                throw new SolarException("Unable to create loss configurations");
+            }
+        } finally {
+            $stmt->close();
+        }
+        return array(
+                "constant" => $constant,
+                "wind" => $wind
+        );
+    }
+
     public function get($id) {
         $id = intval($id);
         if (!$this->exist($id)) {
@@ -290,12 +331,36 @@ class SolarConfigs {
         );
     }
 
+    private function get_losses($id) {
+        $result = $this->mysqli->query("SELECT * FROM solar_losses WHERE id = '$id'");
+        if ($result->num_rows < 1) {
+            return false;
+        }
+        $losses = $result->fetch_array();
+        
+        return array(
+                "constant" => floatval($losses['constant']),
+                "wind" => floatval($losses['wind'])
+        );
+    }
+
+    private function get_module($configs) {
+        require_once("Modules/solar/libs/models/solar_module.php");
+        $module = new SolarModule($this->mysqli);
+        
+        return $module->get_parameters($configs);
+    }
+
     private function parse($result) {
         $configs = $this->decode($result);
         $configs['rows'] = $this->get_rows($configs['id']);
         $configs['mounting'] = $this->get_mounting($configs['id']);
         $configs['tracking'] = $this->get_tracking($configs['id']);
+        $configs['losses'] = $this->get_losses($configs['id']);
         
+        if ($configs['type'] === 'custom') {
+            $configs['module'] = $this->get_module($configs);
+        }
         return $configs;
     }
 
@@ -313,13 +378,13 @@ class SolarConfigs {
         
         //$this->update_integer($configs['id'], 'configs', $fields, 'strid', 1, CONFIGS_STRID_MAX);
         
-        $this->update_string($configs['id'], 'configs', $fields, 'type');
-        
         $this->update_orientation($configs['id'], $fields);
         
         $this->update_rows($configs, $fields);
         $this->update_mounting($configs, $fields);
         $this->update_tracking($configs, $fields);
+        $this->update_losses($configs, $fields);
+        $this->update_module($configs, $fields);
         
         return $this->get($configs['id']);
     }
@@ -388,6 +453,57 @@ class SolarConfigs {
             $this->update_double($configs['id'], 'tracking', $tracking, 'tilt_max', 0, CONFIGS_ANGLE_MAX);
             $this->update_boolean($configs['id'], 'tracking', $tracking, 'backtrack');
         }
+    }
+
+    private function update_losses($configs, $fields) {
+        if (!isset($fields['losses'])) {
+            return;
+        }
+        $losses = $fields['losses'];
+        
+        if ($losses === false) {
+            $this->mysqli->query("DELETE FROM solar_losses WHERE `id` = '".$configs['id']."'");
+        }
+        else if (!$configs['losses']) {
+            if (!isset($losses['constant']) || !is_numeric($losses['constant']) ||
+                    !isset($losses['wind']) || !is_numeric($losses['wind'])) {
+                
+                throw new SolarException("The losses configuration is invalid");
+            }
+            $this->create_losses($configs['id'], $losses['constant'], $losses['wind']);
+        }
+        else {
+            $this->update_double($configs['id'], 'losses', $losses, 'constant', PHP_FLOAT_MIN, PHP_FLOAT_MAX);
+            $this->update_double($configs['id'], 'losses', $losses, 'wind', PHP_FLOAT_MIN, PHP_FLOAT_MAX);
+        }
+    }
+    
+    private function update_module($configs, $fields) {
+        if (!isset($fields['module'])) {
+            return;
+        }
+        require_once("Modules/solar/libs/models/solar_module.php");
+        $module = new SolarModule($this->mysqli);
+        
+        $type = is_string($fields['module']) ? $fields['module'] : 'custom';
+        if ($type !== 'custom') {
+            $this->update_database($configs['id'], 'configs', 'type', $type, 's');
+            
+            if (substr($configs['type'], 0, 6) === "custom") {
+                $this->update_losses($configs, array('losses' => false));
+                $module->delete_parameters($configs);
+            }
+            return;
+        }
+        else if (substr($configs['type'], 0, 6) !== "custom") {
+            $this->update_database($configs['id'], 'configs', 'type', $type, 's');
+        }
+        
+        $parameters = $module->get_parameters($configs);
+        foreach ($fields['module'] as $key=>$val) {
+            $parameters[$key] = $val;
+        }
+        $module->write_parameters($configs, $parameters);
     }
 
     private function update_boolean($id, $database, $fields, $field) {

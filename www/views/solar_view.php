@@ -83,8 +83,8 @@ foreach ($svgs as $svg) {
                                                    :value="configs.rows.modules" v-on:input="setCount($event, configs, 'configs')"></input>
                                         </div -->
                                         <div class="count"><span>{{getCount(configs)}}</span></div>
-                                        <div class="name"><span>{{getModule(configs.type).Manufacturer}}</span></div>
-                                        <div class="description"><span>{{getModule(configs.type).Name}}</span></div>
+                                        <div class="name"><span>{{getModule(configs).Manufacturer}}</span></div>
+                                        <div class="description"><span>{{getModule(configs).Name}}</span></div>
                                         <div class="grow"></div>
                                         <div class="action" v-if="hasResults(system, configs)" @click="solar.configs.download(configs.id, system.id)">
                                             <svg class="icon icon-action">
@@ -99,7 +99,7 @@ foreach ($svgs as $svg) {
                                                 <use xlink:href="#icon-content_copy" />
                                             </svg>
                                         </div>
-                                        <div class="action" @click="solar_configs.openConfig(inverter, configs.id, configs.type)">
+                                        <div class="action" @click="solar_configs.openConfig(inverter, configs.id)">
                                             <svg class="icon icon-action">
                                                 <title><?php echo _("Edit configurations"); ?></title>
                                                 <use xlink:href="#icon-wrench" />

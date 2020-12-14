@@ -17,8 +17,11 @@ class SolarModule {
 
     private $log;
 
-    public function __construct() {
+    private $mysqli;
+
+    public function __construct($mysqli) {
         $this->log = new EmonLogger(__FILE__);
+        $this->mysqli = $mysqli;
     }
 
     public function get_list_meta() {
@@ -73,6 +76,65 @@ class SolarModule {
             $models_dir .= "/";
         }
         return $models_dir."modules/";
+    }
+
+    public function get_parameters($configs) {
+        $parameters = array();
+        foreach ($this->get_dirs($configs) as $dir) {
+            $file = $dir."/module.cfg";
+            if (file_exists($file)) {
+                $parameter_file = parse_ini_file($file, false, INI_SCANNER_TYPED);
+                foreach ($parameter_file as $key => $value) {
+                    $parameters[$key] = $value;
+                }
+            }
+        }
+        return $parameters;
+    }
+
+    public function write_parameters($configs, $parameters) {
+        foreach ($this->get_dirs($configs) as $dir) {
+            if (!file_exists($dir)) {
+                mkdir($dir);
+            }
+            $file = $dir."/module.cfg";
+            $this->delete_file($file);
+            foreach ($parameters as $key=>$val) {
+                if ($val !== '') {
+                    file_put_contents($file, "$key = $val".PHP_EOL, FILE_APPEND);
+                }
+            }
+        }
+    }
+
+    public function delete_parameters($configs) {
+        foreach ($this->get_dirs($configs) as $dir) {
+            $this->delete_file($dir."/module.cfg");
+        }
+    }
+
+    private function delete_file($path) {
+        if (!file_exists($path)) {
+            return;
+        }
+        if (is_file($path)) {
+            unlink($path);
+        }
+    }
+
+    private function get_dirs($configs) {
+        $user_id = $configs['userid'];
+        $user_dir = SolarSystem::get_user_dir($user_id);
+        $dirs = array();
+        
+        $results = $this->mysqli->query("SELECT * FROM solar_refs WHERE `cfgid` = '".$configs['id']."' ORDER BY `order` ASC");
+        while ($result = $results->fetch_array()) {
+            $system = array('id' => intval($result['sysid']));
+            $system_dir = SolarSystem::get_system_dir($system, $user_dir);
+            
+            $dirs[] = $system_dir."/conf/configs".intval($result['order']).".d";
+        }
+        return $dirs;
     }
 
 }

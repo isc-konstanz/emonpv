@@ -62,6 +62,12 @@ $schema['solar_tracking'] = array(
     'backtrack' => array('type' => 'tinyint(1)')
 );
 
+$schema['solar_losses'] = array(
+    'id' => array('type' => 'int(11)', 'Null'=>false),
+    'wind' => array('type' => 'double(6,3)'),
+    'constant' => array('type' => 'double(6,3)')
+);
+
 $schema['solar_inverter'] = array(
     'id' => array('type' => 'int(11)', 'Null'=>false, 'Key'=>'PRI', 'Extra'=>'auto_increment'),
     'sysid' => array('type' => 'int(11)', 'Null'=>false),

@@ -12,11 +12,13 @@ var solar_configs = {
         solar_configs.adjustConfig();
     },
 
-    openConfig: function(inverter, id, type) {
+    openConfig: function(inverter, id) {
+        var configs = inverter.configs[id];
+        
         solar_configs.id = id;
-        solar_configs.type = type;
+        solar_configs.type = configs.type;
         solar_configs.inverter = inverter;
-        solar_configs.drawConfig(inverter.configs[id]);
+        solar_configs.drawConfig(configs);
         solar_configs.adjustConfig();
     },
 
@@ -48,11 +50,10 @@ var solar_configs = {
             $('#module-tilt').val('');
             $('#module-azimuth').val('');
             $('#module-elevation').val('');
-            
-            $('#module-param-settings').addClass('in').height('auto');
-            $('#module-param-advanced').removeClass('in').height(0);
+
             $('#module-losses-settings').removeClass('in').height(0);
-            $('#module-advanced-mode input').prop('checked', false);
+            $('#module-loss-constant').val('');
+            $('#module-loss-wind').val('');
             
             $('#module-orientation').val('PORTRAIT');
             
@@ -115,20 +116,20 @@ var solar_configs = {
                 $("#module-row-icon").html('<use xlink:href="#icon-plus" />').data('show', false);
             }
             
-            $('#module-param-settings').addClass('in').height('auto');
-            $('#module-param-advanced').removeClass('in').height(0);
+            var losses = configs.losses !== false;
+            if (losses) {
+                $('#module-loss-constant').val(configs.losses.constant);
+                $('#module-loss-wind').val(configs.losses.wind);
+            }
+            else {
+                $('#module-loss-constant').val('');
+                $('#module-loss-wind').val('');
+            }
             $('#module-losses-settings').removeClass('in').height(0);
-            $('#module-advanced-mode input').prop('checked', false);
             
             $('#module-orientation').val(configs.orientation.toUpperCase());
-            
-            var module = modules[configs.type.split('/')[0]][configs.type];
-            $('#module-model-type').text(module.Name);
-            $('#module-model-description').text(module.Description);
-            $('#module-model-manufacturer').html('<b>'+module.Manufacturer+'</b>');
-            $('#module-model-menu').html('<use xlink:href="#icon-dots-vertical" />').data('toggle', 'dropdown');
         }
-        solar_configs.drawConfigModule(configs);
+        solar_configs.drawModule(configs);
         
         $('#module-tracking-tooltip').tooltip({html:true, container:modal});
         $('#module-mounting-tooltip').tooltip({html:true, container:modal});
@@ -149,16 +150,16 @@ var solar_configs = {
         });
         
         $("#module-losses-settings .settings-collapse").off('click').on('click', function() {
-	        var losses = $("#module-losses-icon");
+            var losses = $("#module-losses-icon");
             var lossesFlag = !losses.data('show');
-	        if (lossesFlag) {
-	            losses.html('<use xlink:href="#icon-chevron-down" />');
-	            $('#module-losses').collapse('show');
-	        }
-	        else {
-	            losses.html('<use xlink:href="#icon-chevron-right" />');
-	            $('#module-losses').collapse('hide');
-	        }
+            if (lossesFlag) {
+                losses.html('<use xlink:href="#icon-chevron-down" />');
+                $('#module-losses').collapse('show');
+            }
+            else {
+                losses.html('<use xlink:href="#icon-chevron-right" />');
+                $('#module-losses').collapse('hide');
+            }
             losses.data('show', lossesFlag);
         });
         
@@ -196,6 +197,8 @@ var solar_configs = {
             
             if (solar_configs.type !== type) {
                 solar_configs.type = type;
+                solar.module.get(type, solar_configs.drawAdvanced);
+                
                 $('.module-model').removeClass("selected");
                 //$(this).addClass("selected");
                 
@@ -239,13 +242,9 @@ var solar_configs = {
         });
     },
 
-    drawConfigModule: function(configs) {
-        // TODO: Check if type is valid or if is advanced mode
-        
+    drawModule: function(configs) {
         if (configs == null) {
-            $('#module-param-settings').addClass('in').height('auto');
-            $('#module-param-advanced').removeClass('in').height(0);
-            $('#module-advanced-mode input').prop('checked', false);
+            solar_configs.showAdvanced(false);
             
             $('#module-orientation').val('PORTRAIT');
             
@@ -255,29 +254,168 @@ var solar_configs = {
             $('#module-model-menu').data('toggle', 'none').html('<use xlink:href="#icon-checkmark" />');
         }
         else {
-            $('#module-param-settings').addClass('in').height('auto');
-            $('#module-param-advanced').removeClass('in').height(0);
-            $('#module-advanced-mode input').prop('checked', false);
-            
-            $('#module-orientation').val(configs.orientation.toUpperCase());
-            
-            var module = modules[configs.type.split('/')[0]][configs.type];
-            $('#module-model-type').text(module.Name);
-            $('#module-model-description').text(module.Description);
-            $('#module-model-manufacturer').html('<b>'+module.Manufacturer+'</b>');
-            $('#module-model-menu').html('<use xlink:href="#icon-dots-vertical" />').data('toggle', 'dropdown');
+            // TODO: Check if type is valid or if is advanced mode
+            if (configs.type != null && configs.type !== 'custom') {
+                $('#module-advanced-mode input').prop('checked', false);
+                
+                $("#module-advanced-icon").html('<use xlink:href="#icon-chevron-right" />');
+                $('#module-losses-settings').removeClass('in').height(0);
+                $('#module-param-advanced').removeClass('in').height(0);
+                $('#module-param-settings').addClass('in').height('auto');
+                solar_configs.showSidebar();
+                
+                var module = modules[configs.type.split('/')[0]][configs.type];
+                $('#module-model-type').text(module.Name);
+                $('#module-model-description').text(module.Description);
+                $('#module-model-manufacturer').html('<b>'+module.Manufacturer+'</b>');
+                $('#module-model-menu').html('<use xlink:href="#icon-dots-vertical" />').data('toggle', 'dropdown');
+                
+                solar.module.get(configs.type, solar_configs.drawAdvanced);
+            }
+            else {
+                $('#module-advanced-mode input').prop('checked', true);
+                
+                $("#module-advanced-icon").html('<use xlink:href="#icon-chevron-down" />');
+                $('#module-losses-settings').addClass('in').height('auto');
+                $('#module-param-advanced').addClass('in').height('auto');
+                $('#module-param-settings').removeClass('in').height(0);
+                $('.module-model').removeClass("selected");
+                solar_configs.drawAdvanced(configs.module);
+                solar_configs.hideSidebar();
+                
+                $('#module-model-type').text('');
+                $('#module-model-description').text('');
+                $('#module-model-manufacturer').text('Select a module type');
+            }
         }
-        $("#module-bifi-select input").prop('checked', false);
         
         $("#module-bifi-select input").off('change').on('change', function() {
             if ($(this).prop('checked')) {
-                $("#module-param-advanced .bifaciality .advanced").animate({width:'toggle'}, 250);
+                $("#module-bifi-settings .advanced").animate({width:'toggle'}, 250);
             }
             else {
-                $("#module-param-advanced .bifaciality .advanced").animate({width:'toggle'}, 250);
-                $("#module-param-advanced .bifaciality .advanced input").val("");
+                $("#module-bifi-settings .advanced").animate({width:'toggle'}, 250);
+                $("#module-bifi-factor").val("");
             }
         });
+        
+        $("#module-tech-icon").off('click').on('click', function() {
+            if (!$(this).data('show')) {
+                $("#module-tech-settings .advanced").animate({width:'toggle'}, 250);
+                $(this).html('<use xlink:href="#icon-cross" />').data('show', true);
+            }
+            else {
+                $("#module-tech-settings .advanced").animate({width:'toggle'}, 250).val("");
+                $(this).html('<use xlink:href="#icon-plus" />').data('show', false);
+            }
+        });
+    },
+
+    drawAdvanced: function(module) {
+        if (typeof module.success !== 'undefined' && !module.success) {
+            alert('Solar module could not be configured:\n'+module.message);
+            return false;
+        }
+        if (module == null) {
+            $("#module-param-length").val("");
+            $("#module-param-width").val("");
+            $("#module-param-cells").val("");
+            
+            $("#module-bifi-settings .advanced").hide();
+            $("#module-bifi-select input").prop('checked', false);
+            $("#module-bifi-factor").val("");
+            
+            $("#module-surface-front").val("");
+            $("#module-surface-back").val("");
+            $("#module-technology").val("");
+            
+            $("#module-ideality-factor").val("").hide();
+            $("#module-tech-settings .advanced").hide();
+            $("#module-tech-icon").html('<use xlink:href="#icon-plus" />').data('show', false);
+            
+            $("#module-param-vmpp").val("");
+            $("#module-param-impp").val("");
+            $("#module-param-mu-p").val("");
+            
+            $("#module-param-voc").val("");
+            $("#module-param-isc").val("");
+            $("#module-param-alpha-sc").val("");
+        }
+        else {
+            $("#module-param-length").val(module.A_y);
+            $("#module-param-width").val(module.A_x);
+            $("#module-param-cells").val(module.Cells_in_Series);
+            
+            if (("Bifi" in module && module.Bifi === "Y") || module.Bifaciality > 0) {
+                $("#module-bifi-settings .advanced").show();
+                $("#module-bifi-select input").prop('checked', true);
+                $("#module-bifi-factor").val(module.Bifaciality);
+            }
+            else {
+                $("#module-bifi-settings .advanced").hide();
+                $("#module-bifi-select input").prop('checked', false);
+                $("#module-bifi-factor").val("");
+            }
+            $("#module-surface-front").val(module.Front_type);
+            $("#module-surface-back").val(module.Back_type);
+            $("#module-technology").val(module.Technology);
+            
+            if (typeof module.Ideality_factor !== 'undefined') {
+                $("#module-ideality-factor").val(module.Ideality_factor).show();
+                $("#module-tech-settings .advanced").show();
+                $("#module-tech-icon").html('<use xlink:href="#icon-cross" />').data('show', true);
+            }
+            else {
+                $("#module-ideality-factor").val("").hide();
+                $("#module-tech-settings .advanced").hide();
+                $("#module-tech-icon").html('<use xlink:href="#icon-plus" />').data('show', false);
+            }
+            
+            $("#module-param-vmpp").val(module.V_mp_ref);
+            $("#module-param-impp").val(module.I_mp_ref);
+            $("#module-param-mu-p").val(module.mu_power);
+            
+            $("#module-param-voc").val(module.V_oc_ref);
+            $("#module-param-isc").val(module.I_sc_ref);
+            $("#module-param-alpha-sc").val(module.alpha_sc);
+        }
+    },
+
+    showAdvanced: function(show) {
+        if (show) {
+            $("#module-advanced-icon").html('<use xlink:href="#icon-chevron-down" />');
+            $('#module-losses-settings').collapse('show');
+            $('#module-param-advanced').collapse('show');
+            $('#module-param-settings').collapse('hide');
+            $('.module-model').removeClass("selected");
+            solar_configs.hideSidebar();
+            solar_configs.type = null;
+            
+            $('#module-model-type').text('');
+            $('#module-model-description').text('');
+            $('#module-model-manufacturer').text('Select a module type');
+            solar_configs.verifyConfig();
+        }
+        else {
+            $("#module-advanced-icon").html('<use xlink:href="#icon-chevron-right" />');
+            $('#module-losses-settings').collapse('hide');
+            $('#module-param-advanced').collapse('hide');
+            $('#module-param-settings').collapse('show');
+            solar_configs.showSidebar();
+        }
+    },
+
+    showTracking: function(show) {
+        if (show) {
+            $("#module-tracking-icon").html('<use xlink:href="#icon-chevron-down" />');
+            $('#module-tracking-settings').collapse('show');
+            $('#module-mounting-settings').collapse('hide');
+        }
+        else {
+            $("#module-tracking-icon").html('<use xlink:href="#icon-chevron-right" />');
+            $('#module-tracking-settings').collapse('hide');
+            $('#module-mounting-settings').collapse('show');
+        }
     },
 
     adjustConfig: function() {
@@ -307,6 +445,9 @@ var solar_configs = {
             
             var mounting = false;
             var tracking = false;
+            var losses = false;
+            
+            var module = solar_configs.type;
             
             if ($('#module-tracking input').is(':checked')) {
                 tracking = {
@@ -323,14 +464,11 @@ var solar_configs = {
                 };
             }
             solar.configs.create(solar_configs.inverter.sysid, solar_configs.inverter.id, 1, 
-                                 solar_configs.type, orientation, rows, mounting, tracking, 
-                                 solar_configs.verifyResult);
+                                 rows, mounting, tracking, losses, orientation, module, solar_configs.verifyResult);
         }
         else {
             var configs = solar_configs.inverter.configs[solar_configs.id];
             var fields = {};
-            if (configs.type != solar_configs.type) fields['type'] = solar_configs.type;
-            if (configs.orientation.toUpperCase() != orientation) fields['orientation'] = orientation;
             
             var rows = {};
             if (configs.rows.count != rowCount) rows['count'] = rowCount;
@@ -392,6 +530,75 @@ var solar_configs = {
                     fields['mounting'] = mounting;
                 }
             }
+            if (configs.orientation.toUpperCase() != orientation) fields['orientation'] = orientation;
+            
+            if ($('#module-advanced-mode input').is(':checked')) {
+                var module = {}
+                var losses = {};
+                
+                var lossConstant = $('#module-loss-constant').val() ? parseFloat($('#module-loss-constant').val()) : null;
+                var lossWind = $('#module-loss-wind').val() ? parseFloat($('#module-loss-wind').val()) : null;
+                if (lossWind || lossConstant) {
+                    if (configs.losses === false) {
+                        losses['constant'] = lossConstant;
+                        losses['wind'] = lossWind;
+                    }
+                    else {
+                        if (configs.losses.constant != lossConstant && lossConstant) losses['constant'] = lossConstant;
+                        if (configs.losses.wind != lossWind && lossWind) losses['wind'] = lossWind;
+                    }
+                    if (Object.keys(losses).length > 0) {
+                        fields['losses'] = losses;
+                    }
+                }
+                else if (configs.losses !== false) {
+                    fields['losses'] = false;
+                }
+                
+                module['Name'] = 'Custom';
+                module['Technology'] = $("#module-technology").val();
+                module['BIPV'] = 'N'
+                
+                if ($('#module-bifi-select input').is(':checked')) {
+                    module['Bifi'] = 'Y';
+                    module['Bifaciality'] = $("#module-bifi-factor").val();
+                }
+                else {
+                    module['Bifi'] = 'N';
+                    module['Bifaciality'] = 0;
+                }
+                module['Ideality_factor'] = $("#module-ideality-factor").val();
+                module['Cells_in_Series'] = $("#module-param-cells").val();
+                module['Front_type'] = $("#module-surface-front").val();
+                module['Back_type'] = $("#module-surface-back").val();
+                
+                module['A_y'] = $("#module-param-length").val();
+                module['A_x'] = $("#module-param-width").val();
+                
+                module['V_mp_ref'] = $("#module-param-vmpp").val();
+                module['I_mp_ref'] = $("#module-param-impp").val();
+                module['mu_power'] = $("#module-param-mu-p").val();
+                
+                module['V_oc_ref'] = $("#module-param-voc").val();
+                module['I_sc_ref'] = $("#module-param-isc").val();
+                module['alpha_sc'] = $("#module-param-alpha-sc").val();
+                
+                if (configs.type !== 'custom' || !configs.hasOwnProperty('module')) {
+                    fields['module'] = module;
+                }
+                else {
+                    for (var key in module) {
+                        if (module.hasOwnProperty(key) && (!configs.module.hasOwnProperty(key) ||
+                                module[key] != configs.module[key])) {
+                            if (!fields.hasOwnProperty('module')) {
+                                fields['module'] = {};
+                            }
+                            fields['module'][key] = module[key];
+                        }
+                    }
+                }
+            }
+            else if (configs.type != solar_configs.type) fields['module'] = solar_configs.type;
             
             if (Object.keys(fields).length > 0) {
                 solar.configs.update(solar_configs.id, fields, solar_configs.verifyResult);
@@ -405,29 +612,56 @@ var solar_configs = {
     },
 
     verifyConfig: function() {
-        if (solar_configs.type != null &&
-                $('#module-rows')[0].checkValidity() &&
-                $('#module-pitch')[0].checkValidity() &&
-                $('#module-count')[0].checkValidity() &&
-                $('#module-stack')[0].checkValidity()) {
-            
-            if ($('#module-tracking input').is(':checked') &&
-                    $('#module-axis-height')[0].checkValidity() &&
-                    $('#module-tilt-max')[0].checkValidity()) {
+        if ($('#module-advanced-mode input').is(':checked')) {
+            if (!$('#module-param-length')[0].checkValidity() ||
+                    !$('#module-param-width')[0].checkValidity() ||
+                    !$('#module-param-cells')[0].checkValidity() ||
+                    !$('#module-param-vmpp')[0].checkValidity() ||
+                    !$('#module-param-impp')[0].checkValidity() ||
+                    !$('#module-param-mu-p')[0].checkValidity() ||
+                    !$('#module-param-voc')[0].checkValidity() ||
+                    !$('#module-param-isc')[0].checkValidity() ||
+                    !$('#module-param-alpha-sc')[0].checkValidity()) {
                 
-                $('#module-config-save').prop("disabled", false);
-                return true;
+                $('#module-config-save').prop("disabled", true);
+                return false;
             }
-            else if ($('#module-elevation')[0].checkValidity() &&
-                    $('#module-azimuth')[0].checkValidity() &&
-                    $('#module-tilt')[0].checkValidity()) {
-                
-                $('#module-config-save').prop("disabled", false);
-                return true;
+            if ($('#module-bifi-select input').is(':checked') &&
+                    !$('#module-bifi-factor')[0].checkValidity()) {
+        
+                $('#module-config-save').prop("disabled", true);
+                return false;
             }
         }
-        $('#module-config-save').prop("disabled", true);
-        return false;
+        else if (solar_configs.type == null) {
+            $('#module-config-save').prop("disabled", true);
+            return false;
+        }
+        if (!$('#module-rows')[0].checkValidity() ||
+                !$('#module-pitch')[0].checkValidity() ||
+                !$('#module-count')[0].checkValidity() ||
+                !$('#module-stack')[0].checkValidity()) {
+            
+            $('#module-config-save').prop("disabled", true);
+            return false;
+        }
+        
+        if ($('#module-tracking input').is(':checked') &&
+                (!$('#module-axis-height')[0].checkValidity() ||
+                !$('#module-tilt-max')[0].checkValidity())) {
+            
+            $('#module-config-save').prop("disabled", true);
+            return false;
+        }
+        else if (!$('#module-elevation')[0].checkValidity() ||
+                !$('#module-azimuth')[0].checkValidity() ||
+                !$('#module-tilt')[0].checkValidity()) {
+            
+            $('#module-config-save').prop("disabled", true);
+            return false;
+        }
+        $('#module-config-save').prop("disabled", false);
+        return true;
     },
 
     verifyResult: function(result) {
@@ -492,7 +726,7 @@ var solar_configs = {
         solar_configs.adjustConfig();
         
         $(".module-model").removeClass("selected");
-        if (solar_configs.type != null) {
+        if (solar_configs.type != null && solar_configs.type !== 'custom') {
             $(".module-model[data-type='"+solar_configs.type+"']").addClass("selected");
         }
     },
@@ -501,43 +735,6 @@ var solar_configs = {
         $('#module-model-menu').html('<use xlink:href="#icon-dots-vertical" />').data('toggle', 'dropdown');
         $("#module-config").removeClass('sidebar');
         solar_configs.adjustConfig();
-    },
-
-    showTracking: function(show) {
-        if (show) {
-            $("#module-tracking-icon").html('<use xlink:href="#icon-chevron-down" />');
-            $('#module-tracking-settings').collapse('show');
-            $('#module-mounting-settings').collapse('hide');
-        }
-        else {
-            $("#module-tracking-icon").html('<use xlink:href="#icon-chevron-right" />');
-            $('#module-tracking-settings').collapse('hide');
-            $('#module-mounting-settings').collapse('show');
-        }
-    },
-
-    showAdvanced: function(show) {
-        if (show) {
-            $("#module-advanced-icon").html('<use xlink:href="#icon-chevron-down" />');
-            $('#module-losses-settings').collapse('show');
-            $('#module-param-advanced').collapse('show');
-            $('#module-param-settings').collapse('hide');
-            solar_configs.hideSidebar();
-            solar_configs.type = null;
-            $(this).removeClass("selected");
-            
-            $('#module-model-type').text('');
-            $('#module-model-description').text('');
-            $('#module-model-manufacturer').text('Select a module type');
-            solar_configs.verifyConfig();
-        }
-        else {
-            $("#module-advanced-icon").html('<use xlink:href="#icon-chevron-right" />');
-            $('#module-losses-settings').collapse('hide');
-            $('#module-param-advanced').collapse('hide');
-            $('#module-param-settings').collapse('show');
-            solar_configs.showSidebar();
-        }
     },
 
     openDeletion: function(inverter, id) {
