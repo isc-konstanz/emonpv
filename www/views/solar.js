@@ -71,6 +71,9 @@ var solar = {
 			if (tracking !== false) {
 				tracking = JSON.stringify(tracking);
 			}
+			if (losses !== false) {
+				losses = JSON.stringify(losses);
+			}
 			return solar.post(callback, "solar/configs/create.json", 
 					"sysid="+sysid+
 					"&invid="+invid+
@@ -78,8 +81,9 @@ var solar = {
 					"&rows="+JSON.stringify(rows)+
 					"&mounting="+mounting+
 					"&tracking="+tracking+
+					"&losses="+losses+
 					"&orientation="+orientation+
-					"&module="+module);
+					"&module="+JSON.stringify(module));
 		},
         download:function(id, sysid) {
             window.open(path+"solar/configs/download.json?id="+id+"&sysid="+sysid);

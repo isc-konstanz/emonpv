@@ -388,6 +388,40 @@ var solar_configs = {
         }
     },
 
+    parseAdvanced: function() {
+		var module = {};
+		
+        module['Name'] = 'Custom';
+        module['Technology'] = $("#module-technology").val();
+        module['BIPV'] = 'N'
+        
+        if ($('#module-bifi-select input').is(':checked')) {
+            module['Bifi'] = 'Y';
+            module['Bifaciality'] = $("#module-bifi-factor").val();
+        }
+        else {
+            module['Bifi'] = 'N';
+            module['Bifaciality'] = 0;
+        }
+        module['Ideality_factor'] = $("#module-ideality-factor").val();
+        module['Cells_in_Series'] = $("#module-param-cells").val();
+        module['Front_type'] = $("#module-surface-front").val();
+        module['Back_type'] = $("#module-surface-back").val();
+        
+        module['A_y'] = $("#module-param-length").val();
+        module['A_x'] = $("#module-param-width").val();
+        
+        module['V_mp_ref'] = $("#module-param-vmpp").val();
+        module['I_mp_ref'] = $("#module-param-impp").val();
+        module['mu_power'] = $("#module-param-mu-p").val();
+        
+        module['V_oc_ref'] = $("#module-param-voc").val();
+        module['I_sc_ref'] = $("#module-param-isc").val();
+        module['alpha_sc'] = $("#module-param-alpha-sc").val();
+		
+		return module;
+	},
+
     showAdvanced: function(show) {
         if (show) {
             $("#module-advanced-icon").html('<use xlink:href="#icon-chevron-down" />');
@@ -409,6 +443,7 @@ var solar_configs = {
             $('#module-param-advanced').collapse('hide');
             $('#module-param-settings').collapse('show');
             solar_configs.showSidebar();
+            solar_configs.verifyConfig();
         }
     },
 
@@ -438,6 +473,9 @@ var solar_configs = {
         
         var stackCount = $('#module-stack').val() ? parseFloat($('#module-stack').val()) : null;
         var stackGap = $('#module-stack-gap').val() ? parseFloat($('#module-stack-gap').val()) : null;
+		
+        var lossConstant = $('#module-loss-constant').val() ? parseFloat($('#module-loss-constant').val()) : null;
+        var lossWind = $('#module-loss-wind').val() ? parseFloat($('#module-loss-wind').val()) : null;
         
         var orientation = $('#module-orientation').val();
         
@@ -453,9 +491,20 @@ var solar_configs = {
             var mounting = false;
             var tracking = false;
             var losses = false;
-            
-            var module = solar_configs.type;
-            
+            var module;
+            if ($('#module-advanced-mode input').is(':checked')) {
+                module = solar_configs.parseAdvanced();
+                
+                if (lossWind || lossConstant) {
+                	losses = {
+						'constant': lossConstant,
+                        'wind': lossWind
+                    }
+				}
+			}
+			else {
+				module = solar_configs.type;
+			}
             if ($('#module-tracking input').is(':checked')) {
                 tracking = {
                     'backtrack': $('#module-backtrack input').is(':checked'),
@@ -540,11 +589,9 @@ var solar_configs = {
             if (configs.orientation.toUpperCase() != orientation) fields['orientation'] = orientation;
             
             if ($('#module-advanced-mode input').is(':checked')) {
-                var module = {}
+                var module = solar_configs.parseAdvanced();
                 var losses = {};
                 
-                var lossConstant = $('#module-loss-constant').val() ? parseFloat($('#module-loss-constant').val()) : null;
-                var lossWind = $('#module-loss-wind').val() ? parseFloat($('#module-loss-wind').val()) : null;
                 if (lossWind || lossConstant) {
                     if (configs.losses === false) {
                         losses['constant'] = lossConstant;
@@ -561,34 +608,6 @@ var solar_configs = {
                 else if (configs.losses !== false) {
                     fields['losses'] = false;
                 }
-                
-                module['Name'] = 'Custom';
-                module['Technology'] = $("#module-technology").val();
-                module['BIPV'] = 'N'
-                
-                if ($('#module-bifi-select input').is(':checked')) {
-                    module['Bifi'] = 'Y';
-                    module['Bifaciality'] = $("#module-bifi-factor").val();
-                }
-                else {
-                    module['Bifi'] = 'N';
-                    module['Bifaciality'] = 0;
-                }
-                module['Ideality_factor'] = $("#module-ideality-factor").val();
-                module['Cells_in_Series'] = $("#module-param-cells").val();
-                module['Front_type'] = $("#module-surface-front").val();
-                module['Back_type'] = $("#module-surface-back").val();
-                
-                module['A_y'] = $("#module-param-length").val();
-                module['A_x'] = $("#module-param-width").val();
-                
-                module['V_mp_ref'] = $("#module-param-vmpp").val();
-                module['I_mp_ref'] = $("#module-param-impp").val();
-                module['mu_power'] = $("#module-param-mu-p").val();
-                
-                module['V_oc_ref'] = $("#module-param-voc").val();
-                module['I_sc_ref'] = $("#module-param-isc").val();
-                module['alpha_sc'] = $("#module-param-alpha-sc").val();
                 
                 if (configs.type !== 'custom' || !configs.hasOwnProperty('module')) {
                     fields['module'] = module;

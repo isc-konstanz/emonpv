@@ -276,7 +276,7 @@ class SolarSystem {
                 if (!file_exists($configs_dir)) {
                     mkdir($configs_dir);
                 }
-                if (!empty($configs['type']) && substr($configs['type'], 0, 6) !== 'custom') {
+                if (substr($configs['type'], 0, 6) !== 'custom') {
                     require_once("Modules/solar/libs/models/solar_module.php");
                     $module = new SolarModule($this->mysqli);
                     $module_json = $module->get($configs['type']);
@@ -360,6 +360,11 @@ class SolarSystem {
         $stmt->execute();
         $stmt->close();
         
+        if (substr($configs['type'], 0, 6) === 'custom') {
+            require_once("Modules/solar/libs/models/solar_module.php");
+            $module = new SolarModule($this->mysqli);
+            $module->write_parameters($configs, $configs['module']);
+        }
         return array_merge(array(
             'id'=>intval($configs['id']),
             'sysid'=>intval($system['id']),

@@ -50,6 +50,7 @@ class SolarConfigs {
             $orientation = Orientation::get_code($orientation);
         }
         
+        $module = json_decode(stripslashes($module), true);
         if (is_string($module) && !empty($module)) {
             $type = preg_replace('/[^\/\|\,\w\s\-\:]/','', $module);
             // TODO: check if module exists
@@ -123,22 +124,17 @@ class SolarConfigs {
         }
         
         if (!empty($losses)) {
-            $tracking = json_decode(stripslashes($tracking), true);
+            $losses = json_decode(stripslashes($losses), true);
         }
         else {
-            $tracking = false;
+            $losses = false;
         }
-        if ($tracking !== false) {
-            if (!isset($tracking['axis_height']) || !is_numeric($tracking['axis_height']) ||
-                    !isset($tracking['tilt_max']) || !is_numeric($tracking['tilt_max']) ||
-                    !isset($tracking['backtrack'])) {
-                        
-                        throw new SolarException("The tracking configuration is invalid");
-                    }
-                    else {
-                        // TODO: verify parameter boundaries
-                    }
-                    $tracking['axis'] = 1;
+        if ($losses !== false) {
+            if (!isset($losses['constant']) || !is_numeric($losses['constant']) ||
+                    !isset($losses['wind']) || !is_numeric($losses['wind'])) {
+                
+                throw new SolarException("The loss configuration is invalid");
+            }
         }
         
         $stmt = $this->mysqli->prepare("INSERT INTO solar_configs (userid,type,orientation) VALUES (?,?,?)");
@@ -171,6 +167,9 @@ class SolarConfigs {
         $configs['mounting'] = $mounting;
         $configs['tracking'] = $tracking;
         
+        if ($type === 'custom') {
+            $configs['module'] = $module;
+        }
         return $configs;
     }
 
@@ -477,7 +476,7 @@ class SolarConfigs {
             $this->update_double($configs['id'], 'losses', $losses, 'wind', PHP_FLOAT_MIN, PHP_FLOAT_MAX);
         }
     }
-    
+
     private function update_module($configs, $fields) {
         if (!isset($fields['module'])) {
             return;
