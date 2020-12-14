@@ -384,8 +384,8 @@ class SolarSystem {
         while ($result = $results->fetch_array()) {
             $order = $result['order'];
             $this->mysqli->query("DELETE FROM solar_refs WHERE `sysid` = '".$system['id']."' AND `cfgid` = '".$cfgid."'");
-            $this->delete_file("$system_dir/results/$system_name"."_$order.csv");
-            $this->delete_file("$system_dir/results/$system_name.csv");
+            $this->delete_file("$system_dir/results/results_$order.csv");
+            $this->delete_file("$system_dir/results/results.csv");
             $this->delete_file("$system_dir/results.csv");
             $this->delete_file("$system_dir/results.csv");
             $this->delete_file("$system_dir/conf/configs$order.cfg");
