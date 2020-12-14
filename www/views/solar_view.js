@@ -34,7 +34,7 @@ var view = new Vue({
         },
         getModule: function(configs) {
 			if (configs.type !== 'custom') {
-            	return modules[configs.type.split('/')[0]][type];
+            	return modules[configs.type.split('/')[0]][configs.type];
 			}
 			var module = configs.module;
 			var power = module.V_mp_ref * module.I_mp_ref;
