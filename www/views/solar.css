@@ -317,7 +317,7 @@
     padding-top: 18px;
 }
 .inverter > .count {
-    padding-top: 54px;
+    padding-top: 62px;
     text-align: right
 }
 .inverter > div:first-child {
@@ -354,20 +354,23 @@
 }
 .inverter-item > div:first-child {
     padding-left: 8px;
+    padding-right: 4px;
 }
 .inverter-item:before {
     content: "";
     position: absolute;
-    height: 20px;
+    height: 23px;
     width: 40px;
     margin-top: 10px;
     margin-left: -40px;
 }
-.inverter-item:first-child:before {
+.inverter-item.modules:nth-child(1):before,
+.inverter-item.modules:nth-child(2):before {
     border-bottom: 3px solid #545454;
     border-top: 3px solid #545454;
 }
-.inverter:hover .inverter-item:first-child:before {
+.inverter:hover .inverter-item.modules:nth-child(1):before,
+.inverter:hover .inverter-item.modules:nth-child(2):before {
     border-bottom: 3px solid #0069b4;
     border-top: 3px solid #b40000;
 }
@@ -406,7 +409,7 @@
 }
 
 .inverter .clipart {
-    min-width: 175px;
+    min-width: 210px;
     /*background: url(../images/inverter-mono.png);
     background-repeat: no-repeat;
     background-size: auto;*/
@@ -428,7 +431,7 @@
 .inverter .inverter-body > div:first-child {
     display: table;
     width: 100%;
-    padding-top: 7px;
+    padding-top: 10px;
     border-collapse: separate;
     border-spacing: 0 3px;
 }

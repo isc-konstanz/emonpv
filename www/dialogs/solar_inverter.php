@@ -31,7 +31,8 @@
             <p><?php echo _('Are you sure you want to proceed?'); ?></p>
         </div>
         <p style="color: #999; margin: 10px 14px;">
-            <?php echo _('This is a placeholder to explain what happens when an inverter is deleted.'); ?>
+            <?php echo _('Deleting a inverter will remove all corresponding configuration variants, including simulated results.'); ?><br>
+            <?php echo _('Make sure you saved all files you need.'); ?>
         </p>
         <div id="inverter-delete-loader" class="ajax-loader" style="display: none;"></div>
     </div>

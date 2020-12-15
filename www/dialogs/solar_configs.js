@@ -143,10 +143,12 @@ var solar_configs = {
             var trackingFlag = !tracking.is(':checked');
             tracking.prop('checked', trackingFlag);
             solar_configs.showTracking(trackingFlag);
+            solar_configs.verifyConfig();
         });
         
         $('#module-tracking input').off('change').on('change', function() {
             solar_configs.showTracking($(this).prop('checked'));
+            solar_configs.verifyConfig();
         });
         
         $("#module-losses-settings .settings-collapse").off('click').on('click', function() {
@@ -389,8 +391,8 @@ var solar_configs = {
     },
 
     parseAdvanced: function() {
-		var module = {};
-		
+        var module = {};
+        
         module['Name'] = 'Custom';
         module['Technology'] = $("#module-technology").val();
         module['BIPV'] = 'N'
@@ -418,9 +420,9 @@ var solar_configs = {
         module['V_oc_ref'] = $("#module-param-voc").val();
         module['I_sc_ref'] = $("#module-param-isc").val();
         module['alpha_sc'] = $("#module-param-alpha-sc").val();
-		
-		return module;
-	},
+        
+        return module;
+    },
 
     showAdvanced: function(show) {
         if (show) {
@@ -473,7 +475,7 @@ var solar_configs = {
         
         var stackCount = $('#module-stack').val() ? parseFloat($('#module-stack').val()) : null;
         var stackGap = $('#module-stack-gap').val() ? parseFloat($('#module-stack-gap').val()) : null;
-		
+        
         var lossConstant = $('#module-loss-constant').val() ? parseFloat($('#module-loss-constant').val()) : null;
         var lossWind = $('#module-loss-wind').val() ? parseFloat($('#module-loss-wind').val()) : null;
         
@@ -496,15 +498,15 @@ var solar_configs = {
                 module = solar_configs.parseAdvanced();
                 
                 if (lossWind || lossConstant) {
-                	losses = {
-						'constant': lossConstant,
+                    losses = {
+                        'constant': lossConstant,
                         'wind': lossWind
                     }
-				}
-			}
-			else {
-				module = solar_configs.type;
-			}
+                }
+            }
+            else {
+                module = solar_configs.type;
+            }
             if ($('#module-tracking input').is(':checked')) {
                 tracking = {
                     'backtrack': $('#module-backtrack input').is(':checked'),
@@ -609,13 +611,14 @@ var solar_configs = {
                     fields['losses'] = false;
                 }
                 
-                if (configs.type !== 'custom' || !configs.hasOwnProperty('module')) {
+                if (configs.type !== 'custom' || (configs.type === 'custom' && !configs.hasOwnProperty('module'))) {
+                    fields['type'] = 'custom';
                     fields['module'] = module;
                 }
                 else {
                     for (var key in module) {
                         if (module.hasOwnProperty(key) && (!configs.module.hasOwnProperty(key) ||
-                                module[key] != configs.module[key])) {
+                                (module[key] && module[key] != configs.module[key]))) {
                             if (!fields.hasOwnProperty('module')) {
                                 fields['module'] = {};
                             }
@@ -624,7 +627,7 @@ var solar_configs = {
                     }
                 }
             }
-            else if (configs.type != solar_configs.type) fields['module'] = solar_configs.type;
+            else if (configs.type != solar_configs.type) fields['type'] = solar_configs.type;
             
             if (Object.keys(fields).length > 0) {
                 solar.configs.update(solar_configs.id, fields, solar_configs.verifyResult);
@@ -672,12 +675,13 @@ var solar_configs = {
             return false;
         }
         
-        if ($('#module-tracking input').is(':checked') &&
-                (!$('#module-axis-height')[0].checkValidity() ||
-                !$('#module-tilt-max')[0].checkValidity())) {
-            
-            $('#module-config-save').prop("disabled", true);
-            return false;
+        if ($('#module-tracking input').is(':checked')) {
+            if (!$('#module-axis-height')[0].checkValidity() ||
+                    !$('#module-tilt-max')[0].checkValidity()) {
+                
+                $('#module-config-save').prop("disabled", true);
+                return false;
+            }
         }
         else if (!$('#module-elevation')[0].checkValidity() ||
                 !$('#module-azimuth')[0].checkValidity() ||
@@ -705,7 +709,12 @@ var solar_configs = {
         else {
             for (var invid in system.inverters) {
                 var inverter = system.inverters[invid];
-                if (typeof inverter.configs[result.id] !== 'undefined') inverter.configs[result.id] = result;
+                if (typeof inverter.configs[result.id] !== 'undefined') {
+                    if (typeof result.count === 'undefined') {
+                        result.count = inverter.configs[result.id].count;
+                    }
+                    inverter.configs[result.id] = result;
+                }
             }
         }
         // TODO: verify if there is a better way to trigger vue.js redraw after deletion

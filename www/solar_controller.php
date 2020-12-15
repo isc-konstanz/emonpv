@@ -179,10 +179,10 @@ function configs_controller(SolarSystem $system, SolarConfigs $configs) {
             }
         }
         if ($session['write']) {
-            if ($route->subaction == "update") {
-                return $configs->update($cfg, prop('fields'));
-            }
             if (!empty($sysid)) {
+                if ($route->subaction == "update") {
+                    return $system->update_configs($sys, $cfg, prop('fields'));
+                }
                 if ($route->subaction == "remove" ||
                     $route->subaction == "delete") {
                     
@@ -194,6 +194,9 @@ function configs_controller(SolarSystem $system, SolarConfigs $configs) {
                         return $system->configs->delete($id);
                     }
                 }
+            }
+            else if ($route->subaction == "update") {
+                return $configs->update($cfg, prop('fields'));
             }
         }
     }

@@ -41,16 +41,16 @@ foreach ($svgs as $svg) {
                             </div>
                             <div class="name"><span>{{system.name+(system.description.length>0 ? ":" : "")}}</span></div>
                             <div class="description"><span>{{system.description}}</span></div>
-                            <div class='grow'></div>
+                            <div class="grow"></div>
                             <div class="menu dropdown action" @click.prevent>
                                 <svg class="dropdown-toggle icon icon-menu" data-toggle="dropdown">
                                     <use xlink:href="#icon-dots-vertical" />
                                 </svg>
                                 <ul class="dropdown-menu pull-right">
-                                    <li><a @click.prevent.stop="solar_inverter.newConfig(system)"><?php echo _("Add Inverter"); ?></a></li>
-                                    <li><a @click.prevent.stop="solar_system.openConfig(system)"><?php echo _("Edit System"); ?></a></li>
-                                    <li><a @click.prevent.stop="solar_system.openDeletion(system)"><?php echo _("Delete System"); ?></a></li>
-                                    <li><a @click.prevent.stop="solar.system.export(system.id)"><?php echo _("Export System"); ?></a></li>
+                                    <li><a @click.prevent.stop="solar_inverter.newConfig(system)"><?php echo _("Add inverter"); ?></a></li>
+                                    <li><a @click.prevent.stop="solar_system.openConfig(system)"><?php echo _("Edit project"); ?></a></li>
+                                    <li><a @click.prevent.stop="solar_system.openDeletion(system)"><?php echo _("Delete project"); ?></a></li>
+                                    <li><a @click.prevent.stop="solar.system.export(system.id)"><?php echo _("Export project"); ?></a></li>
                                 </ul>
                             </div>
                         </div>
@@ -62,27 +62,21 @@ foreach ($svgs as $svg) {
                             </div>
                         </transition>
                         <div class="inverter system-item" v-for="inverter in system.inverters" :data-id="inverter.id">
-                            <!--  div class="count">
-                                <input :style="'width:'+(1+inverter.count.length)+'ch;'" type="number" min="1" step="1" required disabled
-                                       :value="inverter.count" v-on:input="setCount($event, inverter, 'inverter')"></input>
-                            </div -->
-                            <div style="min-width: 24px;"></div>
+                            <div class="count">
+                                <input :style="'width:'+getCountWidth(inverter)" type="number" min="1" step="1" required
+                                       :value="getCount(inverter)" v-on:input="setCount($event, inverter, 'inverter')"></input>
+                            </div>
+                            <div></div>
                             <div class="clipart" title="<?php echo _("Edit inverter"); ?>" @click="!hasConfigs(inverter) ? solar_inverter.openConfig(system, inverter.id) : null" :disabled="hasConfigs(inverter) ? 'disabled' : null">
                                 <img src="<?php echo $path; ?>Modules/solar/images/inverter-mono.png"></img>
                             </div>
                             <div class="inverter-body">
                                 <div>
                                     <div class="modules inverter-item" v-for="configs in inverter.configs" :data-id="configs.id">
-                                        <!-- div class="count">
-                                            <input :style="'width:'+(1+configs.rows.count.length)+'ch;'" style="margin-left:0!important" type="number" min="1" step="1" required 
-                                                   :value="configs.rows.count" v-on:input="setCount($event, configs, 'configs')"></input>
-                                        </div>
-                                        <div class="description"><span>x</span></div>
                                         <div class="count">
-                                            <input :style="'width:'+(1+configs.rows.modules.length)+'ch;'" type="number" min="1" step="1" required 
-                                                   :value="configs.rows.modules" v-on:input="setCount($event, configs, 'configs')"></input>
-                                        </div -->
-                                        <div class="count"><span>{{getCount(configs)}}</span></div>
+                                            <input :style="'width:'+getCountWidth(configs)" style="margin-left:0!important" type="number" min="1" step="1" required 
+                                                   :value="getCount(configs)" v-on:input="setCount($event, configs, 'configs', system)"></input>
+                                        </div>
                                         <div class="name"><span>{{getModule(configs).Manufacturer}}</span></div>
                                         <div class="description"><span>{{getModule(configs).Name}}</span></div>
                                         <div class="grow"></div>
@@ -120,8 +114,6 @@ foreach ($svgs as $svg) {
                                                 </svg>
                                             </button>
                                         </div>
-                                        <!-- div></div>
-                                        <div></div -->
                                         <div></div>
                                         <div></div>
                                         <div class="grow"></div>
@@ -144,8 +136,8 @@ foreach ($svgs as $svg) {
                         <transition name="fade">
                             <div v-if="isSuccess(system)" class="results">
                                 <div class="title">
-                                    <div><span><?php echo "Energy yield";?></span>&nbsp;<span style="color:#c6c6c6; font-weight:normal">(DC)</span></div>
-                                    <div><span><?php echo "Specific yield";?></span>&nbsp;<span style="color:#c6c6c6; font-weight:normal">(DC)</span></div>
+                                    <div><span><?php echo "Energy yield";?></span></div>
+                                    <div><span><?php echo "Specific yield";?></span></div>
                                     <div class="fill"></div>
                                     <div><span><?php echo "Bifacial gain";?></span></div>
                                 </div>

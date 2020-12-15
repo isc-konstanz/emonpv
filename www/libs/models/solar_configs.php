@@ -385,6 +385,12 @@ class SolarConfigs {
         $this->update_losses($configs, $fields);
         $this->update_module($configs, $fields);
         
+        if (isset($fields['type'])) {
+            if ($fields['type'] !== 'custom') {
+                $this->update_losses($configs, array('losses' => false));
+            }
+            $this->update_string($configs['id'], 'configs', $fields, 'type');
+        }
         return $this->get($configs['id']);
     }
 
@@ -478,31 +484,34 @@ class SolarConfigs {
     }
 
     private function update_module($configs, $fields) {
+        if (!empty($fields['type'])) {
+            if (substr($configs['type'], 0, 6) === "custom") {
+                $this->update_database($configs['id'], 'configs', 'type', $fields['type'], 's');
+                
+                if (substr($configs['type'], 0, 6) === "custom") {
+                    $this->update_losses($configs, array('losses' => false));
+                    $module->delete_parameters($configs);
+                }
+                return;
+            }
+            else {
+                if (empty($fields['module'])) {
+                    throw new SolarException("The module configuration is invalid");
+                }
+                $this->update_database($configs['id'], 'configs', 'type', 'custom', 's');
+            }
+        }
         if (!isset($fields['module'])) {
             return;
         }
         require_once("Modules/solar/libs/models/solar_module.php");
         $module = new SolarModule($this->mysqli);
         
-        $type = is_string($fields['module']) ? $fields['module'] : 'custom';
-        if ($type !== 'custom') {
-            $this->update_database($configs['id'], 'configs', 'type', $type, 's');
-            
-            if (substr($configs['type'], 0, 6) === "custom") {
-                $this->update_losses($configs, array('losses' => false));
-                $module->delete_parameters($configs);
-            }
-            return;
-        }
-        else if (substr($configs['type'], 0, 6) !== "custom") {
-            $this->update_database($configs['id'], 'configs', 'type', $type, 's');
-        }
-        
-        $parameters = $module->get_parameters($configs);
+        $params = $module->get_parameters($configs);
         foreach ($fields['module'] as $key=>$val) {
-            $parameters[$key] = $val;
+            $params[$key] = $val;
         }
-        $module->write_parameters($configs, $parameters);
+        $module->write_parameters($configs, $params);
     }
 
     private function update_boolean($id, $database, $fields, $field) {

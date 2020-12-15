@@ -80,7 +80,7 @@ class SolarModule {
 
     public function get_parameters($configs) {
         $parameters = array();
-        foreach ($this->get_dirs($configs) as $dir) {
+        foreach ($this->get_parameter_dirs($configs) as $dir) {
             $file = $dir."/module.cfg";
             if (file_exists($file)) {
                 $parameter_file = parse_ini_file($file, false, INI_SCANNER_TYPED);
@@ -93,9 +93,9 @@ class SolarModule {
     }
 
     public function write_parameters($configs, $parameters) {
-        foreach ($this->get_dirs($configs) as $dir) {
+        foreach ($this->get_parameter_dirs($configs) as $dir) {
             if (!file_exists($dir)) {
-                mkdir($dir);
+                mkdir($dir, 0755, true);
             }
             $file = $dir."/module.cfg";
             $this->delete_file($file);
@@ -108,9 +108,33 @@ class SolarModule {
     }
 
     public function delete_parameters($configs) {
-        foreach ($this->get_dirs($configs) as $dir) {
+        foreach ($this->get_parameter_dirs($configs) as $dir) {
             $this->delete_file($dir."/module.cfg");
         }
+    }
+
+    private function get_parameter_dirs($configs) {
+        $user_id = $configs['userid'];
+        $user_dir = SolarSystem::get_user_dir($user_id);
+        $dirs = array();
+        
+        if (isset($configs['sysid'])) {
+            $dirs[] = $this->get_parameter_dir($configs, $user_dir);
+        }
+        else {
+            $results = $this->mysqli->query("SELECT * FROM solar_refs WHERE `cfgid` = '".$configs['id']."' ORDER BY `order` ASC");
+            while ($result = $results->fetch_array()) {
+                $dirs[] = $this->get_parameter_dir($result, $user_dir);
+            }
+        }
+        return $dirs;
+    }
+
+    private function get_parameter_dir($configs, $user_dir) {
+        $system = array('id' => intval($configs['sysid']));
+        $system_dir = SolarSystem::get_system_dir($system, $user_dir);
+        
+        return $system_dir."/conf/configs".intval($configs['order']).".d";
     }
 
     private function delete_file($path) {
@@ -120,21 +144,6 @@ class SolarModule {
         if (is_file($path)) {
             unlink($path);
         }
-    }
-
-    private function get_dirs($configs) {
-        $user_id = $configs['userid'];
-        $user_dir = SolarSystem::get_user_dir($user_id);
-        $dirs = array();
-        
-        $results = $this->mysqli->query("SELECT * FROM solar_refs WHERE `cfgid` = '".$configs['id']."' ORDER BY `order` ASC");
-        while ($result = $results->fetch_array()) {
-            $system = array('id' => intval($result['sysid']));
-            $system_dir = SolarSystem::get_system_dir($system, $user_dir);
-            
-            $dirs[] = $system_dir."/conf/configs".intval($result['order']).".d";
-        }
-        return $dirs;
     }
 
 }

@@ -33,15 +33,15 @@ var view = new Vue({
             }, 100);
         },
         getModule: function(configs) {
-			if (configs.type !== 'custom') {
-            	return modules[configs.type.split('/')[0]][configs.type];
-			}
-			var module = configs.module;
-			var power = module.V_mp_ref * module.I_mp_ref;
-			return {
-				'Name': module.Technology+' '+power.toFixed(0)+'Wp',
-				'Manufacturer': 'Custom'
-			};
+            if (configs.type !== 'custom') {
+                return modules[configs.type.split('/')[0]][configs.type];
+            }
+            var module = configs.module;
+            var power = module.V_mp_ref * module.I_mp_ref;
+            return {
+                'Name': module.Technology+' '+power.toFixed(0)+'Wp',
+                'Manufacturer': 'Custom'
+            };
         },
         toggleCollapse: function(event, id) {
             window.clearTimeout(timeout);
@@ -90,11 +90,11 @@ var view = new Vue({
             return system.results.status == 'success';
         },
         hasResults: function(system, configs) {
-			if (view.isSuccess(system)) {
-				let resultsFile = "results_" + configs.order + ".csv";
-				return system.results.files.indexOf(resultsFile) > -1;
-			}
-			return false;
+            if (view.isSuccess(system)) {
+                let resultsFile = "results_" + configs.order + ".csv";
+                return system.results.files.indexOf(resultsFile) > -1;
+            }
+            return false;
         },
         getEnergyUnit: function(value) {
             let unit;
@@ -136,29 +136,46 @@ var view = new Vue({
         hasConfigs: function(inverter) {
             return Object.keys(inverter.configs).length > 0;
         },
-        getCount: function(configs) {
-            let rows = configs.rows;
-            let count = rows.count
+        getCountWidth: function(element) {
+            let width = String(view.getCount(element)).length;
+            if (width <= 1) {
+				width += 1;
+			}
+            return width+'ch';
+        },
+        getCount: function(element) {
+            let count = element.count;
+            if (count == null) {
+                if (typeof element.rows === 'undefined') {
+                    return 1;
+                }
+                let rows = element.rows;
+                
+                count = rows.count
                       * rows.modules;
-            
-            if (rows.stack != null) {
-                count *= rows.stack;
+                
+                //if (rows.stack != null) {
+                //    count *= rows.stack;
+                //}
             }
             return count;
         },
-        setCount: function(event, element, type, field='count') {
+        setCount: function(event, element, type, system=null) {
             let input = $(event.currentTarget);
             let value = input.val();
             
-            input.width((1+value.length)+'ch');
             if (input[0].checkValidity()) {
-                element[field] = value;
+                element['count'] = value;
+            	input.width(view.getCountWidth(element));
+				
                 window.clearTimeout(timeout);
                 timeout = window.setTimeout(function() {
-                    let fields = {};
-                    fields[field] = value;
-                    solar[type].update(element.id, fields);
-                    
+					if (system != null) {
+                    	solar[type].count(element.id, system.id, value);
+					}
+					else {
+                    	solar[type].count(element.id, value);
+					}
                 }, 250);
             }
         },

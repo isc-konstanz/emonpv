@@ -91,7 +91,7 @@ class SolarInverter {
                 'invid'=>intval($invid),
                 'strid'=>intval($result['strid']),
                 'order'=>intval($result['order']),
-                'count'=>intval($result['count'])
+                'count'=>isset($result['count']) ? intval($result['count']) : null
                 
             ), array_slice($config, 2));
             
@@ -177,7 +177,7 @@ class SolarInverter {
         return array(
             'id' => intval($inverter['id']),
             'sysid' => intval($inverter['sysid']),
-            'count' => intval($inverter['count']),
+            'count' => isset($inverter['count']) ? intval($inverter['count']) : null,
             'type' => strval($inverter['type']),
             'configs' => $configs
         );
@@ -233,6 +233,74 @@ class SolarInverter {
         $sysid = $this->redis->hget("solar:inverter#$id",'sysid');
         $this->redis->del("solar:inverter#$id");
         $this->redis->srem("solar:system#$sysid:inverters", $id);
+    }
+
+    public function get_parameters($configs) {
+        $parameters = array();
+        foreach ($this->get_parameter_dirs($configs) as $dir) {
+            $file = $dir."/inverter.cfg";
+            if (file_exists($file)) {
+                $parameter_file = parse_ini_file($file, false, INI_SCANNER_TYPED);
+                foreach ($parameter_file as $key => $value) {
+                    $parameters[$key] = $value;
+                }
+            }
+        }
+        return $parameters;
+    }
+
+    public function write_parameters($configs, $parameters) {
+        foreach ($this->get_parameter_dirs($configs) as $dir) {
+            if (!file_exists($dir)) {
+                mkdir($dir, 0755, true);
+            }
+            $file = $dir."/inverter.cfg";
+            $this->delete_file($file);
+            foreach ($parameters as $key=>$val) {
+                if ($val !== '') {
+                    file_put_contents($file, "$key = $val".PHP_EOL, FILE_APPEND);
+                }
+            }
+        }
+    }
+
+    public function delete_parameters($configs) {
+        foreach ($this->get_parameter_dirs($configs) as $dir) {
+            $this->delete_file($dir."/inverter.cfg");
+        }
+    }
+
+    private function get_parameter_dirs($configs) {
+        $user_id = $configs['userid'];
+        $user_dir = SolarSystem::get_user_dir($user_id);
+        $dirs = array();
+        
+        if (isset($configs['sysid'])) {
+            $dirs[] = $this->get_parameter_dir($configs, $user_dir);
+        }
+        else {
+            $results = $this->mysqli->query("SELECT * FROM solar_refs WHERE `cfgid` = '".$configs['id']."' ORDER BY `order` ASC");
+            while ($result = $results->fetch_array()) {
+                $dirs[] = $this->get_parameter_dir($result, $user_dir);
+            }
+        }
+        return $dirs;
+    }
+
+    private function get_parameter_dir($configs, $user_dir) {
+        $system = array('id' => intval($configs['sysid']));
+        $system_dir = SolarSystem::get_system_dir($system, $user_dir);
+        
+        return $system_dir."/conf/configs".intval($configs['order']).".d";
+    }
+
+    private function delete_file($path) {
+        if (!file_exists($path)) {
+            return;
+        }
+        if (is_file($path)) {
+            unlink($path);
+        }
     }
 
 }

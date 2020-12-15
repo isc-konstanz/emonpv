@@ -54,6 +54,10 @@ var solar = {
         create:function(system, callback) {
             return solar.post(callback, "solar/inverter/create.json", "sysid="+system.id);
         },
+        count:function(id, count, callback) {
+            return solar.put(callback, "solar/inverter/update.json?id="+id+
+                    "&fields="+JSON.stringify({'count':count}));
+        },
         update:function(id, fields, callback) {
             return solar.put(callback, "solar/inverter/update.json?id="+id+
                     "&fields="+JSON.stringify(fields));
@@ -87,6 +91,10 @@ var solar = {
 		},
         download:function(id, sysid) {
             window.open(path+"solar/configs/download.json?id="+id+"&sysid="+sysid);
+        },
+        count:function(id, sysid, count, callback) {
+            return solar.put(callback, "solar/configs/update.json?id="+id+"&sysid="+sysid+
+                    "&fields="+JSON.stringify({'count':count}));
         },
         update:function(id, fields, callback) {
             return solar.put(callback, "solar/configs/update.json?id="+id+

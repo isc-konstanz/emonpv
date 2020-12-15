@@ -201,12 +201,39 @@ class SolarSystem {
         foreach ($system['inverters'] as $inverter) {
             $configs_ids = array();
             $inverter_strings = array();
+            $inverter_power = 0;
             foreach ($inverter['configs'] as $configs) {
                 if (!array_key_exists($configs['strid'], $inverter_strings)) {
                     $inverter_strings[$configs['strid']] = array();
                 }
                 $inverter_strings[$configs['strid']][] = $configs['id'];
                 $configs_ids[] = intval($configs['id']);
+                
+                $rows = $configs['rows'];
+                $rows_count = $rows['count'];
+                $rows_modules = $rows['modules'];
+                
+                $configs_count = $rows_count
+                               * $rows_modules;
+                //if (!empty($rows['stack'])) {
+                //    $configs_count *= $rows['stack'];
+                //}
+                if (substr($configs['type'], 0, 6) !== 'custom') {
+                    require_once("Modules/solar/libs/models/solar_module.php");
+                    $module = new SolarModule($this->mysqli);
+                    $module_params = $module->get($configs['type']);
+                }
+                else {
+                    $module_params = $configs['module'];
+                }
+                if (isset($module_params['pdc0'])) {
+                    $inverter_power = max($inverter_power, 
+                            $module_params['pdc0']*$configs_count);
+                }
+                else {
+                    $inverter_power = max($inverter_power, 
+                            $module_params['V_mp_ref']*$module_params['I_mp_ref']*$configs_count);
+                }
             }
             $configs_id_min = min($configs_ids);
             
@@ -219,10 +246,9 @@ class SolarSystem {
                     $configs_configs = str_replace(';albedo = <albedo>', 'albedo = '.$system['location']['albedo'], $configs_configs);
                 }
                 
-                // Inverter section
-                $configs_configs = preg_replace('/'.preg_quote('count = <count>', '/').'/', 'count = '.$inverter['count'], $configs_configs, 1);
+                $inverter_count = !empty($inverter['count']) ? $inverter['count'] : 1;
+                $configs_configs = preg_replace('/'.preg_quote('count = <count>', '/').'/', 'count = '.$inverter_count, $configs_configs, 1);
                 $configs_configs = str_replace('strings = <count>', 'strings = '.count($inverter_strings), $configs_configs);
-                
                 
                 // Modules section
                 //$modules_configs = str_replace(';type = <type>', 'type = '.$configs['type'], $configs_configs);
@@ -235,7 +261,7 @@ class SolarSystem {
                 $configs_count = $rows_count
                                * $rows_modules;
                 if (!empty($rows['stack'])) {
-                    $configs_count *= $rows['stack'];
+                    //$configs_count *= $rows['stack'];
                     
                     $configs_configs = str_replace(';stack = <count>', 'stack = '.$rows['stack'], $configs_configs);
                 }
@@ -284,6 +310,15 @@ class SolarSystem {
                     $this->delete_file($module_configs);
                     foreach ($module_json as $key=>$val) {
                         file_put_contents($module_configs, "$key = $val".PHP_EOL, FILE_APPEND);
+                    }
+                }
+                //if (substr($inverter['type'], 0, 6) !== 'custom') {
+                if (true) {
+                    $inverter_json = array("pdc0" => $inverter_power);
+                    $inverter_configs = $configs_dir."/inverter.cfg";
+                    $this->delete_file($inverter_configs);
+                    foreach ($inverter_json as $key=>$val) {
+                        file_put_contents($inverter_configs, "$key = $val".PHP_EOL, FILE_APPEND);
                     }
                 }
                 
@@ -436,6 +471,33 @@ class SolarSystem {
         }
     }
 
+    public function update_configs($system, $configs, $fields) {
+        $result = $this->configs->update($configs, $fields);
+        
+        $fields = json_decode(stripslashes($fields), true);
+        
+        if (isset($fields['count'])) {
+            $count = $fields['count'];
+            
+            if (empty($count) || !is_numeric($count) || $count < 1) {
+                throw new SolarException("The configuration count is invalid: $count");
+            }
+            if ($stmt = $this->mysqli->prepare("UPDATE solar_refs SET count = ? WHERE sysid = ? AND cfgid = ?")) {
+                $stmt->bind_param("iii", $count, $system['id'], $configs['id']);
+                if ($stmt->execute() === false) {
+                    $stmt->close();
+                    throw new SolarException("Error while update count of configuration#".$configs['id']);
+                }
+                $stmt->close();
+                $result['count'] = $count;
+            }
+            else {
+                throw new SolarException("Error while setting up database update");
+            }
+        }
+        return $result;
+    }
+
     public function get_configs($id) {
         $configs = array();
         
@@ -447,7 +509,7 @@ class SolarSystem {
                 'id'=>intval($cfgid),
                 'sysid'=>intval($id),
                 'order'=>intval($result['order']),
-                'count'=>intval($result['count'])
+                'count'=>isset($result['count']) ? intval($result['count']) : null
                 
             ), array_slice($config, 2));
             

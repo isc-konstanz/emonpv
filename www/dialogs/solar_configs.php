@@ -416,7 +416,8 @@
             <p><?php echo _('Are you sure you want to proceed?'); ?></p>
         </div>
         <p style="color: #999; margin: 10px 14px;">
-            <?php echo _('This is a placeholder to explain what happens when module configurations are being deleted.'); ?>
+            <?php echo _('Deleting a configuration variant will not remove any results, up until the project will be simulated again.'); ?><br>
+            <?php echo _('Make sure you saved all files you need.'); ?>
         </p>
         <div id="module-delete-loader" class="ajax-loader" style="display: none;"></div>
     </div>
