@@ -378,6 +378,30 @@ class SolarInverter {
         if (is_file($path)) {
             unlink($path);
         }
+        else if (is_dir($path)) {
+            $it = new RecursiveDirectoryIterator($path, RecursiveDirectoryIterator::SKIP_DOTS);
+            $files = new RecursiveIteratorIterator($it, RecursiveIteratorIterator::CHILD_FIRST);
+            $empty = true;
+            foreach($files as $file) {
+                if ($file->isWritable()) {
+                    if ($file->isDir()) {
+                        // TODO: Remove this when permissions are fixed
+                        if (iterator_count($it->getChildren()) === 0) {
+                            rmdir($file->getRealPath());
+                        }
+                    }
+                    else {
+                        unlink($file->getRealPath());
+                    }
+                }
+                else {
+                    $empty = false;
+                }
+            }
+            if ($empty) {
+                rmdir($path);
+            }
+        }
     }
 
 }
