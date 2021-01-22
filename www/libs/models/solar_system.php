@@ -209,15 +209,20 @@ class SolarSystem {
                 $inverter_strings[$configs['strid']][] = $configs['id'];
                 $configs_ids[] = intval($configs['id']);
                 
-                $rows = $configs['rows'];
-                $rows_count = $rows['count'];
-                $rows_modules = $rows['modules'];
-                
-                $configs_count = $rows_count
-                               * $rows_modules;
-                //if (!empty($rows['stack'])) {
-                //    $configs_count *= $rows['stack'];
-                //}
+                if (substr($inverter['type'], 0, 6) === 'custom') {
+                    continue;
+                }
+                if (!empty($configs['count'])) {
+                    $configs_count = $configs['count'];
+                }
+                else {
+                    $rows = $configs['rows'];
+                    $rows_count = $rows['count'];
+                    $rows_modules = $rows['modules'];
+                    
+                    $configs_count = $rows_count
+                                   * $rows_modules;
+                }
                 if (substr($configs['type'], 0, 6) !== 'custom') {
                     require_once("Modules/solar/libs/models/solar_module.php");
                     $module = new SolarModule($this->mysqli);
@@ -258,11 +263,14 @@ class SolarSystem {
                 $rows_count = $rows['count'];
                 $rows_modules = $rows['modules'];
                 
-                $configs_count = $rows_count
-                               * $rows_modules;
+                if (!empty($configs['count'])) {
+                    $configs_count = $configs['count'];
+                }
+                else {
+                    $configs_count = $rows_count
+                                   * $rows_modules;
+                }
                 if (!empty($rows['stack'])) {
-                    //$configs_count *= $rows['stack'];
-                    
                     $configs_configs = str_replace(';stack = <count>', 'stack = '.$rows['stack'], $configs_configs);
                 }
                 $configs_configs = str_replace('pitch = <pitch>', 'pitch = '.$rows['pitch'], $configs_configs);
@@ -299,27 +307,32 @@ class SolarSystem {
                 file_put_contents($configs_file, $configs_configs);
                 
                 $configs_dir = $system_dir."/conf/configs$order.d";
+                $configs_module = $configs_dir."/module.cfg";
+                $configs_inverter = $configs_dir."/inverter.cfg";
                 if (!file_exists($configs_dir)) {
                     mkdir($configs_dir);
                 }
                 if (substr($configs['type'], 0, 6) !== 'custom') {
                     require_once("Modules/solar/libs/models/solar_module.php");
                     $module = new SolarModule($this->mysqli);
-                    $module_json = $module->get($configs['type']);
-                    $module_configs = $configs_dir."/module.cfg";
-                    $this->delete_file($module_configs);
-                    foreach ($module_json as $key=>$val) {
-                        file_put_contents($module_configs, "$key = $val".PHP_EOL, FILE_APPEND);
+                    $module_parameters = $module->get($configs['type']);
+                    $this->delete_file($configs_module);
+                    foreach ($module_parameters as $key=>$val) {
+                        file_put_contents($configs_module, "$key = $val".PHP_EOL, FILE_APPEND);
                     }
                 }
-                //if (substr($inverter['type'], 0, 6) !== 'custom') {
-                if (true) {
-                    $inverter_json = array("pdc0" => $inverter_power);
-                    $inverter_configs = $configs_dir."/inverter.cfg";
-                    $this->delete_file($inverter_configs);
-                    foreach ($inverter_json as $key=>$val) {
-                        file_put_contents($inverter_configs, "$key = $val".PHP_EOL, FILE_APPEND);
-                    }
+                if (substr($inverter['type'], 0, 6) !== 'custom') {
+                    $inverter_parameters = array(
+                            "Name" => 'Custom',
+                            "pdc0" => $inverter_power
+                    );
+                }
+                else {
+                    $inverter_parameters = $this->inverter->get_parameters($inverter);
+                }
+                $this->delete_file($configs_inverter);
+                foreach ($inverter_parameters as $key=>$val) {
+                    file_put_contents($configs_inverter, "$key = $val".PHP_EOL, FILE_APPEND);
                 }
                 
                 $model_file = $configs_dir."/model.cfg";
@@ -406,23 +419,22 @@ class SolarSystem {
             'invid'=>intval($inverter['id']),
             'strid'=>intval($string),
             'order'=>intval($order),
-            'count'=>1
+            'count'=>null
             
         ), array_slice($configs, 2));
     }
 
     public function remove_configs($system, $cfgid) {
-        $system_name = str_replace(' ', '_', $system['name']);
         $system_dir = $this->get_system_dir($system);
         
         $results = $this->mysqli->query("SELECT `order` FROM solar_refs WHERE `sysid` = '".$system['id']."' AND `cfgid` = '".$cfgid."'");
         while ($result = $results->fetch_array()) {
             $order = $result['order'];
             $this->mysqli->query("DELETE FROM solar_refs WHERE `sysid` = '".$system['id']."' AND `cfgid` = '".$cfgid."'");
-            $this->delete_file("$system_dir/results/results_$order.csv");
-            $this->delete_file("$system_dir/results/results.csv");
-            $this->delete_file("$system_dir/results.csv");
-            $this->delete_file("$system_dir/results.csv");
+//             $this->delete_file("$system_dir/results/results_$order.csv");
+//             $this->delete_file("$system_dir/results/results.csv");
+//             $this->delete_file("$system_dir/results.csv");
+//             $this->delete_file("$system_dir/results.xlsx");
             $this->delete_file("$system_dir/conf/configs$order.cfg");
             $this->delete_file("$system_dir/conf/configs$order.d");
             
@@ -689,12 +701,14 @@ class SolarSystem {
         $it = new RecursiveDirectoryIterator($system_dir, RecursiveDirectoryIterator::SKIP_DOTS);
         $files = new RecursiveIteratorIterator($it, RecursiveIteratorIterator::CHILD_FIRST);
         foreach ($files as $file) {
-            $path = str_replace('\\', '/', $file->getRealPath());
-            if ($file->isDir()) {
-                $zip->addEmptyDir(str_replace($system_dir.'/', '', $path).'/');
+            $path_real = str_replace('\\', '/', $file->getRealPath());
+            $path = str_replace($system_dir.'/', '', $path_real);
+            if ($file->isDir() && substr(basename($path), 0, 1) !== ".") {
+                $zip->addEmptyDir($path.'/');
             }
-            else if (pathinfo($path, PATHINFO_EXTENSION) != 'zip') {
-                $zip->addFromString(str_replace($system_dir.'/', '', $path), file_get_contents($path));
+            else if (pathinfo($path_real, PATHINFO_EXTENSION) != 'zip' && 
+                    substr(dirname(basename($path)), 0, 1) !== ".") {
+                $zip->addFromString($path, file_get_contents($path_real));
             }
         }
         $zip->close();

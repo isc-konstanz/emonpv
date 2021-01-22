@@ -114,25 +114,32 @@ class SolarModule {
     }
 
     private function get_parameter_dirs($configs) {
-        $user_id = $configs['userid'];
-        $user_dir = SolarSystem::get_user_dir($user_id);
         $dirs = array();
         
         if (isset($configs['sysid'])) {
-            $dirs[] = $this->get_parameter_dir($configs, $user_dir);
+            $dirs[] = $this->get_parameter_dir($configs);
         }
         else {
             $results = $this->mysqli->query("SELECT * FROM solar_refs WHERE `cfgid` = '".$configs['id']."' ORDER BY `order` ASC");
             while ($result = $results->fetch_array()) {
-                $dirs[] = $this->get_parameter_dir($result, $user_dir);
+                $dirs[] = $this->get_parameter_dir($result);
             }
         }
         return $dirs;
     }
 
-    private function get_parameter_dir($configs, $user_dir) {
-        $system = array('id' => intval($configs['sysid']));
-        $system_dir = SolarSystem::get_system_dir($system, $user_dir);
+    private function get_parameter_dir($configs) {
+        if (isset($configs['userid'])) {
+            $system = array(
+                'id' => intval($configs['sysid']),
+                'userid' => intval($configs['userid'])
+            );
+        }
+        else {
+            $results = $this->mysqli->query("SELECT id, userid FROM solar_system WHERE id = '".$configs['sysid']."'");
+            $system = $results->fetch_array();
+        }
+        $system_dir = SolarSystem::get_system_dir($system);
         
         return $system_dir."/conf/configs".intval($configs['order']).".d";
     }

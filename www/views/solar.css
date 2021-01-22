@@ -364,6 +364,7 @@
     margin-top: 10px;
     margin-left: -40px;
 }
+.inverter-item:nth-child(1):before,
 .inverter-item.modules:nth-child(1):before,
 .inverter-item.modules:nth-child(2):before {
     border-bottom: 3px solid #545454;

@@ -51,8 +51,9 @@ var solar = {
     },
 
     inverter: {
-        create:function(system, callback) {
-            return solar.post(callback, "solar/inverter/create.json", "sysid="+system.id);
+        create:function(system, count, model, callback) {
+            return solar.post(callback, "solar/inverter/create.json", "sysid="+system.id+"&count="+count+
+                    "&model="+JSON.stringify(model));
         },
         count:function(id, count, callback) {
             return solar.put(callback, "solar/inverter/update.json?id="+id+

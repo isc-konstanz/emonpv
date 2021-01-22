@@ -277,7 +277,7 @@ class SolarConfigs {
     public function get($id) {
         $id = intval($id);
         if (!$this->exist($id)) {
-            throw new SolarException("Configuratiuons for id $id do not exist");
+            throw new SolarException("Configurations for id $id do not exist");
         }
         $result = $this->mysqli->query("SELECT * FROM solar_configs WHERE id = '$id'");
         $configs = $result->fetch_array();
@@ -385,12 +385,6 @@ class SolarConfigs {
         $this->update_losses($configs, $fields);
         $this->update_module($configs, $fields);
         
-        if (isset($fields['type'])) {
-            if ($fields['type'] !== 'custom') {
-                $this->update_losses($configs, array('losses' => false));
-            }
-            $this->update_string($configs['id'], 'configs', $fields, 'type');
-        }
         return $this->get($configs['id']);
     }
 
@@ -485,20 +479,19 @@ class SolarConfigs {
 
     private function update_module($configs, $fields) {
         if (!empty($fields['type'])) {
-            if (substr($configs['type'], 0, 6) === "custom") {
-                $this->update_database($configs['id'], 'configs', 'type', $fields['type'], 's');
-                
+            if (substr($fields['type'], 0, 6) !== "custom") {
                 if (substr($configs['type'], 0, 6) === "custom") {
                     $this->update_losses($configs, array('losses' => false));
                     $module->delete_parameters($configs);
                 }
+                $this->update_string($configs['id'], 'configs', $fields, 'type');
                 return;
             }
             else {
                 if (empty($fields['module'])) {
                     throw new SolarException("The module configuration is invalid");
                 }
-                $this->update_database($configs['id'], 'configs', 'type', 'custom', 's');
+                $this->update_string($configs['id'], 'configs', $fields, 'type');
             }
         }
         if (!isset($fields['module'])) {

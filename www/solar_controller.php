@@ -110,6 +110,18 @@ function system_controller(SolarSystem $system) {
 function inverter_controller(SolarSystem $system) {
     global $session, $route;
     
+    $sysid = prop('sysid');
+    if (!empty($sysid)) {
+        $sys = $system->get($sysid);
+        if ($sys['userid'] != $session['userid']) {
+            return array('success'=>false, 'message'=>'Invalid permissions to access this system');
+        }
+        
+        if ($route->subaction == "create" && $session['write']) {
+            return $system->inverter->create($sys['id'], prop('count'), prop('model'));
+        }
+    }
+    
     $id = prop('id');
     if (!empty($id)) {
         $inv = $system->inverter->get($id);
@@ -123,9 +135,6 @@ function inverter_controller(SolarSystem $system) {
             }
         }
         if ($session['write']) {
-            if ($route->subaction == "create") {
-                return $system->inverter->create($sys['id']);
-            }
             if ($route->subaction == "update") {
                 return $system->inverter->update($inv, prop('fields'));
             }

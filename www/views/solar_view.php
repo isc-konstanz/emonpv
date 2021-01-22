@@ -67,7 +67,7 @@ foreach ($svgs as $svg) {
                                        :value="getCount(inverter)" v-on:input="setCount($event, inverter, 'inverter')"></input>
                             </div>
                             <div></div>
-                            <div class="clipart" title="<?php echo _("Edit inverter"); ?>" @click="!hasConfigs(inverter) ? solar_inverter.openConfig(system, inverter.id) : null" :disabled="hasConfigs(inverter) ? 'disabled' : null">
+                            <div class="clipart" title="<?php echo _("Edit inverter"); ?>" @click="solar_inverter.openConfig(system, inverter.id)">
                                 <img src="<?php echo $path; ?>Modules/solar/images/inverter-mono.png"></img>
                             </div>
                             <div class="inverter-body">
@@ -87,7 +87,7 @@ foreach ($svgs as $svg) {
                                             </svg>
                                         </div>
                             			<div class="action" v-else></div>
-                                        <div class="action" disabled>
+                                        <div class="action" @click="solar_configs.copyConfig(inverter, configs.id)">
                                             <svg class="icon icon-action">
                                                 <title><?php echo _("Duplicate configurations"); ?></title>
                                                 <use xlink:href="#icon-content_copy" />

@@ -134,7 +134,7 @@
                         </div>
                         <div>
                             <div><input id="module-loss-constant" class="input-small" type="number" step=any placeholder="31" /></div>
-                            <div><input id="module-loss-wind" class="input-small" type="number" step=any placeholder="1" /></div>
+                            <div><input id="module-loss-wind" class="input-small" type="number" step=any placeholder="0" /></div>
                         </div>
                     </div>
                 </div>

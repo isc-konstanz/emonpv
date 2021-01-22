@@ -47,19 +47,28 @@ class SolarInverter {
         return false;
     }
 
-    public function create($sysid, $type=null) {
+    public function create($sysid, $count=null, $model=null) {
         $sysid = intval($sysid);
         
-        if (!empty($type)) {
-            $type = preg_replace('/[^\/\|\,\w\s\-\:]/','', $type);
-            // TODO: check if inverter exists
+        if (!empty($model)) {
+            $model = json_decode(stripslashes($model), true);
         }
-        else {
+        if (empty($model)) {
             $type = null;
         }
+        else if (!is_string($model)) {
+            $type = 'custom';
+        }
+        else {
+            $type = preg_replace('/[^\/\|\,\w\s\-\:]/','', $model);
+            // TODO: check if module exists
+        }
+        if (isset($count) && !is_numeric($count)) {
+            throw new SolarException("The inverter count is invalid");
+        }
         
-        $stmt = $this->mysqli->prepare("INSERT INTO solar_inverter (sysid,type) VALUES (?,?)");
-        $stmt->bind_param("is",$sysid,$type);
+        $stmt = $this->mysqli->prepare("INSERT INTO solar_inverter (sysid,count,type) VALUES (?,?,?)");
+        $stmt->bind_param("iis",$sysid,$count,$type);
         $stmt->execute();
         $stmt->close();
         
@@ -71,10 +80,13 @@ class SolarInverter {
             'id' => $id,
             'sysid' => $sysid,
             'type' => $type,
-            'count' => 1
+            'count' => $count
         );
         if ($this->redis) {
             $this->add_redis($inverter);
+        }
+        if (substr($type, 0, 6) === 'custom') {
+            $this->write_parameters($inverter, $model);
         }
         return $this->parse($inverter);
     }
@@ -170,45 +182,107 @@ class SolarInverter {
         $this->redis->hMSet("solar:inverter#".$inverter['id'], $inverter);
     }
 
-    private function parse($inverter, $configs=array()) {
-        if ($configs == null) {
-            $configs = $this->get_configs($inverter['id']);
-        }
-        return array(
-            'id' => intval($inverter['id']),
-            'sysid' => intval($inverter['sysid']),
-            'count' => isset($inverter['count']) ? intval($inverter['count']) : null,
-            'type' => strval($inverter['type']),
-            'configs' => $configs
+    private function parse($result, $configs=array()) {
+        $inverter = array(
+                'id' => intval($result['id']),
+                'sysid' => intval($result['sysid']),
+                'count' => isset($result['count']) ? intval($result['count']) : null,
+                'type' => $result['type']
         );
+        if (!empty($result['type']) && 
+                substr($inverter['type'], 0, 6) === 'custom') {
+            $inverter['model'] = $this->get_parameters($inverter);
+        }
+        if ($configs == null) {
+            $configs = $this->get_configs($result['id']);
+        }
+        $inverter['configs'] = $configs;
+        
+        return $inverter;
     }
 
     public function update($inverter, $fields) {
         $fields = json_decode(stripslashes($fields), true);
         
-        if (isset($fields['count'])) {
-            $count = $fields['count'];
-            
-            if (empty($count) || !is_numeric($count) || $count < 1) {
-                throw new SolarException("The inverter count is invalid: $count");
-            }
-            if ($stmt = $this->mysqli->prepare("UPDATE solar_inverter SET count = ? WHERE id = ?")) {
-                $stmt->bind_param("ii", $count, $inverter['id']);
-                if ($stmt->execute() === false) {
-                    $stmt->close();
-                    throw new SolarException("Error while update count of inverter#".$inverter['id']);
+        $this->update_integer($inverter['id'], 'inverter', $fields, 'count', 1, PHP_INT_MAX);
+        
+        $this->update_module($inverter, $fields);
+        $this->update_string($inverter['id'], 'inverter', $fields, 'type');
+        
+        return $this->get($inverter['id']);
+    }
+
+    private function update_module($inverter, $fields) {
+        if (!empty($fields['type'])) {
+            if (substr($fields['type'], 0, 6) !== "custom") {
+                if (substr($inverter['type'], 0, 6) === "custom") {
+                    $this->delete_parameters($inverter);
                 }
-                $stmt->close();
-                
-                if ($this->redis) {
-                    $this->redis->hset("solar:inverter#".$inverter['id'], 'count', $count);
-                }
+                $this->update_string($inverter['id'], 'configs', $fields, 'type');
+                return;
             }
             else {
-                throw new SolarException("Error while setting up database update");
+                if (empty($fields['model'])) {
+                    throw new SolarException("The model configuration is invalid");
+                }
+                $this->update_string($inverter['id'], 'inverter', $fields, 'type');
             }
         }
-        return array('success'=>true, 'message'=>'Inverter successfully updated');
+        if (!isset($fields['model'])) {
+            return;
+        }
+        
+        $params = $this->get_parameters($inverter);
+        foreach ($fields['model'] as $key=>$val) {
+            $params[$key] = $val;
+        }
+        $this->write_parameters($inverter, $params);
+    }
+
+    private function update_integer($id, $database, $fields, $field, $min, $max) {
+        $this->update_number($id, $database, $fields, $field, $min, $max, 'i');
+    }
+
+    private function update_number($id, $database, $fields, $field, $min, $max, $type) {
+        if (!array_key_exists($field, $fields)) {
+            return;
+        }
+        $value = $fields[$field];
+        
+        if ($value && (!is_numeric($value) || $value < $min || $value > $max)) {
+            throw new SolarException("The configs $field is invalid: $value");
+        }
+        $this->update_database($id, $database, $field, $value, $type);
+    }
+
+    private function update_string($id, $database, $fields, $field, $json=false) {
+        if (!array_key_exists($field, $fields)) {
+            return;
+        }
+        $value = $fields[$field];
+        
+        if ($json) {
+            $value = json_encode($value);
+        }
+        $this->update_database($id, $database, $field, $value, 's');
+    }
+
+    private function update_database($id, $database, $field, $value, $type) {
+        if ($stmt = $this->mysqli->prepare("UPDATE solar_$database SET $field = ? WHERE id = ?")) {
+            $stmt->bind_param($type."i", $value, $id);
+            if ($stmt->execute() === false) {
+                $stmt->close();
+                throw new SolarException("Error while update $field of configs#$id");
+            }
+            $stmt->close();
+            
+            if ($this->redis) {
+                $this->redis->hset("solar:inverter#$id", $field, $count);
+            }
+        }
+        else {
+            throw new SolarException("Error while setting up database update");
+        }
     }
 
     public function delete($inverter, $force_delete=false) {
@@ -216,11 +290,8 @@ class SolarInverter {
         if ($result->num_rows <= 1 && !$force_delete) {
             return array('success'=>false, 'message'=>'Unable to delete last inverter of system.');
         }
-        // TODO: verify if configs are not used of any system
-        foreach ($this->get_configs($inverter['id']) as $configs) {
-            $this->configs->delete($configs['id']);
-        }
-        $this->mysqli->query("DELETE FROM solar_inverter_configs WHERE `invid` = '".$inverter['id']."'");
+        $this->delete_parameters($inverter);
+        $this->delete_configs($inverter);
         
         $this->mysqli->query("DELETE FROM solar_inverter WHERE `id` = '".$inverter['id']."'");
         if ($this->redis) {
@@ -229,69 +300,75 @@ class SolarInverter {
         return array('success'=>true, 'message'=>'Inverter successfully deleted');
     }
 
+    private function delete_configs($inverter) {
+        $results = $this->mysqli->query("SELECT id, userid FROM solar_system WHERE id = '".$inverter['sysid']."'");
+        $system = $results->fetch_array();
+        $system_dir = SolarSystem::get_system_dir($system);
+        
+        $results = $this->mysqli->query("SELECT * FROM solar_refs WHERE `invid` = '".$inverter['id']."' ORDER BY `order` ASC");
+        while ($result = $results->fetch_array()) {
+            $order = $result['order'];
+            $this->delete_file("$system_dir/results/results_$order.csv");
+            $this->delete_file("$system_dir/conf/configs$order.cfg");
+            $this->delete_file("$system_dir/conf/configs$order.d");
+        }
+        $this->delete_file("$system_dir/results/results.csv");
+        $this->delete_file("$system_dir/results.csv");
+        $this->delete_file("$system_dir/results.xlsx");
+        $this->mysqli->query("DELETE FROM solar_refs WHERE `invid` = '".$inverter['id']."'");
+    }
+
     private function delete_redis($id) {
         $sysid = $this->redis->hget("solar:inverter#$id",'sysid');
         $this->redis->del("solar:inverter#$id");
         $this->redis->srem("solar:system#$sysid:inverters", $id);
     }
 
-    public function get_parameters($configs) {
+    public function get_parameters($inverter) {
         $parameters = array();
-        foreach ($this->get_parameter_dirs($configs) as $dir) {
-            $file = $dir."/inverter.cfg";
-            if (file_exists($file)) {
-                $parameter_file = parse_ini_file($file, false, INI_SCANNER_TYPED);
-                foreach ($parameter_file as $key => $value) {
-                    $parameters[$key] = $value;
-                }
+        $parameters_file = $this->get_parameter_file($inverter);
+        if (file_exists($parameters_file)) {
+            $parameters_data = parse_ini_file($parameters_file, false, INI_SCANNER_TYPED);
+            foreach ($parameters_data as $key => $value) {
+                $parameters[$key] = $value;
             }
         }
         return $parameters;
     }
 
-    public function write_parameters($configs, $parameters) {
-        foreach ($this->get_parameter_dirs($configs) as $dir) {
-            if (!file_exists($dir)) {
-                mkdir($dir, 0755, true);
-            }
-            $file = $dir."/inverter.cfg";
-            $this->delete_file($file);
-            foreach ($parameters as $key=>$val) {
-                if ($val !== '') {
-                    file_put_contents($file, "$key = $val".PHP_EOL, FILE_APPEND);
-                }
+    public function write_parameters($inverter, $parameters=array()) {
+        $dir = $this->get_parameter_dir($inverter);
+        if (!file_exists($dir)) {
+            mkdir($dir, 0755, true);
+        }
+        $file = $this->get_parameter_file($inverter, $dir);
+        $this->delete_file($file);
+        foreach ($parameters as $key=>$val) {
+            if ($val !== '') {
+                file_put_contents($file, "$key = $val".PHP_EOL, FILE_APPEND);
             }
         }
     }
 
-    public function delete_parameters($configs) {
-        foreach ($this->get_parameter_dirs($configs) as $dir) {
-            $this->delete_file($dir."/inverter.cfg");
-        }
+    public function delete_parameters($inverter) {
+        $this->delete_file($this->get_parameter_file($inverter));
     }
 
-    private function get_parameter_dirs($configs) {
-        $user_id = $configs['userid'];
-        $user_dir = SolarSystem::get_user_dir($user_id);
-        $dirs = array();
+    private function get_parameter_file($inverter, $dir=null) {
+        if ($dir == null) {
+            $dir = $this->get_parameter_dir($inverter);
+        }
+        $id = $inverter['id'];
         
-        if (isset($configs['sysid'])) {
-            $dirs[] = $this->get_parameter_dir($configs, $user_dir);
-        }
-        else {
-            $results = $this->mysqli->query("SELECT * FROM solar_refs WHERE `cfgid` = '".$configs['id']."' ORDER BY `order` ASC");
-            while ($result = $results->fetch_array()) {
-                $dirs[] = $this->get_parameter_dir($result, $user_dir);
-            }
-        }
-        return $dirs;
+        return "$dir/inverter$id.cfg";
     }
 
-    private function get_parameter_dir($configs, $user_dir) {
-        $system = array('id' => intval($configs['sysid']));
-        $system_dir = SolarSystem::get_system_dir($system, $user_dir);
+    private function get_parameter_dir($inverter) {
+        $results = $this->mysqli->query("SELECT id, userid FROM solar_system WHERE id = '".$inverter['sysid']."'");
+        $system = $results->fetch_array();
+        $system_dir = SolarSystem::get_system_dir($system);
         
-        return $system_dir."/conf/configs".intval($configs['order']).".d";
+        return "$system_dir/conf/.inv";
     }
 
     private function delete_file($path) {

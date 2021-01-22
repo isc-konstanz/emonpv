@@ -12,6 +12,16 @@ var solar_configs = {
         solar_configs.adjustConfig();
     },
 
+    copyConfig: function(inverter, id) {
+        var configs = inverter.configs[id];
+        
+        solar_configs.id = null;
+        solar_configs.type = configs.type;
+        solar_configs.inverter = inverter;
+        solar_configs.drawConfig(configs);
+        solar_configs.adjustConfig();
+    },
+
     openConfig: function(inverter, id) {
         var configs = inverter.configs[id];
         
@@ -24,10 +34,18 @@ var solar_configs = {
 
     drawConfig: function(configs = null) {
         var modal = $("#module-config-modal").modal('show');
-        if (configs == null) {
+        
+        if (solar_configs.id == null) {
             $('#module-config-label').html('Create configurations');
             $('#module-config-delete').hide();
             $('#module-config-save').html('Create').prop('disabled', true);
+        }
+        else {
+            $('#module-config-label').html('Configurations');
+            $('#module-config-delete').show();
+            $('#module-config-save').html('Save').prop('disabled', false);
+        }
+        if (configs == null) {
             $('#module-config').addClass('sidebar');
             
             $('#module-rows').val('');
@@ -63,9 +81,6 @@ var solar_configs = {
             $('#module-model-menu').data('toggle', 'none').html('<use xlink:href="#icon-checkmark" />');
         }
         else {
-            $('#module-config-label').html('Configurations');
-            $('#module-config-delete').show();
-            $('#module-config-save').html('Save').prop('disabled', false);
             $('#module-config').removeClass('sidebar');
             
             var tracking = configs.tracking !== false;
@@ -130,6 +145,7 @@ var solar_configs = {
             $('#module-orientation').val(configs.orientation.toUpperCase());
         }
         solar_configs.drawModule(configs);
+        solar_configs.verifyConfig();
         
         $('#module-tracking-tooltip').tooltip({html:true, container:modal});
         $('#module-mounting-tooltip').tooltip({html:true, container:modal});
@@ -263,7 +279,6 @@ var solar_configs = {
             $('#module-model-menu').data('toggle', 'none').html('<use xlink:href="#icon-checkmark" />');
         }
         else {
-            // TODO: Check if type is valid or if is advanced mode
             if (configs.type != null && configs.type !== 'custom') {
                 $('#module-advanced-mode input').prop('checked', false);
                 
@@ -273,6 +288,7 @@ var solar_configs = {
                 $('#module-param-settings').addClass('in').height('auto');
                 solar_configs.showSidebar();
                 
+                // TODO: Check if type is valid
                 var module = modules[configs.type.split('/')[0]][configs.type];
                 $('#module-model-type').text(module.Name);
                 $('#module-model-description').text(module.Description);
