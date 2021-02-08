@@ -938,7 +938,10 @@ class SolarSystem {
         if ($this->redis) {
             $this->delete_redis($system['id']);
         }
-        $this->delete_file($this->get_system_dir($system));
+        $system_dir = $this->get_system_dir($system);
+        
+        $this->delete_file($system_dir."/.inv");
+        $this->delete_file($system_dir);
         
         return array('success'=>true, 'message'=>'System successfully deleted');
     }
