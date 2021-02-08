@@ -186,7 +186,7 @@ class SolarInverter {
         $inverter = array(
                 'id' => intval($result['id']),
                 'sysid' => intval($result['sysid']),
-                'count' => isset($result['count']) ? intval($result['count']) : null,
+                'count' => !empty($result['count']) ? intval($result['count']) : null,
                 'type' => $result['type']
         );
         if (!empty($result['type']) && 
@@ -277,7 +277,7 @@ class SolarInverter {
             $stmt->close();
             
             if ($this->redis) {
-                $this->redis->hset("solar:inverter#$id", $field, $count);
+                $this->redis->hset("solar:inverter#$id", $field, $value);
             }
         }
         else {
