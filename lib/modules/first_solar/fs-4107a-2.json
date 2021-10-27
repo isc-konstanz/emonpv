@@ -1,1 +1,0 @@
-{"Date":"12/23/2014","Version":"NRELv1","Technology":"CdTe","BIPV":"N","A_c":0.72,"N_s":216.0,"T_NOCT":47.0,"I_sc_ref":1.75,"V_oc_ref":86.6,"I_mp_ref":1.57,"V_mp_ref":68.6,"alpha_sc":0.000753,"beta_oc":-0.23209000000000002,"a_ref":3.0894,"I_L_ref":1.765,"I_o_ref":1.09e-12,"R_s":5.431,"R_sh_ref":650.14,"Adjust":-2.161,"PTC":99.7,"pdc0":107.5,"gamma_pdc":-0.00312,"gamma_r":-0.312}

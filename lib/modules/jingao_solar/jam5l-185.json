@@ -1,1 +1,0 @@
-{"Date":"10/23/2009","Version":"MM106","Technology":"Mono-c-Si","BIPV":"N","A_c":1.28,"N_s":72.0,"T_NOCT":47.0,"I_sc_ref":5.31,"V_oc_ref":43.4,"I_mp_ref":5.2,"V_mp_ref":35.6,"alpha_sc":0.002023,"beta_oc":-0.16601,"a_ref":1.9345,"I_L_ref":5.501,"I_o_ref":9.94e-10,"R_s":0.419,"R_sh_ref":100000.0,"Adjust":7.8,"PTC":162.5,"pdc0":185.0,"gamma_pdc":-0.00522,"gamma_r":-0.522}
